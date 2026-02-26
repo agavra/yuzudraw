@@ -83,6 +83,7 @@ struct Document: Codable, Equatable, Sendable {
 
     /// Hit-test in reverse render order (top layer first, last shape first).
     func hitTest(at point: GridPoint) -> AnyShape? {
+        // First, strict geometry hit-testing.
         for layer in layers.reversed() {
             guard layer.isVisible else { continue }
             for shape in layer.shapes.reversed() {
@@ -91,6 +92,18 @@ struct Document: Codable, Equatable, Sendable {
                 }
             }
         }
+
+        // Then, allow a small proximity pick radius for arrows to make selecting thin lines easier.
+        for layer in layers.reversed() {
+            guard layer.isVisible else { continue }
+            for shape in layer.shapes.reversed() {
+                guard case .arrow(let arrow) = shape else { continue }
+                if isNearArrow(arrow, point: point, tolerance: 1.0) {
+                    return shape
+                }
+            }
+        }
+
         return nil
     }
 
@@ -132,5 +145,35 @@ struct Document: Codable, Equatable, Sendable {
                 shape.render(into: &canvas)
             }
         }
+    }
+
+    private func isNearArrow(_ arrow: ArrowShape, point: GridPoint, tolerance: Double) -> Bool {
+        for segment in arrow.pathSegments() {
+            if pointToSegmentDistance(point, segment: segment) <= tolerance {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func pointToSegmentDistance(_ point: GridPoint, segment: ArrowSegment) -> Double {
+        let px = Double(point.column)
+        let py = Double(point.row)
+        let x1 = Double(segment.from.column)
+        let y1 = Double(segment.from.row)
+        let x2 = Double(segment.to.column)
+        let y2 = Double(segment.to.row)
+
+        if x1 == x2 {
+            let clampedY = min(max(py, min(y1, y2)), max(y1, y2))
+            return hypot(px - x1, py - clampedY)
+        }
+
+        if y1 == y2 {
+            let clampedX = min(max(px, min(x1, x2)), max(x1, x2))
+            return hypot(px - clampedX, py - y1)
+        }
+
+        return .greatestFiniteMagnitude
     }
 }

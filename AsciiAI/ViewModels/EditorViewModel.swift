@@ -13,6 +13,7 @@ final class EditorViewModel {
     var textEditPoint: GridPoint?
     var textEditContent: String = ""
     var viewportSize: CGSize = .zero
+    var hoverGridPoint: GridPoint?
 
     private var selectionTool = SelectionTool()
     private var boxTool = BoxTool()
@@ -25,6 +26,27 @@ final class EditorViewModel {
         case .box: return boxTool
         case .arrow: return arrowTool
         case .text: return textTool
+        }
+    }
+
+    var arrowAttachmentPreviewPoints: [GridPoint] {
+        switch activeToolType {
+        case .arrow:
+            return arrowTool.attachmentPreviewPoints(in: document)
+        case .select:
+            return selectionTool.arrowAttachmentPreviewPoints
+        case .box, .text:
+            return []
+        }
+    }
+
+    var isHoveringArrowAttachmentPoint: Bool {
+        guard activeToolType == .arrow, let hoverGridPoint else { return false }
+        return arrowAttachmentPreviewPoints.contains { previewPoint in
+            hypot(
+                Double(previewPoint.column - hoverGridPoint.column),
+                Double(previewPoint.row - hoverGridPoint.row)
+            ) <= 0.5
         }
     }
 
@@ -53,6 +75,10 @@ final class EditorViewModel {
         let action = activeTool.mouseUp(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
+    }
+
+    func updateHoverGridPoint(_ point: GridPoint?) {
+        hoverGridPoint = point
     }
 
     // MARK: - Grid coordinate conversion
@@ -87,7 +113,7 @@ final class EditorViewModel {
             textEditPoint = point
             textEditContent = ""
         case .updateShape(let shape):
-            document.updateShape(shape)
+            updateShapeAndAttachments(shape)
             rerender()
         }
     }
@@ -129,7 +155,7 @@ final class EditorViewModel {
             case .box(var box) = shape
         else { return }
         box.label = label
-        document.updateShape(.box(box))
+        updateShapeAndAttachments(.box(box))
         rerender()
     }
 
@@ -138,7 +164,7 @@ final class EditorViewModel {
             case .box(var box) = shape
         else { return }
         box.borderStyle = style
-        document.updateShape(.box(box))
+        updateShapeAndAttachments(.box(box))
         rerender()
     }
 
@@ -147,7 +173,7 @@ final class EditorViewModel {
             case .box(var box) = shape
         else { return }
         box.origin = GridPoint(column: column, row: row)
-        document.updateShape(.box(box))
+        updateShapeAndAttachments(.box(box))
         rerender()
     }
 
@@ -156,7 +182,7 @@ final class EditorViewModel {
             case .box(var box) = shape
         else { return }
         box.size = GridSize(width: width, height: height)
-        document.updateShape(.box(box))
+        updateShapeAndAttachments(.box(box))
         rerender()
     }
 
@@ -171,6 +197,7 @@ final class EditorViewModel {
 
     func deleteSelectedShapes() {
         for id in selectedShapeIDs {
+            detachArrows(referencing: id)
             document.removeShape(id: id)
         }
         selectedShapeIDs = []
@@ -253,5 +280,134 @@ final class EditorViewModel {
     func setBorderStyle(_ style: BorderStyle) {
         activeBorderStyle = style
         boxTool.borderStyle = style
+    }
+
+    // MARK: - Arrow attachments
+
+    private func updateShapeAndAttachments(_ shape: AnyShape) {
+        document.updateShape(shape)
+
+        if case .box(let box) = shape {
+            rerouteAttachedArrows(for: box.id)
+        }
+    }
+
+    private func detachArrows(referencing shapeID: UUID) {
+        for layerIndex in document.layers.indices {
+            for shapeIndex in document.layers[layerIndex].shapes.indices {
+                guard case .arrow(var arrow) = document.layers[layerIndex].shapes[shapeIndex] else {
+                    continue
+                }
+
+                var mutated = false
+                if arrow.startAttachment?.shapeID == shapeID {
+                    arrow.startAttachment = nil
+                    mutated = true
+                }
+                if arrow.endAttachment?.shapeID == shapeID {
+                    arrow.endAttachment = nil
+                    mutated = true
+                }
+                if mutated {
+                    document.layers[layerIndex].shapes[shapeIndex] = .arrow(arrow)
+                }
+            }
+        }
+    }
+
+    private func rerouteAttachedArrows(for shapeID: UUID) {
+        for layerIndex in document.layers.indices {
+            for shapeIndex in document.layers[layerIndex].shapes.indices {
+                guard case .arrow(var arrow) = document.layers[layerIndex].shapes[shapeIndex] else {
+                    continue
+                }
+
+                let referencesShape =
+                    arrow.startAttachment?.shapeID == shapeID
+                    || arrow.endAttachment?.shapeID == shapeID
+                guard referencesShape else { continue }
+
+                let startResolved = resolveAttachment(arrow.startAttachment)
+                let endResolved = resolveAttachment(arrow.endAttachment)
+
+                if let startResolved {
+                    arrow.start = startResolved.point
+                } else if arrow.startAttachment != nil {
+                    arrow.startAttachment = nil
+                }
+
+                if let endResolved {
+                    arrow.end = endResolved.point
+                } else if arrow.endAttachment != nil {
+                    arrow.endAttachment = nil
+                }
+
+                arrow.bendDirection = preferredBendDirection(
+                    start: arrow.start,
+                    end: arrow.end,
+                    startSide: startResolved?.side ?? arrow.startAttachment?.side,
+                    endSide: endResolved?.side ?? arrow.endAttachment?.side
+                )
+
+                document.layers[layerIndex].shapes[shapeIndex] = .arrow(arrow)
+            }
+        }
+    }
+
+    private func resolveAttachment(_ attachment: ArrowAttachment?) -> (point: GridPoint, side: ArrowAttachmentSide)? {
+        guard let attachment else { return nil }
+        guard let shape = document.findShape(id: attachment.shapeID),
+            case .box(let box) = shape
+        else {
+            return nil
+        }
+
+        return (box.attachmentPoint(for: attachment.side), attachment.side)
+    }
+
+    private func preferredBendDirection(
+        start: GridPoint,
+        end: GridPoint,
+        startSide: ArrowAttachmentSide?,
+        endSide: ArrowAttachmentSide?
+    ) -> ArrowBendDirection {
+        let midpoint = GridPoint(
+            column: (start.column + end.column) / 2,
+            row: (start.row + end.row) / 2
+        )
+        let horizontalCorner = GridPoint(column: end.column, row: start.row)
+        let verticalCorner = GridPoint(column: start.column, row: end.row)
+
+        let horizontalScore =
+            abs(horizontalCorner.column - midpoint.column)
+            + abs(horizontalCorner.row - midpoint.row)
+        let verticalScore =
+            abs(verticalCorner.column - midpoint.column)
+            + abs(verticalCorner.row - midpoint.row)
+
+        if horizontalScore != verticalScore {
+            return horizontalScore < verticalScore ? .horizontalFirst : .verticalFirst
+        }
+
+        if let endSide {
+            switch endSide {
+            case .left, .right:
+                return .verticalFirst
+            case .top, .bottom:
+                return .horizontalFirst
+            }
+        }
+        if let startSide {
+            switch startSide {
+            case .left, .right:
+                return .horizontalFirst
+            case .top, .bottom:
+                return .verticalFirst
+            }
+        }
+
+        let horizontalDistance = abs(end.column - start.column)
+        let verticalDistance = abs(end.row - start.row)
+        return horizontalDistance >= verticalDistance ? .horizontalFirst : .verticalFirst
     }
 }

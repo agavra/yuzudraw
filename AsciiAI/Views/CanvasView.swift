@@ -52,6 +52,9 @@ struct CanvasView: View {
                     selectionOverlay
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)
 
+                    arrowAttachmentOverlay
+                        .offset(x: rulerGutterLeft, y: rulerGutterTop)
+
                     textEditOverlay
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)
                 }
@@ -60,6 +63,9 @@ struct CanvasView: View {
                     height: rulerGutterTop + contentHeight
                 )
                 .gesture(dragGesture)
+                .onContinuousHover(coordinateSpace: .local) { phase in
+                    handleArrowToolHover(phase)
+                }
             }
             .background(Color(nsColor: .textBackgroundColor))
         }
@@ -170,20 +176,9 @@ struct CanvasView: View {
     private var selectionOverlay: some View {
         ZStack(alignment: .topLeading) {
             ForEach(viewModel.selectedShapes) { shape in
-                let rect = shape.boundingRect
-                ZStack(alignment: .topLeading) {
-                    Rectangle()
-                        .stroke(Color.accentColor, lineWidth: 1)
-                        .frame(
-                            width: CGFloat(rect.size.width) * charSize.width,
-                            height: CGFloat(rect.size.height) * charSize.height
-                        )
-                        .offset(
-                            x: CGFloat(rect.origin.column) * charSize.width,
-                            y: CGFloat(rect.origin.row) * charSize.height
-                        )
-
+                if case .arrow(let arrow) = shape {
                     ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
+                        let handleOffset = arrowHandleOffset(for: placement.handle, in: arrow)
                         Circle()
                             .fill(Color.accentColor)
                             .overlay(
@@ -192,8 +187,8 @@ struct CanvasView: View {
                             )
                             .frame(width: 8, height: 8)
                             .offset(
-                                x: CGFloat(placement.point.column) * charSize.width - 4,
-                                y: CGFloat(placement.point.row) * charSize.height - 4
+                                x: (CGFloat(placement.point.column) + handleOffset.x) * charSize.width - 4,
+                                y: (CGFloat(placement.point.row) + handleOffset.y) * charSize.height - 4
                             )
                             .onHover { hovering in
                                 if hovering {
@@ -203,10 +198,93 @@ struct CanvasView: View {
                                 }
                             }
                     }
+                } else {
+                    let rect = shape.boundingRect
+                    ZStack(alignment: .topLeading) {
+                        Rectangle()
+                            .stroke(Color.accentColor, lineWidth: 1)
+                            .frame(
+                                width: CGFloat(rect.size.width) * charSize.width,
+                                height: CGFloat(rect.size.height) * charSize.height
+                            )
+                            .offset(
+                                x: CGFloat(rect.origin.column) * charSize.width,
+                                y: CGFloat(rect.origin.row) * charSize.height
+                            )
+
+                        ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
+                            Circle()
+                                .fill(Color.accentColor)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 1)
+                                )
+                                .frame(width: 8, height: 8)
+                                .offset(
+                                    x: CGFloat(placement.point.column) * charSize.width - 4,
+                                    y: CGFloat(placement.point.row) * charSize.height - 4
+                                )
+                                .onHover { hovering in
+                                    if hovering {
+                                        cursor(for: placement.handle).set()
+                                    } else {
+                                        NSCursor.arrow.set()
+                                    }
+                                }
+                        }
+                    }
                 }
             }
             marqueeOverlay
         }
+    }
+
+    private func arrowHandleOffset(for handle: ResizeHandle, in arrow: ArrowShape) -> CGPoint {
+        let direction = endpointDirection(for: handle, in: arrow)
+        switch direction {
+        case .left:
+            return CGPoint(x: 0.25, y: 0.5)
+        case .right:
+            return CGPoint(x: 0.75, y: 0.5)
+        case .up:
+            return CGPoint(x: 0.5, y: 0.25)
+        case .down:
+            return CGPoint(x: 0.5, y: 0.75)
+        case .none:
+            return CGPoint(x: 0.5, y: 0.5)
+        }
+    }
+
+    private enum EndpointDirection {
+        case left
+        case right
+        case up
+        case down
+        case none
+    }
+
+    private func endpointDirection(for handle: ResizeHandle, in arrow: ArrowShape) -> EndpointDirection {
+        let segments = arrow.pathSegments()
+        guard !segments.isEmpty else { return .none }
+
+        let from: GridPoint
+        let to: GridPoint
+        switch handle {
+        case .start:
+            from = segments[0].from
+            to = segments[0].to
+        case .end:
+            from = segments[segments.count - 1].to
+            to = segments[segments.count - 1].from
+        case .topLeft, .top, .topRight, .right, .bottomLeft, .bottom, .bottomRight, .left:
+            return .none
+        }
+
+        if to.column > from.column { return .right }
+        if to.column < from.column { return .left }
+        if to.row > from.row { return .down }
+        if to.row < from.row { return .up }
+        return .none
     }
 
     // MARK: - Marquee overlay
@@ -231,6 +309,30 @@ struct CanvasView: View {
                     x: CGFloat(rect.origin.column) * charSize.width,
                     y: CGFloat(rect.origin.row) * charSize.height
                 )
+        }
+    }
+
+    // MARK: - Arrow attachment overlay
+
+    @ViewBuilder
+    private var arrowAttachmentOverlay: some View {
+        if !viewModel.arrowAttachmentPreviewPoints.isEmpty {
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(viewModel.arrowAttachmentPreviewPoints.enumerated()), id: \.offset) {
+                    _, point in
+                    Rectangle()
+                        .fill(Color.red.opacity(0.95))
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 1)
+                        )
+                        .frame(width: 8, height: 8)
+                        .offset(
+                            x: (CGFloat(point.column) + 0.5) * charSize.width - 4,
+                            y: (CGFloat(point.row) + 0.5) * charSize.height - 4
+                        )
+                }
+            }
         }
     }
 
@@ -297,6 +399,39 @@ struct CanvasView: View {
             return Self.diagonalNESWCursor
         case .start, .end:
             return .openHand
+        }
+    }
+
+    private func handleArrowToolHover(_ phase: HoverPhase) {
+        guard viewModel.activeToolType == .arrow else {
+            viewModel.updateHoverGridPoint(nil)
+            NSCursor.arrow.set()
+            return
+        }
+
+        switch phase {
+        case .active(let location):
+            let adjusted = CGPoint(
+                x: location.x - rulerGutterLeft,
+                y: location.y - rulerGutterTop
+            )
+            if adjusted.x < 0 || adjusted.y < 0 {
+                viewModel.updateHoverGridPoint(nil)
+                NSCursor.crosshair.set()
+                return
+            }
+
+            let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
+            viewModel.updateHoverGridPoint(point)
+            if viewModel.isHoveringArrowAttachmentPoint {
+                NSCursor.pointingHand.set()
+            } else {
+                NSCursor.crosshair.set()
+            }
+
+        case .ended:
+            viewModel.updateHoverGridPoint(nil)
+            NSCursor.arrow.set()
         }
     }
 

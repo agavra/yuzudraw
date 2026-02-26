@@ -94,6 +94,22 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     func resizeHandle(at point: GridPoint) -> ResizeHandle? {
+        if case .arrow(let shape) = self {
+            return [
+                ResizeHandlePlacement(handle: .start, point: shape.start),
+                ResizeHandlePlacement(handle: .end, point: shape.end),
+            ]
+            .compactMap { placement -> (ResizeHandle, Int)? in
+                let dx = abs(placement.point.column - point.column)
+                let dy = abs(placement.point.row - point.row)
+                let distance = dx + dy
+                guard distance <= 2 else { return nil }
+                return (placement.handle, distance)
+            }
+            .min(by: { $0.1 < $1.1 })?
+            .0
+        }
+
         if case .box(let shape) = self {
             let rect = shape.boundingRect
             let centerColumn = rect.origin.column + rect.size.width / 2
@@ -171,8 +187,10 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
             switch handle {
             case .start:
                 shape.start = clampedPoint
+                shape.startAttachment = nil
             case .end:
                 shape.end = clampedPoint
+                shape.endAttachment = nil
             case .topLeft, .top, .topRight, .right, .bottomLeft, .bottom, .bottomRight, .left:
                 return self
             }

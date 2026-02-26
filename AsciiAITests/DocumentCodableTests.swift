@@ -38,7 +38,10 @@ struct DocumentCodableTests {
         let arrow = ArrowShape(
             start: GridPoint(column: 1, row: 1),
             end: GridPoint(column: 10, row: 5),
-            label: "HTTP"
+            label: "HTTP",
+            bendDirection: .verticalFirst,
+            startAttachment: ArrowAttachment(shapeID: UUID(), side: .right),
+            endAttachment: ArrowAttachment(shapeID: UUID(), side: .left)
         )
         doc.addShape(.arrow(arrow), toLayerAt: 0)
 
@@ -51,6 +54,57 @@ struct DocumentCodableTests {
             #expect(decodedArrow.start == arrow.start)
             #expect(decodedArrow.end == arrow.end)
             #expect(decodedArrow.label == "HTTP")
+            #expect(decodedArrow.bendDirection == .verticalFirst)
+            #expect(decodedArrow.startAttachment == arrow.startAttachment)
+            #expect(decodedArrow.endAttachment == arrow.endAttachment)
+        } else {
+            Issue.record("Expected arrow shape")
+        }
+    }
+
+    @Test func should_decode_legacy_arrow_json_without_attachment_fields() throws {
+        // given
+        let data = #"""
+            {
+              "canvasSize" : {
+                "height" : 40,
+                "width" : 80
+              },
+              "layers" : [
+                {
+                  "groups" : [],
+                  "id" : "A8F4D27A-B62D-4752-9609-B01640D9A3E3",
+                  "isLocked" : false,
+                  "isVisible" : true,
+                  "name" : "Layer 1",
+                  "shapes" : [
+                    {
+                      "end" : {
+                        "column" : 10,
+                        "row" : 5
+                      },
+                      "id" : "B8F4D27A-B62D-4752-9609-B01640D9A3E3",
+                      "label" : "HTTP",
+                      "start" : {
+                        "column" : 1,
+                        "row" : 1
+                      },
+                      "type" : "arrow"
+                    }
+                  ]
+                }
+              ]
+            }
+            """#.data(using: .utf8)!
+
+        // when
+        let decoded = try DocumentCodable.decode(from: data)
+
+        // then
+        if case .arrow(let arrow) = decoded.layers[0].shapes[0] {
+            #expect(arrow.bendDirection == .horizontalFirst)
+            #expect(arrow.startAttachment == nil)
+            #expect(arrow.endAttachment == nil)
         } else {
             Issue.record("Expected arrow shape")
         }

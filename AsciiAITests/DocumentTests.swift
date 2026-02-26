@@ -132,6 +132,22 @@ struct DocumentTests {
         #expect(hit == nil)
     }
 
+    @Test func should_hit_nearby_arrow_when_not_exactly_on_line() {
+        // given
+        var doc = Document()
+        let arrow = ArrowShape(
+            start: GridPoint(column: 2, row: 2),
+            end: GridPoint(column: 12, row: 2)
+        )
+        doc.addShape(.arrow(arrow), toLayerAt: 0)
+
+        // when
+        let hit = doc.hitTest(at: GridPoint(column: 7, row: 3))
+
+        // then
+        #expect(hit?.id == arrow.id)
+    }
+
     @Test func should_add_and_remove_layers() {
         // given
         var doc = Document()
