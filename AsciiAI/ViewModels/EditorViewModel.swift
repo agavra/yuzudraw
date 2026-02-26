@@ -5,13 +5,14 @@ import SwiftUI
 final class EditorViewModel {
     var document: Document
     var canvas: Canvas
-    var selectedShapeID: UUID?
+    var selectedShapeIDs: Set<UUID> = []
     var activeToolType: ToolType = .select
     var activeBorderStyle: BorderStyle = .single
     var activeLayerIndex: Int = 0
     var isEditingText: Bool = false
     var textEditPoint: GridPoint?
     var textEditContent: String = ""
+    var viewportSize: CGSize = .zero
 
     private var selectionTool = SelectionTool()
     private var boxTool = BoxTool()
@@ -71,11 +72,14 @@ final class EditorViewModel {
             break
         case .addShape(let shape, let layerIndex):
             document.addShape(shape, toLayerAt: layerIndex)
-            selectedShapeID = shape.id
+            selectedShapeIDs = [shape.id]
+            activeToolType = .select
             rerender()
         case .selectShape(let id):
-            selectedShapeID = id
-        case .moveShape(let id, let point):
+            selectedShapeIDs = id.map { [$0] } ?? []
+        case .selectShapes(let ids):
+            selectedShapeIDs = ids
+        case .moveShape(_, _):
             // Legacy - handled by updateShape now
             break
         case .beginTextEdit(let point):
@@ -97,8 +101,9 @@ final class EditorViewModel {
         }
         let textShape = TextShape(origin: point, text: textEditContent)
         document.addShape(.text(textShape), toLayerAt: activeLayerIndex)
-        selectedShapeID = textShape.id
+        selectedShapeIDs = [textShape.id]
         cancelTextEdit()
+        activeToolType = .select
         rerender()
     }
 
@@ -110,14 +115,18 @@ final class EditorViewModel {
 
     // MARK: - Shape property editing
 
+    var selectedShapes: [AnyShape] {
+        selectedShapeIDs.compactMap { document.findShape(id: $0) }
+    }
+
     var selectedShape: AnyShape? {
-        guard let id = selectedShapeID else { return nil }
+        guard selectedShapeIDs.count == 1, let id = selectedShapeIDs.first else { return nil }
         return document.findShape(id: id)
     }
 
     func updateSelectedBoxLabel(_ label: String) {
-        guard let id = selectedShapeID,
-            case .box(var box) = document.findShape(id: id)
+        guard let shape = selectedShape,
+            case .box(var box) = shape
         else { return }
         box.label = label
         document.updateShape(.box(box))
@@ -125,8 +134,8 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxBorderStyle(_ style: BorderStyle) {
-        guard let id = selectedShapeID,
-            case .box(var box) = document.findShape(id: id)
+        guard let shape = selectedShape,
+            case .box(var box) = shape
         else { return }
         box.borderStyle = style
         document.updateShape(.box(box))
@@ -134,8 +143,8 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxOrigin(column: Int, row: Int) {
-        guard let id = selectedShapeID,
-            case .box(var box) = document.findShape(id: id)
+        guard let shape = selectedShape,
+            case .box(var box) = shape
         else { return }
         box.origin = GridPoint(column: column, row: row)
         document.updateShape(.box(box))
@@ -143,8 +152,8 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxSize(width: Int, height: Int) {
-        guard let id = selectedShapeID,
-            case .box(var box) = document.findShape(id: id)
+        guard let shape = selectedShape,
+            case .box(var box) = shape
         else { return }
         box.size = GridSize(width: width, height: height)
         document.updateShape(.box(box))
@@ -152,18 +161,19 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowLabel(_ label: String) {
-        guard let id = selectedShapeID,
-            case .arrow(var arrow) = document.findShape(id: id)
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
         else { return }
         arrow.label = label
         document.updateShape(.arrow(arrow))
         rerender()
     }
 
-    func deleteSelectedShape() {
-        guard let id = selectedShapeID else { return }
-        document.removeShape(id: id)
-        selectedShapeID = nil
+    func deleteSelectedShapes() {
+        for id in selectedShapeIDs {
+            document.removeShape(id: id)
+        }
+        selectedShapeIDs = []
         rerender()
     }
 
@@ -194,9 +204,39 @@ final class EditorViewModel {
         document.layers[index].isLocked.toggle()
     }
 
+    // MARK: - Canvas auto-grow
+
+    func expandCanvasIfNeeded() {
+        let padding = 10
+        var requiredWidth = Canvas.defaultColumns
+        var requiredHeight = Canvas.defaultRows
+
+        // Expand to fit all shapes with padding
+        if let bbox = document.boundingBox() {
+            requiredWidth = max(requiredWidth, bbox.maxColumn + 1 + padding)
+            requiredHeight = max(requiredHeight, bbox.maxRow + 1 + padding)
+        }
+
+        // Expand to fill viewport (using charSize estimate for conversion)
+        if viewportSize.width > 0 && viewportSize.height > 0 {
+            let font = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+            let charSize = ("M" as NSString).size(withAttributes: [.font: font])
+            let viewportCols = Int(ceil(viewportSize.width / charSize.width))
+            let viewportRows = Int(ceil(viewportSize.height / charSize.height))
+            requiredWidth = max(requiredWidth, viewportCols)
+            requiredHeight = max(requiredHeight, viewportRows)
+        }
+
+        let newSize = GridSize(width: requiredWidth, height: requiredHeight)
+        if newSize != document.canvasSize {
+            document.canvasSize = newSize
+        }
+    }
+
     // MARK: - Rendering
 
     func rerender() {
+        expandCanvasIfNeeded()
         canvas = Canvas(size: document.canvasSize)
 
         // Render document shapes

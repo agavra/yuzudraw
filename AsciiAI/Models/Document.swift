@@ -63,6 +63,22 @@ struct Document: Codable, Equatable, Sendable {
         layers.remove(at: index)
     }
 
+    // MARK: - Marquee selection
+
+    func shapesInRect(_ rect: GridRect, excludingLockedLayers: Bool) -> [AnyShape] {
+        var result: [AnyShape] = []
+        for layer in layers {
+            guard layer.isVisible else { continue }
+            if excludingLockedLayers && layer.isLocked { continue }
+            for shape in layer.shapes {
+                if shape.boundingRect.intersects(rect) {
+                    result.append(shape)
+                }
+            }
+        }
+        return result
+    }
+
     // MARK: - Hit testing
 
     /// Hit-test in reverse render order (top layer first, last shape first).
@@ -76,6 +92,34 @@ struct Document: Codable, Equatable, Sendable {
             }
         }
         return nil
+    }
+
+    // MARK: - Bounding box
+
+    /// Computes the bounding rect enclosing all shapes across all layers.
+    func boundingBox() -> GridRect? {
+        var minCol = Int.max
+        var minRow = Int.max
+        var maxCol = Int.min
+        var maxRow = Int.min
+        var found = false
+
+        for layer in layers {
+            for shape in layer.shapes {
+                let rect = shape.boundingRect
+                minCol = min(minCol, rect.minColumn)
+                minRow = min(minRow, rect.minRow)
+                maxCol = max(maxCol, rect.maxColumn)
+                maxRow = max(maxRow, rect.maxRow)
+                found = true
+            }
+        }
+
+        guard found else { return nil }
+        return GridRect(
+            origin: GridPoint(column: minCol, row: minRow),
+            size: GridSize(width: maxCol - minCol + 1, height: maxRow - minRow + 1)
+        )
     }
 
     // MARK: - Rendering

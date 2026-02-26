@@ -11,7 +11,7 @@ struct LayerPanel: View {
             Divider()
             bottomButtons
         }
-        .frame(minWidth: 180, idealWidth: 200)
+        .frame(minWidth: 140, idealWidth: 160, maxWidth: 200)
     }
 
     private var header: some View {

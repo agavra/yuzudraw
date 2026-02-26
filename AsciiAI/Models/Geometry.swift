@@ -32,6 +32,11 @@ struct GridRect: Codable, Equatable, Hashable, Sendable {
             && point.row >= minRow && point.row <= maxRow
     }
 
+    func intersects(_ other: GridRect) -> Bool {
+        minColumn <= other.maxColumn && maxColumn >= other.minColumn
+            && minRow <= other.maxRow && maxRow >= other.minRow
+    }
+
     static func enclosing(from pointA: GridPoint, to pointB: GridPoint) -> GridRect {
         let minCol = min(pointA.column, pointB.column)
         let maxCol = max(pointA.column, pointB.column)

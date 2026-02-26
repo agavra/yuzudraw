@@ -8,15 +8,22 @@ struct InspectorPanel: View {
             header
             Divider()
             ScrollView {
-                if let shape = viewModel.selectedShape {
-                    shapeProperties(shape)
-                        .padding(12)
-                } else {
-                    noSelectionView
+                VStack(alignment: .leading, spacing: 12) {
+                    borderStyleSection
+                    if viewModel.selectedShapes.count > 1 {
+                        Divider()
+                        multiSelectionView
+                    } else if let shape = viewModel.selectedShape {
+                        Divider()
+                        shapeProperties(shape)
+                    } else {
+                        noSelectionView
+                    }
                 }
+                .padding(12)
             }
         }
-        .frame(minWidth: 200, idealWidth: 220)
+        .frame(minWidth: 160, idealWidth: 180, maxWidth: 220)
     }
 
     private var header: some View {
@@ -24,6 +31,17 @@ struct InspectorPanel: View {
             .font(.headline)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+    }
+
+    private var multiSelectionView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("\(viewModel.selectedShapes.count) shapes selected")
+                .foregroundStyle(.secondary)
+
+            Button("Delete All", role: .destructive) {
+                viewModel.deleteSelectedShapes()
+            }
+        }
     }
 
     private var noSelectionView: some View {
@@ -50,7 +68,7 @@ struct InspectorPanel: View {
             Divider()
 
             Button("Delete", role: .destructive) {
-                viewModel.deleteSelectedShape()
+                viewModel.deleteSelectedShapes()
             }
         }
     }
@@ -119,6 +137,25 @@ struct InspectorPanel: View {
             propertyRow(
                 "Position", value: "\(text.origin.column), \(text.origin.row)")
             propertyRow("Content", value: text.text)
+        }
+    }
+
+    // MARK: - Border style
+
+    private var borderStyleSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            sectionHeader("Stroke")
+            Picker("Stroke", selection: Binding(
+                get: { viewModel.activeBorderStyle },
+                set: { viewModel.setBorderStyle($0) }
+            )) {
+                Text("Single ─│┌┐").tag(BorderStyle.single)
+                Text("Double ═║╔╗").tag(BorderStyle.double)
+                Text("Rounded ─│╭╮").tag(BorderStyle.rounded)
+                Text("Heavy ━┃┏┓").tag(BorderStyle.heavy)
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
         }
     }
 
