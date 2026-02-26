@@ -7,6 +7,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
         case none
         case draggingShape(shapeID: UUID, offset: GridPoint)
         case marquee(start: GridPoint, current: GridPoint)
+        case resizingShape(originalShape: AnyShape, handle: ResizeHandle)
     }
 
     private var mode: Mode = .none
@@ -20,6 +21,11 @@ final class SelectionTool: Tool, @unchecked Sendable {
     func mouseDown(at point: GridPoint, in document: Document, activeLayerIndex _: Int)
         -> ToolAction
     {
+        if let (shape, handle) = resizeHandleHit(at: point, in: document) {
+            mode = .resizingShape(originalShape: shape, handle: handle)
+            return .selectShape(shape.id)
+        }
+
         if let shape = document.hitTest(at: point) {
             let rect = shape.boundingRect
             mode = .draggingShape(
@@ -80,6 +86,14 @@ final class SelectionTool: Tool, @unchecked Sendable {
         case .marquee(let start, _):
             mode = .marquee(start: start, current: point)
             return .none
+
+        case .resizingShape(let originalShape, let handle):
+            guard let layerIndex = document.layerIndex(containingShape: originalShape.id),
+                !document.layers[layerIndex].isLocked
+            else {
+                return .none
+            }
+            return .updateShape(originalShape.resized(using: handle, to: point))
         }
     }
 
@@ -108,4 +122,16 @@ final class SelectionTool: Tool, @unchecked Sendable {
     }
 
     func previewShape() -> AnyShape? { nil }
+
+    private func resizeHandleHit(at point: GridPoint, in document: Document) -> (AnyShape, ResizeHandle)? {
+        for layer in document.layers.reversed() {
+            guard layer.isVisible, !layer.isLocked else { continue }
+            for shape in layer.shapes.reversed() {
+                if let handle = shape.resizeHandle(at: point) {
+                    return (shape, handle)
+                }
+            }
+        }
+        return nil
+    }
 }

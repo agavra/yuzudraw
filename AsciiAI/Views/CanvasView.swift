@@ -10,6 +10,20 @@ struct CanvasView: View {
 
     private let rulerGutterLeft: CGFloat = 30
     private let rulerGutterTop: CGFloat = 16
+    private static let diagonalNWSECursor = NSCursor(
+        image: NSImage(
+            systemSymbolName: "arrow.up.left.and.arrow.down.right",
+            accessibilityDescription: "Diagonal Resize"
+        ) ?? NSImage(),
+        hotSpot: CGPoint(x: 8, y: 8)
+    )
+    private static let diagonalNESWCursor = NSCursor(
+        image: NSImage(
+            systemSymbolName: "arrow.up.right.and.arrow.down.left",
+            accessibilityDescription: "Diagonal Resize"
+        ) ?? NSImage(),
+        hotSpot: CGPoint(x: 8, y: 8)
+    )
 
     var body: some View {
         GeometryReader { geo in
@@ -157,16 +171,39 @@ struct CanvasView: View {
         ZStack(alignment: .topLeading) {
             ForEach(viewModel.selectedShapes) { shape in
                 let rect = shape.boundingRect
-                Rectangle()
-                    .stroke(Color.accentColor, lineWidth: 1)
-                    .frame(
-                        width: CGFloat(rect.size.width) * charSize.width,
-                        height: CGFloat(rect.size.height) * charSize.height
-                    )
-                    .offset(
-                        x: CGFloat(rect.origin.column) * charSize.width,
-                        y: CGFloat(rect.origin.row) * charSize.height
-                    )
+                ZStack(alignment: .topLeading) {
+                    Rectangle()
+                        .stroke(Color.accentColor, lineWidth: 1)
+                        .frame(
+                            width: CGFloat(rect.size.width) * charSize.width,
+                            height: CGFloat(rect.size.height) * charSize.height
+                        )
+                        .offset(
+                            x: CGFloat(rect.origin.column) * charSize.width,
+                            y: CGFloat(rect.origin.row) * charSize.height
+                        )
+
+                    ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
+                        Circle()
+                            .fill(Color.accentColor)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 1)
+                            )
+                            .frame(width: 8, height: 8)
+                            .offset(
+                                x: CGFloat(placement.point.column) * charSize.width - 4,
+                                y: CGFloat(placement.point.row) * charSize.height - 4
+                            )
+                            .onHover { hovering in
+                                if hovering {
+                                    cursor(for: placement.handle).set()
+                                } else {
+                                    NSCursor.arrow.set()
+                                }
+                            }
+                    }
+                }
             }
             marqueeOverlay
         }
@@ -246,6 +283,21 @@ struct CanvasView: View {
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
                 viewModel.mouseUp(at: point)
             }
+    }
+
+    private func cursor(for handle: ResizeHandle) -> NSCursor {
+        switch handle {
+        case .top, .bottom:
+            return .resizeUpDown
+        case .left, .right:
+            return .resizeLeftRight
+        case .topLeft, .bottomRight:
+            return Self.diagonalNWSECursor
+        case .topRight, .bottomLeft:
+            return Self.diagonalNESWCursor
+        case .start, .end:
+            return .openHand
+        }
     }
 
 }

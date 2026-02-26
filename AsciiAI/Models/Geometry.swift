@@ -48,3 +48,21 @@ struct GridRect: Codable, Equatable, Hashable, Sendable {
         )
     }
 }
+
+enum ResizeHandle: Equatable, Sendable {
+    case topLeft
+    case top
+    case topRight
+    case right
+    case bottomLeft
+    case bottom
+    case bottomRight
+    case left
+    case start
+    case end
+}
+
+struct ResizeHandlePlacement: Equatable, Hashable, Sendable {
+    let handle: ResizeHandle
+    let point: GridPoint
+}
