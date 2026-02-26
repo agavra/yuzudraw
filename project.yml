@@ -1,0 +1,43 @@
+name: AsciiAI
+options:
+  bundleIdPrefix: com.agavra
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+targets:
+  AsciiAI:
+    type: application
+    platform: macOS
+    sources:
+      - AsciiAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.AsciiAI
+        INFOPLIST_FILE: AsciiAI/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: AsciiAI/Resources/AsciiAI.entitlements
+        SWIFT_STRICT_CONCURRENCY: complete
+    entitlements:
+      path: AsciiAI/Resources/AsciiAI.entitlements
+
+  AsciiAITests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - AsciiAITests
+    dependencies:
+      - target: AsciiAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.AsciiAITests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AsciiAI.app/Contents/MacOS/AsciiAI"
+        BUNDLE_LOADER: "$(TEST_HOST)"

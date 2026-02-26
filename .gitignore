@@ -1,0 +1,26 @@
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode derived data (custom path)
+.xcode-derived/
+
+# OS files
+.DS_Store
+*.swp
+*~
+
+# Generated Xcode project (regenerate with xcodegen)
+*.xcodeproj
