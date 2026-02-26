@@ -17,6 +17,17 @@ struct Canvas: Equatable {
         )
     }
 
+    init(size: GridSize) {
+        self.init(columns: size.width, rows: size.height)
+    }
+
+    mutating func clear() {
+        grid = Array(
+            repeating: Array(repeating: Character(" "), count: columns),
+            count: rows
+        )
+    }
+
     func character(atColumn column: Int, row: Int) -> Character? {
         guard column >= 0, column < columns, row >= 0, row < rows else {
             return nil

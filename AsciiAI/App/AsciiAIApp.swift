@@ -7,6 +7,6 @@ struct AsciiAIApp: App {
             ContentView()
         }
         .windowStyle(.titleBar)
-        .defaultSize(width: 960, height: 640)
+        .defaultSize(width: 1200, height: 700)
     }
 }

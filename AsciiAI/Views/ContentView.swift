@@ -1,11 +1,20 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var viewModel = CanvasViewModel()
+    @State private var viewModel = EditorViewModel()
 
     var body: some View {
-        CanvasView(viewModel: viewModel)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 0) {
+            ToolbarView(viewModel: viewModel)
+            Divider()
+            HSplitView {
+                LayerPanel(viewModel: viewModel)
+                CanvasView(viewModel: viewModel)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                InspectorPanel(viewModel: viewModel)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
