@@ -210,7 +210,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
             break
         }
 
-        arrow.bendDirection = preferredBendDirection(
+        arrow.bendDirection = ArrowRouter.bendDirection(
             start: arrow.start,
             end: arrow.end,
             startSide: arrow.startAttachment?.side,
@@ -249,51 +249,5 @@ final class SelectionTool: Tool, @unchecked Sendable {
         }
 
         return best
-    }
-
-    private func preferredBendDirection(
-        start: GridPoint,
-        end: GridPoint,
-        startSide: ArrowAttachmentSide?,
-        endSide: ArrowAttachmentSide?
-    ) -> ArrowBendDirection {
-        let midpoint = GridPoint(
-            column: (start.column + end.column) / 2,
-            row: (start.row + end.row) / 2
-        )
-        let horizontalCorner = GridPoint(column: end.column, row: start.row)
-        let verticalCorner = GridPoint(column: start.column, row: end.row)
-
-        let horizontalScore =
-            abs(horizontalCorner.column - midpoint.column)
-            + abs(horizontalCorner.row - midpoint.row)
-        let verticalScore =
-            abs(verticalCorner.column - midpoint.column)
-            + abs(verticalCorner.row - midpoint.row)
-
-        if horizontalScore != verticalScore {
-            return horizontalScore < verticalScore ? .horizontalFirst : .verticalFirst
-        }
-
-        if let endSide {
-            switch endSide {
-            case .left, .right:
-                return .verticalFirst
-            case .top, .bottom:
-                return .horizontalFirst
-            }
-        }
-        if let startSide {
-            switch startSide {
-            case .left, .right:
-                return .horizontalFirst
-            case .top, .bottom:
-                return .verticalFirst
-            }
-        }
-
-        let horizontalDistance = abs(end.column - start.column)
-        let verticalDistance = abs(end.row - start.row)
-        return horizontalDistance >= verticalDistance ? .horizontalFirst : .verticalFirst
     }
 }

@@ -60,11 +60,12 @@ struct CanvasView: View {
                 }
                 .frame(
                     width: rulerGutterLeft + contentWidth,
-                    height: rulerGutterTop + contentHeight
+                    height: rulerGutterTop + contentHeight,
+                    alignment: .topLeading
                 )
                 .gesture(dragGesture)
                 .onContinuousHover(coordinateSpace: .local) { phase in
-                    handleArrowToolHover(phase)
+                    handleCanvasHover(phase)
                 }
             }
             .background(Color(nsColor: .textBackgroundColor))
@@ -190,13 +191,6 @@ struct CanvasView: View {
                                 x: (CGFloat(placement.point.column) + handleOffset.x) * charSize.width - 4,
                                 y: (CGFloat(placement.point.row) + handleOffset.y) * charSize.height - 4
                             )
-                            .onHover { hovering in
-                                if hovering {
-                                    cursor(for: placement.handle).set()
-                                } else {
-                                    NSCursor.arrow.set()
-                                }
-                            }
                     }
                 } else {
                     let rect = shape.boundingRect
@@ -224,13 +218,6 @@ struct CanvasView: View {
                                     x: CGFloat(placement.point.column) * charSize.width - 4,
                                     y: CGFloat(placement.point.row) * charSize.height - 4
                                 )
-                                .onHover { hovering in
-                                    if hovering {
-                                        cursor(for: placement.handle).set()
-                                    } else {
-                                        NSCursor.arrow.set()
-                                    }
-                                }
                         }
                     }
                 }
@@ -317,19 +304,25 @@ struct CanvasView: View {
     @ViewBuilder
     private var arrowAttachmentOverlay: some View {
         if !viewModel.arrowAttachmentPreviewPoints.isEmpty {
+            let hoveredPoint = viewModel.hoveredArrowAttachmentPoint
             ZStack(alignment: .topLeading) {
                 ForEach(Array(viewModel.arrowAttachmentPreviewPoints.enumerated()), id: \.offset) {
                     _, point in
                     Rectangle()
-                        .fill(Color.red.opacity(0.95))
+                        .fill(point == hoveredPoint ? Color.accentColor : Color.red.opacity(0.95))
                         .overlay(
                             Rectangle()
-                                .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 1)
+                                .stroke(
+                                    point == hoveredPoint
+                                        ? Color.white
+                                        : Color(nsColor: .textBackgroundColor),
+                                    lineWidth: point == hoveredPoint ? 2 : 1
+                                )
                         )
-                        .frame(width: 8, height: 8)
+                        .frame(width: point == hoveredPoint ? 10 : 8, height: point == hoveredPoint ? 10 : 8)
                         .offset(
-                            x: (CGFloat(point.column) + 0.5) * charSize.width - 4,
-                            y: (CGFloat(point.row) + 0.5) * charSize.height - 4
+                            x: (CGFloat(point.column) + 0.5) * charSize.width - (point == hoveredPoint ? 5 : 4),
+                            y: (CGFloat(point.row) + 0.5) * charSize.height - (point == hoveredPoint ? 5 : 4)
                         )
                 }
             }
@@ -402,37 +395,54 @@ struct CanvasView: View {
         }
     }
 
-    private func handleArrowToolHover(_ phase: HoverPhase) {
-        guard viewModel.activeToolType == .arrow else {
-            viewModel.updateHoverGridPoint(nil)
-            NSCursor.arrow.set()
-            return
-        }
-
+    private func handleCanvasHover(_ phase: HoverPhase) {
         switch phase {
         case .active(let location):
             let adjusted = CGPoint(
                 x: location.x - rulerGutterLeft,
                 y: location.y - rulerGutterTop
             )
-            if adjusted.x < 0 || adjusted.y < 0 {
+            guard adjusted.x >= 0, adjusted.y >= 0 else {
                 viewModel.updateHoverGridPoint(nil)
-                NSCursor.crosshair.set()
+                NSCursor.arrow.set()
                 return
             }
 
             let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
-            viewModel.updateHoverGridPoint(point)
-            if viewModel.isHoveringArrowAttachmentPoint {
-                NSCursor.pointingHand.set()
-            } else {
+
+            switch viewModel.activeToolType {
+            case .arrow:
+                viewModel.updateHoverGridPoint(point)
                 NSCursor.crosshair.set()
+            case .select:
+                viewModel.updateHoverGridPoint(nil)
+                if let handleCursor = cursorForHandle(at: point) {
+                    handleCursor.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+            case .box, .text:
+                viewModel.updateHoverGridPoint(nil)
+                NSCursor.arrow.set()
             }
 
         case .ended:
             viewModel.updateHoverGridPoint(nil)
             NSCursor.arrow.set()
         }
+    }
+
+    private func cursorForHandle(at point: GridPoint) -> NSCursor? {
+        for shape in viewModel.selectedShapes {
+            for placement in shape.resizeHandlePlacements {
+                let dx = abs(placement.point.column - point.column)
+                let dy = abs(placement.point.row - point.row)
+                if dx <= 1, dy <= 1 {
+                    return cursor(for: placement.handle)
+                }
+            }
+        }
+        return nil
     }
 
 }

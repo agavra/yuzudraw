@@ -1,7 +1,7 @@
 import Foundation
 
 final class ArrowTool: Tool, @unchecked Sendable {
-    private static let attachmentSnapRadius: Double = 0.5
+    private static let attachmentSnapRadius: Double = 1.5
 
     private struct AttachPoint {
         let box: BoxShape
@@ -138,11 +138,16 @@ final class ArrowTool: Tool, @unchecked Sendable {
         }
 
         let start = startAttach?.point ?? startPoint
-        let end = endAttach?.point ?? endPoint
+        var end = endAttach?.point ?? endPoint
+
+        // Freehand drags default to straight arrows along the dominant axis.
+        if startAttach == nil, endAttach == nil {
+            end = ArrowRouter.projectedFreeEnd(start: start, rawEnd: end)
+        }
 
         guard start != end else { return nil }
 
-        let bendDirection = preferredBendDirection(
+        let bendDirection = ArrowRouter.bendDirection(
             start: start,
             end: end,
             startSide: startAttach?.side,
@@ -156,52 +161,6 @@ final class ArrowTool: Tool, @unchecked Sendable {
             startAttachment: startBox.map { ArrowAttachment(shapeID: $0.id, side: startAttach?.side ?? .right) },
             endAttachment: endBox.map { ArrowAttachment(shapeID: $0.id, side: endAttach?.side ?? .left) }
         )
-    }
-
-    private func preferredBendDirection(
-        start: GridPoint,
-        end: GridPoint,
-        startSide: ArrowAttachmentSide?,
-        endSide: ArrowAttachmentSide?
-    ) -> ArrowBendDirection {
-        let midpoint = GridPoint(
-            column: (start.column + end.column) / 2,
-            row: (start.row + end.row) / 2
-        )
-        let horizontalCorner = GridPoint(column: end.column, row: start.row)
-        let verticalCorner = GridPoint(column: start.column, row: end.row)
-
-        let horizontalScore =
-            abs(horizontalCorner.column - midpoint.column)
-            + abs(horizontalCorner.row - midpoint.row)
-        let verticalScore =
-            abs(verticalCorner.column - midpoint.column)
-            + abs(verticalCorner.row - midpoint.row)
-
-        if horizontalScore != verticalScore {
-            return horizontalScore < verticalScore ? .horizontalFirst : .verticalFirst
-        }
-
-        // Tie-breakers favor entering attached endpoints from the attached side.
-        if let endSide {
-            switch endSide {
-            case .left, .right:
-                return .verticalFirst
-            case .top, .bottom:
-                return .horizontalFirst
-            }
-        }
-        if let startSide {
-            switch startSide {
-            case .left, .right:
-                return .horizontalFirst
-            case .top, .bottom:
-                return .verticalFirst
-            }
-        }
-        let horizontalDistance = abs(end.column - start.column)
-        let verticalDistance = abs(end.row - start.row)
-        return horizontalDistance >= verticalDistance ? .horizontalFirst : .verticalFirst
     }
 
     private func box(at point: GridPoint, in document: Document) -> BoxShape? {
@@ -247,12 +206,23 @@ final class ArrowTool: Tool, @unchecked Sendable {
     }
 
     private func attachmentSide(at point: GridPoint, on box: BoxShape) -> ArrowAttachmentSide? {
+        var bestSide: ArrowAttachmentSide?
+        var bestDistance = Double.greatestFiniteMagnitude
+
         for side in ArrowAttachmentSide.allCases {
-            if box.attachmentPoint(for: side) == point {
-                return side
+            let attachPoint = box.attachmentPoint(for: side)
+            let distance = hypot(
+                Double(attachPoint.column - point.column),
+                Double(attachPoint.row - point.row)
+            )
+            guard distance <= Self.attachmentSnapRadius else { continue }
+            if distance < bestDistance {
+                bestDistance = distance
+                bestSide = side
             }
         }
-        return nil
+
+        return bestSide
     }
 
     private func snappedAttachment(near point: GridPoint, in document: Document) -> AttachPoint? {

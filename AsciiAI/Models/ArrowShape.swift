@@ -98,85 +98,13 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
 
     /// Generates an orthogonal path with up to two elbows.
     func pathSegments() -> [ArrowSegment] {
-        if start == end {
-            return []
-        }
-
-        if start.column == end.column {
-            if requiresEdgeAlignedDetour(for: .vertical) {
-                let middleColumn = alignedDetourCoordinate(
-                    base: start.column,
-                    startSide: startAttachment?.side,
-                    endSide: endAttachment?.side,
-                    axis: .horizontal
-                )
-                return [
-                    ArrowSegment(from: start, to: GridPoint(column: middleColumn, row: start.row)),
-                    ArrowSegment(from: GridPoint(column: middleColumn, row: start.row), to: GridPoint(column: middleColumn, row: end.row)),
-                    ArrowSegment(from: GridPoint(column: middleColumn, row: end.row), to: end),
-                ].filter { $0.from != $0.to }
-            }
-            return [ArrowSegment(from: start, to: end)]
-        }
-
-        if start.row == end.row {
-            if requiresEdgeAlignedDetour(for: .horizontal) {
-                let middleRow = alignedDetourCoordinate(
-                    base: start.row,
-                    startSide: startAttachment?.side,
-                    endSide: endAttachment?.side,
-                    axis: .vertical
-                )
-                return [
-                    ArrowSegment(from: start, to: GridPoint(column: start.column, row: middleRow)),
-                    ArrowSegment(from: GridPoint(column: start.column, row: middleRow), to: GridPoint(column: end.column, row: middleRow)),
-                    ArrowSegment(from: GridPoint(column: end.column, row: middleRow), to: end),
-                ].filter { $0.from != $0.to }
-            }
-            return [ArrowSegment(from: start, to: end)]
-        }
-
-        let routePoints: [GridPoint]
-        switch bendDirection {
-        case .horizontalFirst:
-            let middleColumn = middleAxisCoordinate(
-                start: start.column,
-                end: end.column,
-                startSide: startAttachment?.side,
-                endSide: endAttachment?.side,
-                axis: .horizontal
-            )
-            routePoints = [
-                start,
-                GridPoint(column: middleColumn, row: start.row),
-                GridPoint(column: middleColumn, row: end.row),
-                end,
-            ]
-        case .verticalFirst:
-            let middleRow = middleAxisCoordinate(
-                start: start.row,
-                end: end.row,
-                startSide: startAttachment?.side,
-                endSide: endAttachment?.side,
-                axis: .vertical
-            )
-            routePoints = [
-                start,
-                GridPoint(column: start.column, row: middleRow),
-                GridPoint(column: end.column, row: middleRow),
-                end,
-            ]
-        }
-
-        var segments: [ArrowSegment] = []
-        for index in 0..<(routePoints.count - 1) {
-            let from = routePoints[index]
-            let to = routePoints[index + 1]
-            if from != to {
-                segments.append(ArrowSegment(from: from, to: to))
-            }
-        }
-        return segments
+        ArrowRouter.route(
+            start: start,
+            end: end,
+            startSide: startAttachment?.side,
+            endSide: endAttachment?.side,
+            bendHint: bendDirection
+        )?.segments ?? []
     }
 
     private func midpoint() -> GridPoint {
@@ -259,104 +187,6 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         case .top: return .up
         case .bottom: return .down
         }
-    }
-
-    private enum RouteAxis {
-        case horizontal
-        case vertical
-    }
-
-    private enum SegmentAxis {
-        case horizontal
-        case vertical
-    }
-
-    private func middleAxisCoordinate(
-        start: Int,
-        end: Int,
-        startSide: ArrowAttachmentSide?,
-        endSide: ArrowAttachmentSide?,
-        axis: RouteAxis
-    ) -> Int {
-        let minValue = min(start, end)
-        let maxValue = max(start, end)
-
-        // Prefer an interior middle coordinate only when both elbows can sit away from
-        // attachment termini. Tight spans are routed outside instead of producing cramped bends.
-        let interiorCandidates = Array((minValue + 1)..<maxValue)
-        let comfortableCandidates = interiorCandidates.filter { candidate in
-            abs(candidate - start) >= 2 && abs(candidate - end) >= 2
-        }
-        if !comfortableCandidates.isEmpty {
-            let targetMidpoint = Double(start + end) / 2.0
-            return comfortableCandidates.min { lhs, rhs in
-                abs(Double(lhs) - targetMidpoint) < abs(Double(rhs) - targetMidpoint)
-            } ?? comfortableCandidates[0]
-        }
-
-        // No comfortable interior coordinate available: route outside span and bias by outward side.
-        if let outward = outwardDirection(for: startSide, axis: axis) {
-            return outward < 0 ? minValue - 1 : maxValue + 1
-        }
-        if let outward = outwardDirection(for: endSide, axis: axis) {
-            return outward < 0 ? minValue - 1 : maxValue + 1
-        }
-
-        return minValue - 1
-    }
-
-    private func outwardDirection(for side: ArrowAttachmentSide?, axis: RouteAxis) -> Int? {
-        guard let side else { return nil }
-        switch (axis, side) {
-        case (.horizontal, .left):
-            return -1
-        case (.horizontal, .right):
-            return 1
-        case (.vertical, .top):
-            return -1
-        case (.vertical, .bottom):
-            return 1
-        case (.horizontal, .top), (.horizontal, .bottom), (.vertical, .left), (.vertical, .right):
-            return nil
-        }
-    }
-
-    private func requiresEdgeAlignedDetour(for axis: SegmentAxis) -> Bool {
-        func isEdgeAligned(_ side: ArrowAttachmentSide?) -> Bool {
-            guard let side else { return false }
-            switch (axis, side) {
-            case (.horizontal, .top), (.horizontal, .bottom):
-                return true
-            case (.vertical, .left), (.vertical, .right):
-                return true
-            default:
-                return false
-            }
-        }
-
-        return isEdgeAligned(startAttachment?.side) || isEdgeAligned(endAttachment?.side)
-    }
-
-    private func alignedDetourCoordinate(
-        base: Int,
-        startSide: ArrowAttachmentSide?,
-        endSide: ArrowAttachmentSide?,
-        axis: RouteAxis
-    ) -> Int {
-        let startOutward = outwardDirection(for: startSide, axis: axis)
-        let endOutward = outwardDirection(for: endSide, axis: axis)
-
-        if let startOutward, let endOutward, startOutward == endOutward {
-            return base + startOutward
-        }
-        if let startOutward {
-            return base + startOutward
-        }
-        if let endOutward {
-            return base + endOutward
-        }
-
-        return base - 1
     }
 
     private func connections(for char: Character) -> LineConnections? {

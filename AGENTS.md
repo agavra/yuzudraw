@@ -72,6 +72,14 @@ Two-tier serialization designed for AI agent interaction:
 
 3-panel HSplitView: LayerPanel (left sidebar) | CanvasView (center) | InspectorPanel (right sidebar), with ToolbarView on top.
 
+### CanvasView Coordinate System
+
+`CanvasView` uses a `ZStack` inside a `ScrollView` with ruler gutters (`rulerGutterLeft`, `rulerGutterTop`). All grid overlays and the canvas text are offset by the gutter amounts. Gesture and hover handlers subtract the gutter to convert from frame coordinates to grid-local coordinates, then divide by `charSize` to get a `GridPoint`.
+
+**Critical**: The `.frame()` on the ZStack **must** use `alignment: .topLeading`. Default `.center` alignment shifts content by `gutterSize/2` pixels, causing hover/drag coordinates to be offset from visual positions (the offset grows with distance from origin).
+
+**Cursor management**: All cursor changes are centralized in `handleCanvasHover` on the parent ZStack's `onContinuousHover`. Do NOT use `.onHover` on individual overlay elements positioned with `.offset()` — SwiftUI's `.offset()` moves the visual but not the hit-test area, so `.onHover` fires at the wrong position. Instead, detect proximity to handles in the parent hover handler and set cursors there.
+
 ## Conventions
 
 - Architecture: MVVM with `@Observable` view models

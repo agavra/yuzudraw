@@ -38,7 +38,7 @@ struct ArrowShapeTests {
         #expect(canvas.character(atColumn: 2, row: 6) == "▼")
     }
 
-    @Test func should_render_two_elbow_horizontal_first_arrow() {
+    @Test func should_render_single_elbow_horizontal_first_arrow() {
         // given
         var canvas = Canvas(columns: 10, rows: 8)
         let arrow = ArrowShape(
@@ -50,16 +50,14 @@ struct ArrowShapeTests {
         arrow.render(into: &canvas)
 
         // then
-        // H-V-H route using middle column 4
+        // H-V route with a single corner at end column.
         #expect(canvas.character(atColumn: 1, row: 1) == "─")
-        #expect(canvas.character(atColumn: 4, row: 1) == "┐")
-        #expect(canvas.character(atColumn: 4, row: 3) == "│")
-        #expect(canvas.character(atColumn: 4, row: 6) == "└")
-        #expect(canvas.character(atColumn: 6, row: 6) == "─")
-        #expect(canvas.character(atColumn: 8, row: 6) == "▶")
+        #expect(canvas.character(atColumn: 8, row: 1) == "┐")
+        #expect(canvas.character(atColumn: 8, row: 3) == "│")
+        #expect(canvas.character(atColumn: 8, row: 6) == "▼")
     }
 
-    @Test func should_render_two_elbow_vertical_first_arrow() {
+    @Test func should_render_single_elbow_vertical_first_arrow() {
         // given
         var canvas = Canvas(columns: 10, rows: 8)
         let arrow = ArrowShape(
@@ -72,13 +70,11 @@ struct ArrowShapeTests {
         arrow.render(into: &canvas)
 
         // then
-        // V-H-V route using middle row 3
+        // V-H route with a single corner at end row.
         #expect(canvas.character(atColumn: 1, row: 2) == "│")
-        #expect(canvas.character(atColumn: 1, row: 3) == "└")
-        #expect(canvas.character(atColumn: 6, row: 3) == "─")
-        #expect(canvas.character(atColumn: 8, row: 3) == "┐")
-        #expect(canvas.character(atColumn: 8, row: 5) == "│")
-        #expect(canvas.character(atColumn: 8, row: 6) == "▼")
+        #expect(canvas.character(atColumn: 1, row: 6) == "└")
+        #expect(canvas.character(atColumn: 6, row: 6) == "─")
+        #expect(canvas.character(atColumn: 8, row: 6) == "▶")
     }
 
     @Test func should_render_arrow_pointing_left() {
@@ -178,7 +174,7 @@ struct ArrowShapeTests {
         joining.render(into: &canvas)
 
         // then
-        #expect(canvas.character(atColumn: 5, row: 2) == "┬")
+        #expect(canvas.character(atColumn: 5, row: 2) == "┼")
     }
 
     @Test func should_orient_arrowhead_from_end_attachment_side() {
@@ -218,12 +214,11 @@ struct ArrowShapeTests {
         #expect(canvas.character(atColumn: 4, row: 4) == "┤")
     }
 
-    @Test func should_route_middle_axis_outside_span_when_attachment_points_are_adjacent() {
+    @Test func should_exit_attached_start_in_declared_direction() {
         // given
         let arrow = ArrowShape(
             start: GridPoint(column: 10, row: 4),
             end: GridPoint(column: 11, row: 8),
-            bendDirection: .horizontalFirst,
             startAttachment: ArrowAttachment(shapeID: UUID(), side: .right)
         )
 
@@ -231,27 +226,27 @@ struct ArrowShapeTests {
         let segments = arrow.pathSegments()
 
         // then
-        #expect(segments.count == 3)
-        #expect(segments[0].to.column != arrow.start.column)
-        #expect(segments[0].to.column != arrow.end.column)
+        #expect(!segments.isEmpty)
+        #expect(segments[0].isHorizontal)
+        #expect(segments[0].to.column > segments[0].from.column)
     }
 
-    @Test func should_route_middle_axis_outside_span_when_axis_span_is_tight() {
+    @Test func should_approach_attached_end_from_declared_side() {
         // given
         let arrow = ArrowShape(
-            start: GridPoint(column: 10, row: 4),
-            end: GridPoint(column: 13, row: 9),
-            bendDirection: .horizontalFirst,
-            startAttachment: ArrowAttachment(shapeID: UUID(), side: .right)
+            start: GridPoint(column: 0, row: 4),
+            end: GridPoint(column: 10, row: 4),
+            endAttachment: ArrowAttachment(shapeID: UUID(), side: .left)
         )
 
         // when
         let segments = arrow.pathSegments()
 
         // then
-        #expect(segments.count == 3)
-        let elbowColumn = segments[0].to.column
-        #expect(elbowColumn < min(arrow.start.column, arrow.end.column) || elbowColumn > max(arrow.start.column, arrow.end.column))
+        #expect(!segments.isEmpty)
+        let last = segments[segments.count - 1]
+        #expect(last.isHorizontal)
+        #expect(last.to.column > last.from.column)
     }
 
     @Test func should_detour_when_straight_horizontal_route_would_align_with_box_edge() {

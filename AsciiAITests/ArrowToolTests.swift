@@ -16,7 +16,7 @@ struct ArrowToolTests {
         // then
         if case .addShape(.arrow(let arrow), let layerIndex) = action {
             #expect(arrow.start == GridPoint(column: 1, row: 1))
-            #expect(arrow.end == GridPoint(column: 10, row: 5))
+            #expect(arrow.end == GridPoint(column: 10, row: 1))
             #expect(arrow.startAttachment == nil)
             #expect(arrow.endAttachment == nil)
             #expect(layerIndex == 0)
@@ -52,7 +52,7 @@ struct ArrowToolTests {
             #expect(arrow.end == GridPoint(column: 20, row: 4))
             #expect(arrow.startAttachment == ArrowAttachment(shapeID: leftBox.id, side: .right))
             #expect(arrow.endAttachment == ArrowAttachment(shapeID: rightBox.id, side: .left))
-            #expect(arrow.bendDirection == .verticalFirst)
+            #expect(arrow.bendDirection == .horizontalFirst)
         } else {
             Issue.record("Expected addShape action with arrow")
         }
