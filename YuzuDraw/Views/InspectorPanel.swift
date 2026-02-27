@@ -98,26 +98,81 @@ struct InspectorPanel: View {
             Divider()
 
             sectionHeader("Text")
-
-            Picker("Horizontal", selection: Binding(
-                get: { box.textHorizontalAlignment },
-                set: { viewModel.updateSelectedBoxTextHorizontalAlignment($0) }
-            )) {
-                ForEach(BoxTextHorizontalAlignment.allCases, id: \.self) { alignment in
-                    Text(alignment.rawValue.capitalized).tag(alignment)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Horizontal")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 0) {
+                    alignmentIconButton(
+                        isSelected: box.textHorizontalAlignment == .left,
+                        action: { viewModel.updateSelectedBoxTextHorizontalAlignment(.left) }
+                    ) {
+                        horizontalAlignmentIcon(.left)
+                    }
+                    Divider()
+                        .frame(height: 16)
+                    alignmentIconButton(
+                        isSelected: box.textHorizontalAlignment == .center,
+                        action: { viewModel.updateSelectedBoxTextHorizontalAlignment(.center) }
+                    ) {
+                        horizontalAlignmentIcon(.center)
+                    }
+                    Divider()
+                        .frame(height: 16)
+                    alignmentIconButton(
+                        isSelected: box.textHorizontalAlignment == .right,
+                        action: { viewModel.updateSelectedBoxTextHorizontalAlignment(.right) }
+                    ) {
+                        horizontalAlignmentIcon(.right)
+                    }
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+                )
             }
-            .pickerStyle(.menu)
 
-            Picker("Vertical", selection: Binding(
-                get: { box.textVerticalAlignment },
-                set: { viewModel.updateSelectedBoxTextVerticalAlignment($0) }
-            )) {
-                ForEach(BoxTextVerticalAlignment.allCases, id: \.self) { alignment in
-                    Text(alignment.rawValue.capitalized).tag(alignment)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Vertical")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 0) {
+                    alignmentIconButton(
+                        isSelected: box.textVerticalAlignment == .top,
+                        action: { viewModel.updateSelectedBoxTextVerticalAlignment(.top) }
+                    ) {
+                        verticalAlignmentIcon(.top)
+                    }
+                    Divider()
+                        .frame(height: 16)
+                    alignmentIconButton(
+                        isSelected: box.textVerticalAlignment == .middle,
+                        action: { viewModel.updateSelectedBoxTextVerticalAlignment(.middle) }
+                    ) {
+                        verticalAlignmentIcon(.middle)
+                    }
+                    Divider()
+                        .frame(height: 16)
+                    alignmentIconButton(
+                        isSelected: box.textVerticalAlignment == .bottom,
+                        action: { viewModel.updateSelectedBoxTextVerticalAlignment(.bottom) }
+                    ) {
+                        verticalAlignmentIcon(.bottom)
+                    }
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+                )
             }
-            .pickerStyle(.menu)
 
             Toggle("Allow Text On Border", isOn: Binding(
                 get: { box.allowTextOnBorder },
@@ -355,6 +410,57 @@ struct InspectorPanel: View {
             )
             .textFieldStyle(.roundedBorder)
             .frame(width: 50)
+        }
+    }
+
+    private func alignmentIconButton<Content: View>(
+        isSelected: Bool,
+        action: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Button(action: action) {
+            ZStack {
+                Rectangle()
+                    .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+                content()
+            }
+            .frame(width: 32, height: 24)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(width: 32, height: 24)
+        .contentShape(Rectangle())
+    }
+
+    private func horizontalAlignmentIcon(_ alignment: BoxTextHorizontalAlignment) -> some View {
+        Image(systemName: horizontalAlignmentSymbol(for: alignment))
+            .font(.system(size: 13, weight: .medium))
+    }
+
+    private func verticalAlignmentIcon(_ alignment: BoxTextVerticalAlignment) -> some View {
+        Image(systemName: verticalAlignmentSymbol(for: alignment))
+            .font(.system(size: 13, weight: .medium))
+    }
+
+    private func horizontalAlignmentSymbol(for alignment: BoxTextHorizontalAlignment) -> String {
+        switch alignment {
+        case .left:
+            return "text.alignleft"
+        case .center:
+            return "text.aligncenter"
+        case .right:
+            return "text.alignright"
+        }
+    }
+
+    private func verticalAlignmentSymbol(for alignment: BoxTextVerticalAlignment) -> String {
+        switch alignment {
+        case .top:
+            return "align.vertical.top"
+        case .middle:
+            return "align.vertical.center"
+        case .bottom:
+            return "align.vertical.bottom"
         }
     }
 
