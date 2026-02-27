@@ -22,21 +22,25 @@ struct ColorSwatchButton: View {
 struct InlineColorRow<Popover: View>: View {
     let color: ShapeColor?
     let defaultColor: ShapeColor
+    let allowsNone: Bool
     let onColorSelected: (ShapeColor?) -> Void
     @Binding var isPopoverPresented: Bool
     @ViewBuilder let popover: () -> Popover
 
     @State private var hexText: String = ""
+    @FocusState private var isHexFieldFocused: Bool
 
     init(
         color: ShapeColor?,
         defaultColor: ShapeColor = .black,
+        allowsNone: Bool = false,
         onColorSelected: @escaping (ShapeColor?) -> Void,
         isPopoverPresented: Binding<Bool>,
         @ViewBuilder popover: @escaping () -> Popover
     ) {
         self.color = color
         self.defaultColor = defaultColor
+        self.allowsNone = allowsNone
         self.onColorSelected = onColorSelected
         self._isPopoverPresented = isPopoverPresented
         self.popover = popover
@@ -46,12 +50,20 @@ struct InlineColorRow<Popover: View>: View {
         color ?? defaultColor
     }
 
+    private var isNone: Bool {
+        allowsNone && color == nil
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Button {
                 isPopoverPresented.toggle()
             } label: {
-                colorSwatch(color: displayColor, size: 14)
+                if isNone {
+                    transparentSwatch(size: 14)
+                } else {
+                    colorSwatch(color: displayColor, size: 14)
+                }
             }
             .buttonStyle(.plain)
             .padding(.leading, 3)
@@ -62,12 +74,28 @@ struct InlineColorRow<Popover: View>: View {
             Text("#")
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.tertiary)
-            TextField("------", text: $hexText)
+            TextField(isNone ? "None" : "------", text: $hexText)
                 .font(.system(size: 10, design: .monospaced))
                 .textFieldStyle(.plain)
                 .frame(width: 84)
+                .focused($isHexFieldFocused)
+                .onChange(of: hexText) { _, newValue in
+                    if newValue.count > 6 {
+                        hexText = String(newValue.prefix(6))
+                    }
+                }
                 .onSubmit {
                     applyHex()
+                }
+                .onChange(of: isHexFieldFocused) { _, focused in
+                    if focused {
+                        DispatchQueue.main.async {
+                            NSApp.keyWindow?.firstResponder?
+                                .tryToPerform(#selector(NSText.selectAll(_:)), with: nil)
+                        }
+                    } else {
+                        applyHex()
+                    }
                 }
                 .padding(.trailing, 4)
         }
@@ -84,12 +112,27 @@ struct InlineColorRow<Popover: View>: View {
     }
 
     private func syncHex() {
-        hexText = String(displayColor.hexString.dropFirst())
+        if isNone {
+            hexText = ""
+        } else {
+            hexText = String(displayColor.hexString.dropFirst())
+        }
     }
 
     private func applyHex() {
         let cleaned = hexText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let parsed = ShapeColor(hex: "#\(cleaned)") {
+        if allowsNone && cleaned.isEmpty {
+            onColorSelected(nil)
+            return
+        }
+        guard !cleaned.isEmpty else { return }
+        // Repeat short input to fill 6 characters (e.g. "1" -> "111111", "0a" -> "0a0a0a")
+        var expanded = cleaned
+        while expanded.count < 6 {
+            expanded += cleaned
+        }
+        expanded = String(expanded.prefix(6))
+        if let parsed = ShapeColor(hex: "#\(expanded)") {
             onColorSelected(parsed)
         }
     }
@@ -135,4 +178,19 @@ private func colorSwatch(color: ShapeColor, size: CGFloat = 20) -> some View {
                 .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
         )
         .frame(width: size, height: size)
+}
+
+func transparentSwatch(size: CGFloat = 20) -> some View {
+    ZStack {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(Color.white)
+        Path { path in
+            path.move(to: CGPoint(x: 1, y: size - 1))
+            path.addLine(to: CGPoint(x: size - 1, y: 1))
+        }
+        .stroke(Color.red.opacity(0.7), lineWidth: 1.5)
+        RoundedRectangle(cornerRadius: 2)
+            .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+    }
+    .frame(width: size, height: size)
 }

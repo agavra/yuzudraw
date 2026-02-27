@@ -3,6 +3,7 @@ import SwiftUI
 struct ColorPickerPopover: View {
     let palette: ColorPalette
     let currentColor: ShapeColor?
+    let allowsNone: Bool
     let onColorSelected: (ShapeColor?) -> Void
     let onEditPalette: () -> Void
 
@@ -12,11 +13,13 @@ struct ColorPickerPopover: View {
     init(
         palette: ColorPalette,
         currentColor: ShapeColor?,
+        allowsNone: Bool = false,
         onColorSelected: @escaping (ShapeColor?) -> Void,
         onEditPalette: @escaping () -> Void
     ) {
         self.palette = palette
         self.currentColor = currentColor
+        self.allowsNone = allowsNone
         self.onColorSelected = onColorSelected
         self.onEditPalette = onEditPalette
         self._customColor = State(initialValue: currentColor?.swiftUIColor ?? .black)
@@ -30,19 +33,14 @@ struct ColorPickerPopover: View {
             Divider()
             systemPicker
             Divider()
-            HStack {
-                Button("No Color") {
-                    onColorSelected(nil)
-                }
-                .font(.caption)
-                Spacer()
-                Button("Edit Palette...") {
-                    onEditPalette()
-                }
-                .font(.caption)
+            Button("Edit Palette...") {
+                onEditPalette()
             }
+            .font(.caption)
+            .frame(maxWidth: .infinity)
         }
         .padding(10)
+        .padding(.top, 4)
         .frame(width: 200)
     }
 
@@ -70,6 +68,24 @@ struct ColorPickerPopover: View {
                 }
                 .buttonStyle(.plain)
                 .help(entry.name)
+            }
+            if allowsNone {
+                Button {
+                    onColorSelected(nil)
+                } label: {
+                    transparentSwatch(size: 20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(
+                                    currentColor == nil
+                                        ? Color.accentColor
+                                        : Color.clear,
+                                    lineWidth: 2
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("No Color")
             }
         }
     }

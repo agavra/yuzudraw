@@ -11,6 +11,14 @@ struct InspectorPanel: View {
     // MARK: - Color popover state
     @State private var activeColorTarget: ColorTarget?
     @State private var showPaletteEditor = false
+    @State private var isExportSectionExpanded = true
+    @State private var exportScale = 1
+    @State private var exportBackgroundColor: ShapeColor?
+    @State private var exportFormat: LayerExportFormat = .png
+
+    private enum LayerExportFormat: String, CaseIterable {
+        case png = "PNG"
+    }
 
     private enum ColorTarget: Hashable {
         case boxBorder
@@ -24,6 +32,7 @@ struct InspectorPanel: View {
         case layerFill
         case layerBorder
         case layerText
+        case exportBackground
     }
 
     var body: some View {
@@ -210,6 +219,82 @@ struct InspectorPanel: View {
                     target: .layerText,
                     onColorSelected: { viewModel.updateLayerTextColor($0) }
                 )
+            }
+        }
+
+        Divider()
+
+        collapsibleSection(
+            label: "Export",
+            icon: "square.and.arrow.up",
+            isExpanded: isExportSectionExpanded,
+            onToggle: { isExportSectionExpanded.toggle() }
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Picker("", selection: $exportScale) {
+                        Text("1x").tag(1)
+                        Text("2x").tag(2)
+                        Text("3x").tag(3)
+                        Text("4x").tag(4)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+
+                    Picker("", selection: $exportFormat) {
+                        ForEach(LayerExportFormat.allCases, id: \.self) { format in
+                            Text(format.rawValue).tag(format)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Background")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    colorSwatchRow(
+                        color: exportBackgroundColor,
+                        defaultColor: .white,
+                        allowsNone: true,
+                        target: .exportBackground,
+                        onColorSelected: { exportBackgroundColor = $0 }
+                    )
+                }
+
+                HStack(spacing: 6) {
+                    Button {
+                        switch exportFormat {
+                        case .png:
+                            viewModel.exportSelectedLayerAsPNG(
+                                scale: exportScale,
+                                backgroundColor: exportBackgroundColor
+                            )
+                        }
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                            .font(.caption.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(layer.shapes.isEmpty)
+
+                    Button {
+                        viewModel.copySelectedLayerAsTextToClipboard()
+                    } label: {
+                        Label("Copy Text", systemImage: "doc.on.doc")
+                            .font(.caption.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(layer.shapes.isEmpty)
+                }
             }
         }
     }
@@ -942,6 +1027,38 @@ struct InspectorPanel: View {
         .padding(.vertical, 12)
     }
 
+    private func collapsibleSection<Content: View>(
+        label: String,
+        icon: String,
+        isExpanded: Bool,
+        onToggle: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label(label, systemImage: icon)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Button {
+                    onToggle()
+                } label: {
+                    Image(systemName: isExpanded ? "minus" : "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isExpanded {
+                content()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+    }
+
     private func toggleSection<Content: View>(
         label: String,
         icon: String,
@@ -1169,12 +1286,14 @@ struct InspectorPanel: View {
     private func colorSwatchRow(
         color: ShapeColor?,
         defaultColor: ShapeColor = .black,
+        allowsNone: Bool = false,
         target: ColorTarget,
         onColorSelected: @escaping (ShapeColor?) -> Void
     ) -> some View {
         InlineColorRow(
             color: color,
             defaultColor: defaultColor,
+            allowsNone: allowsNone,
             onColorSelected: onColorSelected,
             isPopoverPresented: Binding(
                 get: { activeColorTarget == target },
@@ -1186,6 +1305,7 @@ struct InspectorPanel: View {
             ColorPickerPopover(
                 palette: viewModel.document.palette,
                 currentColor: color,
+                allowsNone: allowsNone,
                 onColorSelected: { newColor in
                     onColorSelected(newColor)
                     activeColorTarget = nil

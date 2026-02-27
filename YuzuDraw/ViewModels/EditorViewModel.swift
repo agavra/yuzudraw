@@ -825,6 +825,143 @@ final class EditorViewModel {
         document.palette.entries.removeAll { $0.id == id }
     }
 
+    // MARK: - Layer export
+
+    func copySelectedLayerAsTextToClipboard() {
+        guard let text = selectedLayerPlainText() else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
+    func selectedLayerPlainText() -> String? {
+        guard let canvas = selectedLayerExportCanvas() else { return nil }
+        return canvas.render()
+    }
+
+    func exportSelectedLayerAsPNG(scale: Int, backgroundColor: ShapeColor?) {
+        guard let layer = selectedLayer,
+            let canvas = selectedLayerExportCanvas(),
+            let pngData = pngData(from: canvas, scale: scale, backgroundColor: backgroundColor)
+        else { return }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "png")!]
+        panel.nameFieldStringValue = "\(layer.name).png"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try pngData.write(to: url)
+        } catch {
+            print("Failed to export layer PNG: \(error)")
+        }
+    }
+
+    private func selectedLayerExportCanvas() -> Canvas? {
+        guard let layer = selectedLayer, !layer.shapes.isEmpty else { return nil }
+        let bounds = layerBounds(for: layer)
+
+        var canvas = Canvas(columns: bounds.size.width, rows: bounds.size.height)
+        for shape in layer.shapes {
+            translatedShape(shape, dx: -bounds.origin.column, dy: -bounds.origin.row)
+                .render(into: &canvas)
+        }
+        return canvas
+    }
+
+    private func layerBounds(for layer: Layer) -> GridRect {
+        let first = layer.shapes[0].boundingRect
+        return layer.shapes.dropFirst().reduce(first) { result, shape in
+            let rect = shape.boundingRect
+            let minColumn = min(result.minColumn, rect.minColumn)
+            let minRow = min(result.minRow, rect.minRow)
+            let maxColumn = max(result.maxColumn, rect.maxColumn)
+            let maxRow = max(result.maxRow, rect.maxRow)
+            return GridRect(
+                origin: GridPoint(column: minColumn, row: minRow),
+                size: GridSize(width: maxColumn - minColumn + 1, height: maxRow - minRow + 1)
+            )
+        }
+    }
+
+    private func translatedShape(_ shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
+        switch shape {
+        case .box(var box):
+            box.origin = GridPoint(column: box.origin.column + dx, row: box.origin.row + dy)
+            return .box(box)
+        case .arrow(var arrow):
+            arrow.start = GridPoint(column: arrow.start.column + dx, row: arrow.start.row + dy)
+            arrow.end = GridPoint(column: arrow.end.column + dx, row: arrow.end.row + dy)
+            return .arrow(arrow)
+        case .text(var text):
+            text.origin = GridPoint(column: text.origin.column + dx, row: text.origin.row + dy)
+            return .text(text)
+        case .pencil(var pencil):
+            pencil.origin = GridPoint(
+                column: pencil.origin.column + dx,
+                row: pencil.origin.row + dy
+            )
+            return .pencil(pencil)
+        }
+    }
+
+    private func pngData(from canvas: Canvas, scale: Int, backgroundColor: ShapeColor?) -> Data? {
+        let exportScale = min(max(scale, 1), 4)
+        let font = NSFont.monospacedSystemFont(ofSize: 16, weight: .regular)
+        let charSize = ("M" as NSString).size(withAttributes: [.font: font])
+        let baseWidth = max(1, Int(ceil(CGFloat(canvas.columns) * charSize.width)))
+        let baseHeight = max(1, Int(ceil(CGFloat(canvas.rows) * charSize.height)))
+        let width = baseWidth * exportScale
+        let height = baseHeight * exportScale
+
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+
+        (backgroundColor?.nsColor ?? .clear).setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill()
+
+        context.cgContext.scaleBy(x: CGFloat(exportScale), y: CGFloat(exportScale))
+
+        for row in 0..<canvas.rows {
+            for column in 0..<canvas.columns {
+                guard let cell = canvas.cell(atColumn: column, row: row) else { continue }
+                let x = CGFloat(column) * charSize.width
+                let y = CGFloat(canvas.rows - row - 1) * charSize.height
+                let cellRect = NSRect(x: x, y: y, width: charSize.width, height: charSize.height)
+
+                if let background = cell.backgroundColor {
+                    background.nsColor.setFill()
+                    cellRect.fill()
+                }
+
+                guard cell.character != " " else { continue }
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: (cell.foregroundColor ?? .black).nsColor,
+                ]
+                NSString(string: String(cell.character)).draw(at: CGPoint(x: x, y: y), withAttributes: attributes)
+            }
+        }
+
+        NSGraphicsContext.restoreGraphicsState()
+        return bitmap.representation(using: .png, properties: [:])
+    }
+
     func deleteSelectedShapes() {
         for id in selectedShapeIDs {
             detachArrows(referencing: id)

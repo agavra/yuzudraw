@@ -37,9 +37,5 @@ struct ColorPalette: Codable, Equatable, Sendable {
             name: "Light Green",
             color: ShapeColor(red: 0.4, green: 0.9, blue: 0.4)
         ),
-        ColorPaletteEntry(
-            name: "Light Yellow",
-            color: ShapeColor(red: 1.0, green: 1.0, blue: 0.6)
-        ),
     ])
 }
