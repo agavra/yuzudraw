@@ -777,10 +777,56 @@ final class EditorViewModel {
 
     // MARK: - Canvas auto-grow
 
+    func expandCanvasForScrollIfNeeded(
+        visibleMaxColumn: Int,
+        visibleMaxRow: Int,
+        deltaX: CGFloat,
+        deltaY: CGFloat
+    ) {
+        let edgeThresholdColumns = 5
+        let edgeThresholdRows = 3
+        let growthColumns = 20
+        let growthRows = 10
+        let padding = 10
+
+        var newWidth = document.canvasSize.width
+        var newHeight = document.canvasSize.height
+        var minimumWidth = Canvas.defaultColumns
+        var minimumHeight = Canvas.defaultRows
+
+        if let bbox = document.boundingBox() {
+            minimumWidth = max(minimumWidth, bbox.maxColumn + 1 + padding)
+            minimumHeight = max(minimumHeight, bbox.maxRow + 1 + padding)
+        }
+
+        if deltaX > 0, visibleMaxColumn >= (document.canvasSize.width - edgeThresholdColumns) {
+            newWidth += growthColumns
+        } else if deltaX < 0, newWidth > minimumWidth {
+            let shrinkLimit = max(minimumWidth, visibleMaxColumn + edgeThresholdColumns)
+            if (newWidth - shrinkLimit) >= growthColumns {
+                newWidth = max(minimumWidth, newWidth - growthColumns)
+            }
+        }
+
+        if deltaY > 0, visibleMaxRow >= (document.canvasSize.height - edgeThresholdRows) {
+            newHeight += growthRows
+        } else if deltaY < 0, newHeight > minimumHeight {
+            let shrinkLimit = max(minimumHeight, visibleMaxRow + edgeThresholdRows)
+            if (newHeight - shrinkLimit) >= growthRows {
+                newHeight = max(minimumHeight, newHeight - growthRows)
+            }
+        }
+
+        let newSize = GridSize(width: newWidth, height: newHeight)
+        guard newSize != document.canvasSize else { return }
+        document.canvasSize = newSize
+        rerender()
+    }
+
     func expandCanvasIfNeeded() {
         let padding = 10
-        var requiredWidth = Canvas.defaultColumns
-        var requiredHeight = Canvas.defaultRows
+        var requiredWidth = max(Canvas.defaultColumns, document.canvasSize.width)
+        var requiredHeight = max(Canvas.defaultRows, document.canvasSize.height)
 
         // Expand to fit all shapes with padding
         if let bbox = document.boundingBox() {

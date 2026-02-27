@@ -12,6 +12,7 @@ struct CanvasView: View {
     @State private var didMouseDown = false
     @State private var lastMouseDownTime: Date?
     @State private var lastMouseDownPoint: GridPoint?
+    @State private var lastScrollOrigin: CGPoint?
     private let rulerGutterLeft: CGFloat = 30
     private let rulerGutterTop: CGFloat = 16
     private static let diagonalNWSECursor = NSCursor(
@@ -58,6 +59,11 @@ struct CanvasView: View {
 
                     arrowAttachmentOverlay
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)
+
+                    ScrollViewBoundsObserver { origin in
+                        handleScrollOffsetChange(origin)
+                    }
+                    .frame(width: 0, height: 0)
                 }
                 .frame(
                     width: rulerGutterLeft + contentWidth,
@@ -133,6 +139,32 @@ struct CanvasView: View {
                 viewModel.rerender()
             }
         }
+    }
+
+    private func handleScrollOffsetChange(_ origin: CGPoint) {
+        defer { lastScrollOrigin = origin }
+
+        guard let previous = lastScrollOrigin else { return }
+        let deltaX = origin.x - previous.x
+        let deltaY = origin.y - previous.y
+        guard deltaX != 0 || deltaY != 0 else { return }
+        guard charSize.width > 0, charSize.height > 0 else { return }
+        guard viewModel.viewportSize.width > 0, viewModel.viewportSize.height > 0 else { return }
+
+        let gridVisibleLeft = max(0, origin.x - rulerGutterLeft)
+        let gridVisibleTop = max(0, origin.y - rulerGutterTop)
+        let gridVisibleRight = gridVisibleLeft + viewModel.viewportSize.width
+        let gridVisibleBottom = gridVisibleTop + viewModel.viewportSize.height
+
+        let visibleMaxColumn = Int(ceil(gridVisibleRight / charSize.width))
+        let visibleMaxRow = Int(ceil(gridVisibleBottom / charSize.height))
+
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: visibleMaxColumn,
+            visibleMaxRow: visibleMaxRow,
+            deltaX: deltaX,
+            deltaY: deltaY
+        )
     }
 
     // MARK: - Column ruler
@@ -515,6 +547,70 @@ struct CanvasView: View {
         return nil
     }
 
+}
+
+struct ScrollViewBoundsObserver: NSViewRepresentable {
+    let onOffsetChange: (CGPoint) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onOffsetChange: onOffsetChange)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            context.coordinator.attachIfNeeded(to: view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onOffsetChange = onOffsetChange
+        DispatchQueue.main.async {
+            context.coordinator.attachIfNeeded(to: nsView)
+        }
+    }
+
+    final class Coordinator {
+        var onOffsetChange: (CGPoint) -> Void
+        private weak var clipView: NSClipView?
+        private var observer: NSObjectProtocol?
+
+        init(onOffsetChange: @escaping (CGPoint) -> Void) {
+            self.onOffsetChange = onOffsetChange
+        }
+
+        func attachIfNeeded(to view: NSView) {
+            guard let scrollView = view.enclosingScrollView else { return }
+            let clip = scrollView.contentView
+            guard clipView !== clip else { return }
+
+            detach()
+            clip.postsBoundsChangedNotifications = true
+            observer = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: clip,
+                queue: .main
+            ) { [weak self, weak clip] _ in
+                guard let self, let clip else { return }
+                self.onOffsetChange(clip.bounds.origin)
+            }
+            clipView = clip
+            onOffsetChange(clip.bounds.origin)
+        }
+
+        private func detach() {
+            if let observer {
+                NotificationCenter.default.removeObserver(observer)
+                self.observer = nil
+            }
+            clipView = nil
+        }
+
+        deinit {
+            detach()
+        }
+    }
 }
 
 // MARK: - Inline Text Editor

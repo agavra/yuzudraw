@@ -126,4 +126,142 @@ struct EditorViewModelGroupingTests {
         // then
         #expect(viewModel.document.layers[0].groups[0].children[0].name == "Database")
     }
+
+    @Test func should_expand_canvas_width_when_scrolling_right_near_edge() {
+        // given
+        let viewModel = EditorViewModel()
+        viewModel.document.canvasSize = GridSize(width: 100, height: 40)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 97,
+            visibleMaxRow: 10,
+            deltaX: 5,
+            deltaY: 0
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize.width == 120)
+        #expect(viewModel.document.canvasSize.height == 40)
+    }
+
+    @Test func should_expand_canvas_height_when_scrolling_down_near_edge() {
+        // given
+        let viewModel = EditorViewModel()
+        viewModel.document.canvasSize = GridSize(width: 100, height: 40)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 10,
+            visibleMaxRow: 38,
+            deltaX: 0,
+            deltaY: 4
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize.width == 100)
+        #expect(viewModel.document.canvasSize.height == 50)
+    }
+
+    @Test func should_not_expand_canvas_when_scrolling_left_or_up() {
+        // given
+        let viewModel = EditorViewModel()
+        viewModel.document.canvasSize = GridSize(width: 100, height: 40)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 99,
+            visibleMaxRow: 39,
+            deltaX: -5,
+            deltaY: -4
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize == GridSize(width: 100, height: 40))
+    }
+
+    @Test func should_not_expand_canvas_when_not_near_edge() {
+        // given
+        let viewModel = EditorViewModel()
+        viewModel.document.canvasSize = GridSize(width: 100, height: 40)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 70,
+            visibleMaxRow: 20,
+            deltaX: 5,
+            deltaY: 5
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize == GridSize(width: 100, height: 40))
+    }
+
+    @Test func should_shrink_canvas_width_when_scrolling_left_away_from_empty_right_space() {
+        // given
+        let viewModel = EditorViewModel()
+        viewModel.document.canvasSize = GridSize(width: 140, height: 40)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 90,
+            visibleMaxRow: 20,
+            deltaX: -8,
+            deltaY: 0
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize.width == 120)
+        #expect(viewModel.document.canvasSize.height == 40)
+    }
+
+    @Test func should_shrink_canvas_height_when_scrolling_up_away_from_empty_bottom_space() {
+        // given
+        let viewModel = EditorViewModel()
+        viewModel.document.canvasSize = GridSize(width: 100, height: 60)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 60,
+            visibleMaxRow: 30,
+            deltaX: 0,
+            deltaY: -6
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize.width == 100)
+        #expect(viewModel.document.canvasSize.height == 50)
+    }
+
+    @Test func should_not_shrink_canvas_below_shape_bounds_plus_padding() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(origin: GridPoint(column: 95, row: 5), size: GridSize(width: 10, height: 4))
+        document.addShape(.box(box), toLayerAt: 0)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.document.canvasSize = GridSize(width: 140, height: 40)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 80,
+            visibleMaxRow: 20,
+            deltaX: -8,
+            deltaY: 0
+        )
+
+        // then
+        // box max col is 104 -> minimum width with padding is 115
+        #expect(viewModel.document.canvasSize.width == 120)
+
+        // when
+        viewModel.expandCanvasForScrollIfNeeded(
+            visibleMaxColumn: 80,
+            visibleMaxRow: 20,
+            deltaX: -8,
+            deltaY: 0
+        )
+
+        // then
+        #expect(viewModel.document.canvasSize.width == 120)
+    }
 }
