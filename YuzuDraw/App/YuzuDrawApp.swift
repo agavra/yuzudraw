@@ -53,6 +53,32 @@ struct YuzuDrawApp: App {
                 }
                 .keyboardShortcut("g", modifiers: .command)
                 .disabled(workspace.activeEditor?.canGroupSelectedShapes() != true)
+
+                Divider()
+
+                Button("Move Back") {
+                    workspace.activeEditor?.moveSelectedShapeBackward()
+                }
+                .keyboardShortcut("[", modifiers: [])
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeBackward() != true)
+
+                Button("Move Front") {
+                    workspace.activeEditor?.moveSelectedShapeForward()
+                }
+                .keyboardShortcut("]", modifiers: [])
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeForward() != true)
+
+                Button("Bring to Back") {
+                    workspace.activeEditor?.moveSelectedShapeToBack()
+                }
+                .keyboardShortcut("[", modifiers: .command)
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeBackward() != true)
+
+                Button("Bring to Front") {
+                    workspace.activeEditor?.moveSelectedShapeToFront()
+                }
+                .keyboardShortcut("]", modifiers: .command)
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeForward() != true)
             }
         }
     }

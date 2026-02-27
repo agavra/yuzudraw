@@ -221,6 +221,39 @@ struct DocumentTests {
         #expect(doc.layers[0].shapes[1].id == front.id)
     }
 
+    @Test func should_bring_shape_to_front_and_back_within_layer() {
+        // given
+        var doc = Document()
+        let back = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 6, height: 4),
+            label: "Back"
+        )
+        let middle = BoxShape(
+            origin: GridPoint(column: 2, row: 1),
+            size: GridSize(width: 6, height: 4),
+            label: "Middle"
+        )
+        let front = BoxShape(
+            origin: GridPoint(column: 4, row: 2),
+            size: GridSize(width: 6, height: 4),
+            label: "Front"
+        )
+        doc.addShape(.box(back), toLayerAt: 0)
+        doc.addShape(.box(middle), toLayerAt: 0)
+        doc.addShape(.box(front), toLayerAt: 0)
+
+        // when
+        let movedToFront = doc.moveShapeToFront(id: back.id)
+        let movedToBack = doc.moveShapeToBack(id: front.id)
+
+        // then
+        #expect(movedToFront)
+        #expect(movedToBack)
+        #expect(doc.layers[0].shapes[0].id == front.id)
+        #expect(doc.layers[0].shapes[2].id == back.id)
+    }
+
     @Test func should_occlude_lower_layer_when_top_box_fill_is_solid() {
         // given
         var doc = Document(layers: [

@@ -102,6 +102,30 @@ struct Document: Codable, Equatable, Sendable {
     }
 
     @discardableResult
+    mutating func moveShapeToFront(id shapeID: UUID) -> Bool {
+        guard let layerIndex = layerIndex(containingShape: shapeID),
+            let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+            shapeIndex < layers[layerIndex].shapes.count - 1
+        else { return false }
+
+        let shape = layers[layerIndex].shapes.remove(at: shapeIndex)
+        layers[layerIndex].shapes.append(shape)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveShapeToBack(id shapeID: UUID) -> Bool {
+        guard let layerIndex = layerIndex(containingShape: shapeID),
+            let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+            shapeIndex > 0
+        else { return false }
+
+        let shape = layers[layerIndex].shapes.remove(at: shapeIndex)
+        layers[layerIndex].shapes.insert(shape, at: 0)
+        return true
+    }
+
+    @discardableResult
     mutating func moveLayer(id layerID: UUID, before targetLayerID: UUID) -> Bool {
         guard layerID != targetLayerID,
             let sourceIndex = layers.firstIndex(where: { $0.id == layerID }),

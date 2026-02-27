@@ -588,12 +588,54 @@ final class EditorViewModel {
         rerender()
     }
 
+    func moveSelectedShapeToFront() {
+        guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
+        guard document.moveShapeToFront(id: shapeID) else { return }
+        rerender()
+    }
+
+    func moveSelectedShapeToBack() {
+        guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
+        guard document.moveShapeToBack(id: shapeID) else { return }
+        rerender()
+    }
+
+    func moveShapeForward(_ shapeID: UUID) {
+        guard document.moveShapeForward(id: shapeID) else { return }
+        rerender()
+    }
+
+    func moveShapeBackward(_ shapeID: UUID) {
+        guard document.moveShapeBackward(id: shapeID) else { return }
+        rerender()
+    }
+
+    func moveShapeToFront(_ shapeID: UUID) {
+        guard document.moveShapeToFront(id: shapeID) else { return }
+        rerender()
+    }
+
+    func moveShapeToBack(_ shapeID: UUID) {
+        guard document.moveShapeToBack(id: shapeID) else { return }
+        rerender()
+    }
+
     func canMoveShapeForward(_ shapeID: UUID) -> Bool {
         document.canMoveShapeForward(id: shapeID)
     }
 
     func canMoveShapeBackward(_ shapeID: UUID) -> Bool {
         document.canMoveShapeBackward(id: shapeID)
+    }
+
+    func canMoveSelectedShapeForward() -> Bool {
+        guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return false }
+        return document.canMoveShapeForward(id: shapeID)
+    }
+
+    func canMoveSelectedShapeBackward() -> Bool {
+        guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return false }
+        return document.canMoveShapeBackward(id: shapeID)
     }
 
     func canGroupSelectedShapes() -> Bool {

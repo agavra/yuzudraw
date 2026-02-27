@@ -48,42 +48,14 @@ struct LayerPanel: View {
                 .font(.headline)
 
             Spacer()
-
-            Button {
-                viewModel.moveSelectedShapeForward()
-            } label: {
-                Image(systemName: "arrow.up")
-            }
-            .buttonStyle(.plain)
-            .help("Move selected element up")
-            .disabled(!canMoveSelectedElementUp)
-
-            Button {
-                viewModel.moveSelectedShapeBackward()
-            } label: {
-                Image(systemName: "arrow.down")
-            }
-            .buttonStyle(.plain)
-            .help("Move selected element down")
-            .disabled(!canMoveSelectedElementDown)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
     }
 
-    private var singleSelectedShapeID: UUID? {
+    private var selectedSingleShapeID: UUID? {
         guard viewModel.selectedShapeIDs.count == 1 else { return nil }
         return viewModel.selectedShapeIDs.first
-    }
-
-    private var canMoveSelectedElementUp: Bool {
-        guard let shapeID = singleSelectedShapeID else { return false }
-        return viewModel.canMoveShapeForward(shapeID)
-    }
-
-    private var canMoveSelectedElementDown: Bool {
-        guard let shapeID = singleSelectedShapeID else { return false }
-        return viewModel.canMoveShapeBackward(shapeID)
     }
 
     private var layerList: some View {
@@ -106,6 +78,9 @@ struct LayerPanel: View {
                 dismissInlineRenameFocus()
             }
         )
+        .contextMenu {
+            LayerReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
+        }
     }
 
     private func layerSection(layer: Layer, index: Int) -> some View {
@@ -184,6 +159,9 @@ struct LayerPanel: View {
                     viewModel: viewModel
                 )
             )
+            .contextMenu {
+                LayerReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
+            }
 
             if viewModel.expandedItemIDs.contains(layer.id) {
                 ForEach(layer.groups) { group in
@@ -285,6 +263,11 @@ private struct GroupRow: View {
         return !groupShapeIDs.isEmpty && groupShapeIDs.isSubset(of: viewModel.selectedShapeIDs)
     }
 
+    private var selectedSingleShapeID: UUID? {
+        guard viewModel.selectedShapeIDs.count == 1 else { return nil }
+        return viewModel.selectedShapeIDs.first
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 2) {
@@ -355,6 +338,9 @@ private struct GroupRow: View {
             }
             .onTapGesture(count: 2) {
                 beginRename()
+            }
+            .contextMenu {
+                LayerReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
             }
 
             if viewModel.expandedItemIDs.contains(group.id) {
@@ -496,6 +482,9 @@ private struct ShapeRow: View {
                 viewModel: viewModel
             )
         )
+        .contextMenu {
+            LayerReorderContextMenu(viewModel: viewModel, shapeID: shape.id)
+        }
         .overlay(alignment: .top) {
             if draggedShapeID != nil, shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .before {
                 Rectangle()
@@ -536,6 +525,53 @@ private struct ShapeRow: View {
         case .arrow: return "arrow.right"
         case .text: return "textformat"
         }
+    }
+}
+
+private struct LayerReorderContextMenu: View {
+    let viewModel: EditorViewModel
+    let shapeID: UUID?
+
+    private var canMoveBack: Bool {
+        guard let shapeID else { return false }
+        return viewModel.canMoveShapeBackward(shapeID)
+    }
+
+    private var canMoveFront: Bool {
+        guard let shapeID else { return false }
+        return viewModel.canMoveShapeForward(shapeID)
+    }
+
+    var body: some View {
+        Button("Move Back") {
+            guard let shapeID else { return }
+            viewModel.moveShapeBackward(shapeID)
+        }
+        .keyboardShortcut("[", modifiers: [])
+        .disabled(!canMoveBack)
+
+        Button("Move Front") {
+            guard let shapeID else { return }
+            viewModel.moveShapeForward(shapeID)
+        }
+        .keyboardShortcut("]", modifiers: [])
+        .disabled(!canMoveFront)
+
+        Divider()
+
+        Button("Bring to Back") {
+            guard let shapeID else { return }
+            viewModel.moveShapeToBack(shapeID)
+        }
+        .keyboardShortcut("[", modifiers: .command)
+        .disabled(!canMoveBack)
+
+        Button("Bring to Front") {
+            guard let shapeID else { return }
+            viewModel.moveShapeToFront(shapeID)
+        }
+        .keyboardShortcut("]", modifiers: .command)
+        .disabled(!canMoveFront)
     }
 }
 
