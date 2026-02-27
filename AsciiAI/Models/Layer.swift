@@ -40,6 +40,13 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
             children[index].removeShapeRecursively(id: shapeID)
         }
     }
+
+    mutating func removeShapesRecursively(ids: Set<UUID>) {
+        shapeIDs.removeAll { ids.contains($0) }
+        for index in children.indices {
+            children[index].removeShapesRecursively(ids: ids)
+        }
+    }
 }
 
 struct Layer: Codable, Equatable, Identifiable, Sendable {
@@ -91,6 +98,12 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         shapes.removeAll { $0.id == shapeID }
         for index in groups.indices {
             groups[index].removeShapeRecursively(id: shapeID)
+        }
+    }
+
+    mutating func removeShapesFromGroups(ids: Set<UUID>) {
+        for index in groups.indices {
+            groups[index].removeShapesRecursively(ids: ids)
         }
     }
 }

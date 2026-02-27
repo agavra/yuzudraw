@@ -354,6 +354,48 @@ final class EditorViewModel {
         document.canMoveShapeBackward(id: shapeID)
     }
 
+    func canGroupSelectedShapes() -> Bool {
+        guard selectedShapeIDs.count > 1 else { return false }
+
+        var selectedLayerIndex: Int?
+        for shapeID in selectedShapeIDs {
+            guard let layerIndex = document.layerIndex(containingShape: shapeID),
+                !document.layers[layerIndex].isLocked
+            else { return false }
+
+            if let selectedLayerIndex {
+                guard selectedLayerIndex == layerIndex else { return false }
+            } else {
+                selectedLayerIndex = layerIndex
+            }
+        }
+
+        return true
+    }
+
+    func groupSelectedShapes() {
+        guard canGroupSelectedShapes(),
+            let firstSelectedShapeID = selectedShapeIDs.first,
+            let layerIndex = document.layerIndex(containingShape: firstSelectedShapeID)
+        else { return }
+
+        var layer = document.layers[layerIndex]
+        let selectedIDs = selectedShapeIDs
+
+        // Ensure shapes belong to one group only by removing them from existing groups first.
+        layer.removeShapesFromGroups(ids: selectedIDs)
+
+        let orderedShapeIDs = layer.shapes.map(\.id).filter { selectedIDs.contains($0) }
+        guard orderedShapeIDs.count > 1 else { return }
+
+        let group = ShapeGroup(name: nextGroupName(in: layer), shapeIDs: orderedShapeIDs)
+        layer.groups.append(group)
+        document.layers[layerIndex] = layer
+        expandedItemIDs.insert(layer.id)
+        expandedItemIDs.insert(group.id)
+        rerender()
+    }
+
     func moveLayer(draggedLayerID: UUID, before targetLayerID: UUID) {
         let activeLayerID =
             document.layers.indices.contains(activeLayerIndex)
@@ -416,6 +458,15 @@ final class EditorViewModel {
                 break
             }
         }
+    }
+
+    private func nextGroupName(in layer: Layer) -> String {
+        let existingNames = Set(layer.groups.map(\.name))
+        var index = 1
+        while existingNames.contains("Group \(index)") {
+            index += 1
+        }
+        return "Group \(index)"
     }
 
     // MARK: - Canvas auto-grow

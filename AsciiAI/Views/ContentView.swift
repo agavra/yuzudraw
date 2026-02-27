@@ -1,11 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var viewModel: EditorViewModel
-
-    init(viewModel: EditorViewModel = EditorViewModel()) {
-        _viewModel = State(initialValue: viewModel)
-    }
+    @Bindable var viewModel: EditorViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -92,6 +88,15 @@ private extension EditorViewModel {
         document.addShape(.arrow(flow1), toLayerAt: 1)
         document.addShape(.arrow(flow2), toLayerAt: 1)
         document.addShape(.text(note), toLayerAt: 2)
+        document.layers[1].groups.append(
+            ShapeGroup(
+                name: "Backend",
+                shapeIDs: [api.id, workers.id, db.id],
+                children: [
+                    ShapeGroup(name: "Flows", shapeIDs: [flow1.id, flow2.id])
+                ]
+            )
+        )
 
         let vm = EditorViewModel(document: document)
         vm.activeLayerIndex = 1

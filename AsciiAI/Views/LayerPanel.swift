@@ -16,6 +16,7 @@ struct LayerPanel: View {
     @State private var layerDropTarget: (id: UUID, edge: DropEdge)?
     @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @State private var explicitlySelectedLayerID: UUID?
+    @State private var ignoreNextRowTap = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -102,7 +103,11 @@ struct LayerPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 2) {
                 chevron(isExpanded: viewModel.expandedItemIDs.contains(layer.id)) {
+                    ignoreNextRowTap = true
                     viewModel.toggleExpanded(layer.id)
+                    DispatchQueue.main.async {
+                        ignoreNextRowTap = false
+                    }
                 }
 
                 Button {
@@ -147,6 +152,10 @@ struct LayerPanel: View {
             )
             .cornerRadius(3)
             .onTapGesture {
+                guard !ignoreNextRowTap else {
+                    ignoreNextRowTap = false
+                    return
+                }
                 viewModel.activeLayerIndex = index
                 viewModel.selectedShapeIDs = Set(layer.shapes.map(\.id))
                 explicitlySelectedLayerID = layer.id
@@ -172,6 +181,7 @@ struct LayerPanel: View {
                         group: group,
                         layer: layer,
                         viewModel: viewModel,
+                        ignoreNextRowTap: $ignoreNextRowTap,
                         draggedShapeID: $draggedShapeID,
                         shapeDropTarget: $shapeDropTarget,
                         depth: 1
@@ -243,6 +253,7 @@ private struct GroupRow: View {
     let group: ShapeGroup
     let layer: Layer
     @Bindable var viewModel: EditorViewModel
+    @Binding var ignoreNextRowTap: Bool
     @Binding var draggedShapeID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
@@ -252,11 +263,20 @@ private struct GroupRow: View {
         return layer.shapes.map(\.id).filter { memberIDs.contains($0) }.reversed()
     }
 
+    private var isSelected: Bool {
+        let groupShapeIDs = Set(group.allShapeIDs)
+        return !groupShapeIDs.isEmpty && groupShapeIDs.isSubset(of: viewModel.selectedShapeIDs)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 2) {
                 chevron(isExpanded: viewModel.expandedItemIDs.contains(group.id)) {
+                    ignoreNextRowTap = true
                     viewModel.toggleExpanded(group.id)
+                    DispatchQueue.main.async {
+                        ignoreNextRowTap = false
+                    }
                 }
                 Image(systemName: "folder")
                     .font(.caption2)
@@ -264,9 +284,28 @@ private struct GroupRow: View {
                 Text(group.name)
                     .font(.caption)
                     .lineLimit(1)
+                Spacer(minLength: 0)
             }
             .padding(.leading, CGFloat(depth) * indentStep)
             .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(
+                isSelected
+                    ? Color.accentColor.opacity(0.2)
+                    : Color.clear
+            )
+            .cornerRadius(3)
+            .onTapGesture {
+                guard !ignoreNextRowTap else {
+                    ignoreNextRowTap = false
+                    return
+                }
+                viewModel.selectedShapeIDs = Set(group.allShapeIDs)
+                if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layer.id }) {
+                    viewModel.activeLayerIndex = layerIndex
+                }
+            }
 
             if viewModel.expandedItemIDs.contains(group.id) {
                 ForEach(group.children) { child in
@@ -274,6 +313,7 @@ private struct GroupRow: View {
                         group: child,
                         layer: layer,
                         viewModel: viewModel,
+                        ignoreNextRowTap: $ignoreNextRowTap,
                         draggedShapeID: $draggedShapeID,
                         shapeDropTarget: $shapeDropTarget,
                         depth: depth + 1
