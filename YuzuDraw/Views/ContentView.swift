@@ -33,7 +33,11 @@ private extension EditorViewModel {
             strokeStyle: .double,
             fillMode: .solid,
             fillCharacter: ".",
-            label: "Data Center"
+            label: "Data Center",
+            hasShadow: true,
+            shadowStyle: .light,
+            shadowOffsetX: 1,
+            shadowOffsetY: 1
         )
         let api = BoxShape(
             origin: GridPoint(column: 10, row: 6),
@@ -41,7 +45,11 @@ private extension EditorViewModel {
             strokeStyle: .single,
             fillMode: .solid,
             fillCharacter: " ",
-            label: "API"
+            label: "API",
+            hasShadow: true,
+            shadowStyle: .medium,
+            shadowOffsetX: 2,
+            shadowOffsetY: 1
         )
         let workers = BoxShape(
             origin: GridPoint(column: 46, row: 8),
@@ -49,7 +57,11 @@ private extension EditorViewModel {
             strokeStyle: .heavy,
             fillMode: .solid,
             fillCharacter: "·",
-            label: "Workers"
+            label: "Workers",
+            hasShadow: true,
+            shadowStyle: .dark,
+            shadowOffsetX: 2,
+            shadowOffsetY: 1
         )
         let db = BoxShape(
             origin: GridPoint(column: 78, row: 5),
@@ -57,7 +69,11 @@ private extension EditorViewModel {
             strokeStyle: .rounded,
             fillMode: .solid,
             fillCharacter: " ",
-            label: "DB"
+            label: "DB",
+            hasShadow: true,
+            shadowStyle: .medium,
+            shadowOffsetX: 1,
+            shadowOffsetY: 1
         )
         let note = TextShape(
             origin: GridPoint(column: 8, row: 30),
@@ -65,16 +81,31 @@ private extension EditorViewModel {
         )
 
         let flow1 = ArrowShape(
-            start: GridPoint(column: 34, row: 10),
-            end: GridPoint(column: 46, row: 10),
+            start: api.attachmentPoint(for: .right),
+            end: workers.attachmentPoint(for: .left),
             label: "jobs",
-            strokeStyle: .heavy
+            strokeStyle: .heavy,
+            startAttachment: ArrowAttachment(shapeID: api.id, side: .right),
+            endAttachment: ArrowAttachment(shapeID: workers.id, side: .left)
         )
         let flow2 = ArrowShape(
-            start: GridPoint(column: 74, row: 10),
-            end: GridPoint(column: 78, row: 8),
+            start: workers.attachmentPoint(for: .right),
+            end: db.attachmentPoint(for: .left),
             label: "write",
-            strokeStyle: .double
+            strokeStyle: .double,
+            startAttachment: ArrowAttachment(shapeID: workers.id, side: .right),
+            endAttachment: ArrowAttachment(shapeID: db.id, side: .left)
+        )
+        let flow3 = ArrowShape(
+            start: db.attachmentPoint(for: .bottom),
+            end: workers.attachmentPoint(for: .top),
+            label: "acks",
+            strokeStyle: .single,
+            bendDirection: .verticalFirst,
+            startAttachment: ArrowAttachment(shapeID: db.id, side: .bottom),
+            endAttachment: ArrowAttachment(shapeID: workers.id, side: .top),
+            startHeadStyle: .dot,
+            endHeadStyle: .openDiamond
         )
 
         document.addShape(.box(datacenter), toLayerAt: 0)
@@ -83,13 +114,14 @@ private extension EditorViewModel {
         document.addShape(.box(db), toLayerAt: 1)
         document.addShape(.arrow(flow1), toLayerAt: 1)
         document.addShape(.arrow(flow2), toLayerAt: 1)
+        document.addShape(.arrow(flow3), toLayerAt: 1)
         document.addShape(.text(note), toLayerAt: 2)
         document.layers[1].groups.append(
             ShapeGroup(
                 name: "Backend",
                 shapeIDs: [api.id, workers.id, db.id],
                 children: [
-                    ShapeGroup(name: "Flows", shapeIDs: [flow1.id, flow2.id])
+                    ShapeGroup(name: "Flows", shapeIDs: [flow1.id, flow2.id, flow3.id])
                 ]
             )
         )

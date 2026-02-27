@@ -79,6 +79,7 @@ struct CanvasView: View {
                     .padding(.bottom, 12)
             }
             .focusable()
+            .focusEffectDisabled()
             .onKeyPress(keys: [.delete, .deleteForward]) { _ in
                 guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
                     return .ignored
