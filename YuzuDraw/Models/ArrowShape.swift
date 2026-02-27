@@ -212,13 +212,84 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     var labelEditPoint: GridPoint {
         let segments = pathSegments()
         guard !segments.isEmpty else { return start }
+        let labelLength = max(1, label.count)
+        let (anchor, anchorSegmentIndex) = midpointAnchor(in: segments)
 
-        // Place label at midpoint of the first segment
-        let seg = segments[0]
+        if let horizontalPlacement = horizontalLabelPlacement(
+            in: segments,
+            anchor: anchor,
+            anchorSegmentIndex: anchorSegmentIndex,
+            labelLength: labelLength
+        ) {
+            return horizontalPlacement
+        }
+
+        // If there is no viable horizontal span, keep the label centered on the path anchor.
         return GridPoint(
-            column: (seg.from.column + seg.to.column) / 2,
-            row: (seg.from.row + seg.to.row) / 2
+            column: anchor.column - labelLength / 2,
+            row: anchor.row
         )
+    }
+
+    private func midpointAnchor(in segments: [ArrowSegment]) -> (point: GridPoint, segmentIndex: Int) {
+        let totalLength = segments.reduce(0) { $0 + $1.length }
+        guard totalLength > 0 else { return (start, 0) }
+
+        let targetDistance = totalLength / 2
+        var traversed = 0
+
+        for (index, segment) in segments.enumerated() {
+            let next = traversed + segment.length
+            if targetDistance <= next {
+                let offset = targetDistance - traversed
+                return (segment.point(at: offset), index)
+            }
+            traversed = next
+        }
+
+        let lastIndex = max(segments.count - 1, 0)
+        return (segments[lastIndex].to, lastIndex)
+    }
+
+    private func horizontalLabelPlacement(
+        in segments: [ArrowSegment],
+        anchor: GridPoint,
+        anchorSegmentIndex: Int,
+        labelLength: Int
+    ) -> GridPoint? {
+        let horizontalSegments = segments.enumerated().filter { $0.element.isHorizontal }
+        guard !horizontalSegments.isEmpty else { return nil }
+
+        let preferred = horizontalSegments.sorted { lhs, rhs in
+            if lhs.offset == anchorSegmentIndex { return true }
+            if rhs.offset == anchorSegmentIndex { return false }
+            return abs(lhs.offset - anchorSegmentIndex) < abs(rhs.offset - anchorSegmentIndex)
+        }
+        let endpointPadding = 1
+        let cornerPadding = 1
+
+        for candidate in preferred {
+            let index = candidate.offset
+            let segment = candidate.element
+            let hasPrevious = index > 0
+            let hasNext = index < segments.count - 1
+            let leftPadding = hasPrevious ? cornerPadding : endpointPadding
+            let rightPadding = hasNext ? cornerPadding : endpointPadding
+
+            let minColumn = min(segment.from.column, segment.to.column) + leftPadding
+            let maxColumn = max(segment.from.column, segment.to.column) - rightPadding
+            let minStart = minColumn
+            let maxStart = maxColumn - labelLength + 1
+
+            guard minStart <= maxStart else { continue }
+
+            let targetCenter = anchor.column
+            let centeredStart = targetCenter - labelLength / 2
+            let clampedStart = min(max(centeredStart, minStart), maxStart)
+            return GridPoint(column: clampedStart, row: segment.from.row)
+        }
+
+        return nil
     }
 
     private func elbowConnections(previous: GridPoint, corner: GridPoint, next: GridPoint) -> LineConnections {
@@ -452,6 +523,20 @@ struct ArrowSegment: Equatable, Sendable {
 
     var isHorizontal: Bool { from.row == to.row }
     var isVertical: Bool { from.column == to.column }
+    var length: Int { abs(to.column - from.column) + abs(to.row - from.row) }
+
+    func point(at distance: Int) -> GridPoint {
+        let clamped = min(max(distance, 0), length)
+        if isHorizontal {
+            let step = to.column >= from.column ? clamped : -clamped
+            return GridPoint(column: from.column + step, row: from.row)
+        }
+        if isVertical {
+            let step = to.row >= from.row ? clamped : -clamped
+            return GridPoint(column: from.column, row: from.row + step)
+        }
+        return from
+    }
 
     func contains(_ point: GridPoint) -> Bool {
         if isHorizontal {

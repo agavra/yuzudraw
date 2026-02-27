@@ -136,6 +136,52 @@ struct ArrowShapeTests {
         #expect(!arrow.contains(point: GridPoint(column: 5, row: 2)))
     }
 
+    @Test func should_place_label_centered_on_horizontal_path_midpoint() {
+        // given
+        let arrow = ArrowShape(
+            start: GridPoint(column: 1, row: 1),
+            end: GridPoint(column: 9, row: 1),
+            label: "ABC"
+        )
+
+        // when
+        let editPoint = arrow.labelEditPoint
+
+        // then
+        #expect(editPoint == GridPoint(column: 4, row: 1))
+    }
+
+    @Test func should_slide_label_onto_horizontal_segment_when_midpoint_is_on_corner() {
+        // given
+        let arrow = ArrowShape(
+            start: GridPoint(column: 1, row: 1),
+            end: GridPoint(column: 9, row: 9),
+            label: "HTTP",
+            bendDirection: .verticalFirst
+        )
+
+        // when
+        let editPoint = arrow.labelEditPoint
+
+        // then
+        #expect(editPoint == GridPoint(column: 2, row: 9))
+    }
+
+    @Test func should_fallback_to_anchor_centering_when_only_vertical_segments_exist() {
+        // given
+        let arrow = ArrowShape(
+            start: GridPoint(column: 5, row: 1),
+            end: GridPoint(column: 5, row: 9),
+            label: "DB"
+        )
+
+        // when
+        let editPoint = arrow.labelEditPoint
+
+        // then
+        #expect(editPoint == GridPoint(column: 4, row: 5))
+    }
+
     @Test func should_render_cross_intersection_when_arrows_overlap() {
         // given
         var canvas = Canvas(columns: 12, rows: 8)
