@@ -15,6 +15,19 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
+    var colors: [ShapeColor] {
+        switch self {
+        case .box(let shape):
+            return [shape.borderColor, shape.fillColor, shape.textColor].compactMap { $0 }
+        case .arrow(let shape):
+            return [shape.strokeColor, shape.labelColor].compactMap { $0 }
+        case .text(let shape):
+            return [shape.textColor].compactMap { $0 }
+        case .pencil(let shape):
+            return shape.cells.values.compactMap { $0.color }
+        }
+    }
+
     var boundingRect: GridRect {
         switch self {
         case .box(let shape): return shape.boundingRect

@@ -70,6 +70,7 @@ struct InlineColorRow<Popover: View>: View {
             .padding(.trailing, 10)
             .popover(isPresented: $isPopoverPresented) {
                 popover()
+                    .interactiveDismissDisabled()
             }
             Text("#")
                 .font(.system(size: 10, design: .monospaced))

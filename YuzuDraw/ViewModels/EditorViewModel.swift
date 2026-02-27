@@ -303,6 +303,25 @@ final class EditorViewModel {
         selectedLayer?.shapes.isEmpty == false
     }
 
+    var documentColors: [ShapeColor] {
+        var seen = Set<ShapeColor>()
+        var result: [ShapeColor] = []
+        for color in [ShapeColor.black, .white] {
+            seen.insert(color)
+            result.append(color)
+        }
+        for layer in document.layers {
+            for shape in layer.shapes {
+                for color in shape.colors {
+                    if seen.insert(color).inserted {
+                        result.append(color)
+                    }
+                }
+            }
+        }
+        return result
+    }
+
     var layerFillColor: ShapeColor? {
         guard let layer = selectedLayer else { return nil }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in

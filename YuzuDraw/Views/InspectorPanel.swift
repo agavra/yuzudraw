@@ -10,7 +10,6 @@ struct InspectorPanel: View {
 
     // MARK: - Color popover state
     @State private var activeColorTarget: ColorTarget?
-    @State private var showPaletteEditor = false
     @State private var isExportSectionExpanded = true
     @State private var exportScale = 1
     @State private var exportBackgroundColor: ShapeColor?
@@ -61,9 +60,6 @@ struct InspectorPanel: View {
             }
         }
         .frame(minWidth: 160, idealWidth: 180, maxWidth: 220)
-        .sheet(isPresented: $showPaletteEditor) {
-            ColorPaletteEditor(viewModel: viewModel)
-        }
     }
 
     // MARK: - Header
@@ -321,17 +317,23 @@ struct InspectorPanel: View {
                     set: { newValue in activeColorTarget = newValue ? target : nil }
                 )) {
                     ColorPickerPopover(
-                        palette: viewModel.document.palette,
+                        customPalette: viewModel.document.palette,
+                        pageColors: viewModel.documentColors,
                         currentColor: nil,
                         onColorSelected: { newColor in
                             onColorSelected(newColor)
+                        },
+                        onDismiss: {
                             activeColorTarget = nil
                         },
-                        onEditPalette: {
-                            activeColorTarget = nil
-                            showPaletteEditor = true
+                        onAddToPalette: { color in
+                            viewModel.addPaletteColor(name: color.hexString, color: color)
+                        },
+                        onRemoveFromPalette: { id in
+                            viewModel.removePaletteColor(id: id)
                         }
                     )
+                    .interactiveDismissDisabled()
                 }
                 Text("Mixed")
                     .font(.system(size: 10, design: .monospaced))
@@ -1303,18 +1305,24 @@ struct InspectorPanel: View {
             )
         ) {
             ColorPickerPopover(
-                palette: viewModel.document.palette,
+                customPalette: viewModel.document.palette,
+                pageColors: viewModel.documentColors,
                 currentColor: color,
                 allowsNone: allowsNone,
                 onColorSelected: { newColor in
                     onColorSelected(newColor)
+                },
+                onDismiss: {
                     activeColorTarget = nil
                 },
-                onEditPalette: {
-                    activeColorTarget = nil
-                    showPaletteEditor = true
+                onAddToPalette: { color in
+                    viewModel.addPaletteColor(name: color.hexString, color: color)
+                },
+                onRemoveFromPalette: { id in
+                    viewModel.removePaletteColor(id: id)
                 }
             )
+            .interactiveDismissDisabled()
         }
     }
 
