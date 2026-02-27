@@ -2,21 +2,57 @@ import SwiftUI
 
 @main
 struct YuzuDrawApp: App {
-    @State private var viewModel = EditorViewModel()
+    @State private var workspace = WorkspaceViewModel()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(viewModel: viewModel)
+            RootView(workspace: workspace)
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 700)
         .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("New Project") {
+                    workspace.newProject()
+                }
+                .keyboardShortcut("n", modifiers: .command)
+
+                Button("Open...") {
+                    workspace.showOpenPanel()
+                }
+                .keyboardShortcut("o", modifiers: .command)
+            }
+
+            CommandGroup(after: .newItem) {
+                Button("Close Tab") {
+                    if let activeTabID = workspace.activeTabID {
+                        workspace.closeTab(id: activeTabID)
+                    }
+                }
+                .keyboardShortcut("w", modifiers: .command)
+                .disabled(!workspace.hasOpenProjects)
+
+                Divider()
+
+                Button("Save") {
+                    workspace.save()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(!workspace.hasOpenProjects)
+
+                Button("Save As...") {
+                    workspace.saveAs()
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(!workspace.hasOpenProjects)
+            }
+
             CommandGroup(after: .pasteboard) {
                 Button("Group") {
-                    viewModel.groupSelectedShapes()
+                    workspace.activeEditor?.groupSelectedShapes()
                 }
                 .keyboardShortcut("g", modifiers: .command)
-                .disabled(!viewModel.canGroupSelectedShapes())
+                .disabled(workspace.activeEditor?.canGroupSelectedShapes() != true)
             }
         }
     }

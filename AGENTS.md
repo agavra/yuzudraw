@@ -18,12 +18,12 @@ xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawTests -configuration Debu
 ## Project Structure
 
 - `project.yml` — XcodeGen spec (source of truth for the Xcode project)
-- `YuzuDraw/App/` — App entry point
-- `YuzuDraw/Models/` — Data models (Canvas, Geometry, Shapes, Layers, Document)
-- `YuzuDraw/Views/` — SwiftUI views (ContentView, CanvasView, ToolbarView, LayerPanel, InspectorPanel)
-- `YuzuDraw/ViewModels/` — Observable view models (EditorViewModel)
+- `YuzuDraw/App/` — App entry point (`YuzuDrawApp` with `WorkspaceViewModel`)
+- `YuzuDraw/Models/` — Data models (Canvas, Geometry, Shapes, Layers, Document, ProjectMetadata, ProjectTab, RecentProject)
+- `YuzuDraw/Views/` — SwiftUI views (RootView, WelcomeView, TabBarContentView, ContentView, CanvasView, ToolbarView, LayerPanel, InspectorPanel)
+- `YuzuDraw/ViewModels/` — Observable view models (WorkspaceViewModel, EditorViewModel)
 - `YuzuDraw/Tools/` — Drawing tool system (Tool protocol, SelectionTool, BoxTool, ArrowTool, TextTool)
-- `YuzuDraw/Serialization/` — Document persistence (JSON via DocumentCodable, DSL via DSLSerializer/DSLParser)
+- `YuzuDraw/Serialization/` — Document persistence (JSON via DocumentCodable, DSL via DSLSerializer/DSLParser, ProjectFileManager for file I/O)
 - `YuzuDraw/Resources/` — Assets, Info.plist, entitlements
 - `YuzuDrawTests/` — Unit tests
 
@@ -68,6 +68,23 @@ Two-tier serialization designed for AI agent interaction:
 - **JSON**: automatic via `Codable`, uses `"type"` discriminator key in `AnyShape`
 - **DSL**: concise line-oriented format (`box "Server" at 5,3 size 20x5 style single`)
 
+### Multi-Project / Workspace
+
+```
+YuzuDrawApp
+  └── RootView
+       ├── WelcomeView                 (when no tabs open — New/Open buttons, recent projects grid)
+       └── TabBarContentView           (when tabs open)
+            ├── Custom tab bar (36pt, aligned with traffic lights, hiddenTitleBar window style)
+            └── ContentView(viewModel:, onDocumentChange:)
+```
+
+- `WorkspaceViewModel` (`@Observable @MainActor`) owns tab state and an `editors: [UUID: EditorViewModel]` dictionary — one `EditorViewModel` per open project
+- Projects are saved as `.yuzudraw` JSON files in `~/Documents/YuzuDraw/` via `ProjectFileManager`
+- Auto-save runs every 30s for dirty tabs; dirty tracking via `ContentView.onChange(of: viewModel.document)`
+- Recent projects persisted in `UserDefaults`, filtered for existence on load
+- Double-click a tab to rename (also renames the file on disk)
+
 ### UI Layout
 
 3-panel HSplitView: LayerPanel (left sidebar) | CanvasView (center) | InspectorPanel (right sidebar), with ToolbarView on top.
@@ -86,6 +103,6 @@ Two-tier serialization designed for AI agent interaction:
 - UI: SwiftUI, targeting macOS 14+
 - Swift version: 6.0 with strict concurrency
 - Tests: Swift Testing framework (`import Testing`), use given/when/then pattern, name tests `should_xyz`
-- Regenerate `YuzuDraw.xcodeproj` with `xcodegen generate` after changing `project.yml` — the `.xcodeproj` is gitignored
-- New files are auto-discovered by XcodeGen from directory structure (no need to edit `project.yml` for new Swift files)
+- Regenerate `YuzuDraw.xcodeproj` with `xcodegen generate` after adding/removing Swift files or changing `project.yml` — the `.xcodeproj` is gitignored
+- New Swift files are auto-discovered by XcodeGen from directory structure (no need to edit `project.yml`), but you **must** run `xcodegen generate` to pick them up
 - Tool classes use `@unchecked Sendable` since they're only accessed from `@MainActor` EditorViewModel

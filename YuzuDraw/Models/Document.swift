@@ -12,6 +12,10 @@ struct Document: Codable, Equatable, Sendable {
         self.canvasSize = canvasSize
     }
 
+    var hasContent: Bool {
+        layers.contains { !$0.shapes.isEmpty }
+    }
+
     // MARK: - Shape queries
 
     func findShape(id shapeID: UUID) -> AnyShape? {

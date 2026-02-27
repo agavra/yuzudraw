@@ -2,6 +2,7 @@
 
 struct ContentView: View {
     @Bindable var viewModel: EditorViewModel
+    var onDocumentChange: (() -> Void)?
 
     var body: some View {
         HSplitView {
@@ -11,6 +12,9 @@ struct ContentView: View {
             InspectorPanel(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: viewModel.document) {
+            onDocumentChange?()
+        }
     }
 }
 
