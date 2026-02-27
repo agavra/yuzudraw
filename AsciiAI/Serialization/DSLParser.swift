@@ -125,7 +125,7 @@ enum DSLParser {
     }
 
     private static func parseBox(_ line: String) throws -> BoxShape {
-        // box "label" at col,row size WxH style styleName
+        // box "label" at col,row size WxH [style|stroke styleName] [fill transparent|solid [char "x"]]
         guard let label = try? parseQuotedString(from: line, after: "box ") else {
             throw DSLParserError.invalidSyntax("Expected box label: \(line)")
         }
@@ -142,25 +142,44 @@ enum DSLParser {
         let afterSize = String(line[sizeRange.upperBound...])
         let (width, height) = try parseDimension(afterSize)
 
-        var borderStyle = BorderStyle.single
+        var strokeStyle = StrokeStyle.single
         if let styleRange = line.range(of: " style ") {
             let styleName = String(
                 line[styleRange.upperBound...].prefix(while: { !$0.isWhitespace }))
-            if let parsed = BorderStyle(rawValue: styleName) {
-                borderStyle = parsed
+            if let parsed = StrokeStyle(rawValue: styleName) {
+                strokeStyle = parsed
             }
+        } else if let strokeRange = line.range(of: " stroke ") {
+            let styleName = String(
+                line[strokeRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            if let parsed = StrokeStyle(rawValue: styleName) {
+                strokeStyle = parsed
+            }
+        }
+
+        var fillMode: BoxFillMode = .transparent
+        var fillCharacter: Character = " "
+        if line.contains(" fill solid") {
+            fillMode = .solid
+            if let char = try? parseQuotedString(from: line, after: "char "), let first = char.first {
+                fillCharacter = first
+            }
+        } else if line.contains(" fill transparent") {
+            fillMode = .transparent
         }
 
         return BoxShape(
             origin: GridPoint(column: col, row: row),
             size: GridSize(width: width, height: height),
-            borderStyle: borderStyle,
+            strokeStyle: strokeStyle,
+            fillMode: fillMode,
+            fillCharacter: fillCharacter,
             label: label
         )
     }
 
     private static func parseArrow(_ line: String) throws -> ArrowShape {
-        // arrow from col,row to col,row [label "text"]
+        // arrow from col,row to col,row [style|stroke styleName] [label "text"]
         guard let fromRange = line.range(of: "from ") else {
             throw DSLParserError.invalidSyntax("Expected 'from' in arrow: \(line)")
         }
@@ -178,10 +197,26 @@ enum DSLParser {
             label = (try? parseQuotedString(from: line, after: "label ")) ?? ""
         }
 
+        var strokeStyle = StrokeStyle.single
+        if let styleRange = line.range(of: " style ") {
+            let styleName = String(
+                line[styleRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            if let parsed = StrokeStyle(rawValue: styleName) {
+                strokeStyle = parsed
+            }
+        } else if let strokeRange = line.range(of: " stroke ") {
+            let styleName = String(
+                line[strokeRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            if let parsed = StrokeStyle(rawValue: styleName) {
+                strokeStyle = parsed
+            }
+        }
+
         return ArrowShape(
             start: GridPoint(column: startCol, row: startRow),
             end: GridPoint(column: endCol, row: endRow),
-            label: label
+            label: label,
+            strokeStyle: strokeStyle
         )
     }
 

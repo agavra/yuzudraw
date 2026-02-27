@@ -10,7 +10,7 @@ struct DocumentCodableTests {
         let box = BoxShape(
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 10, height: 5),
-            borderStyle: .double,
+            strokeStyle: .double,
             label: "Server"
         )
         doc.addShape(.box(box), toLayerAt: 0)
@@ -25,7 +25,7 @@ struct DocumentCodableTests {
         if case .box(let decodedBox) = decoded.layers[0].shapes[0] {
             #expect(decodedBox.origin == box.origin)
             #expect(decodedBox.size == box.size)
-            #expect(decodedBox.borderStyle == .double)
+            #expect(decodedBox.strokeStyle == .double)
             #expect(decodedBox.label == "Server")
         } else {
             Issue.record("Expected box shape")
@@ -103,10 +103,51 @@ struct DocumentCodableTests {
         // then
         if case .arrow(let arrow) = decoded.layers[0].shapes[0] {
             #expect(arrow.bendDirection == .horizontalFirst)
+            #expect(arrow.strokeStyle == .single)
             #expect(arrow.startAttachment == nil)
             #expect(arrow.endAttachment == nil)
         } else {
             Issue.record("Expected arrow shape")
+        }
+    }
+
+    @Test func should_decode_legacy_box_json_with_borderStyle_key() throws {
+        // given
+        let data = #"""
+            {
+              "canvasSize": { "width": 80, "height": 24 },
+              "layers": [
+                {
+                  "id": "A8F4D27A-B62D-4752-9609-B01640D9A3E3",
+                  "name": "Layer 1",
+                  "isVisible": true,
+                  "isLocked": false,
+                  "groups": [],
+                  "shapes": [
+                    {
+                      "type": "box",
+                      "id": "B8F4D27A-B62D-4752-9609-B01640D9A3E3",
+                      "origin": { "column": 2, "row": 2 },
+                      "size": { "width": 8, "height": 4 },
+                      "borderStyle": "double",
+                      "label": "Legacy"
+                    }
+                  ]
+                }
+              ]
+            }
+            """#.data(using: .utf8)!
+
+        // when
+        let decoded = try DocumentCodable.decode(from: data)
+
+        // then
+        if case .box(let box) = decoded.layers[0].shapes[0] {
+            #expect(box.strokeStyle == .double)
+            #expect(box.fillMode == .transparent)
+            #expect(box.fillCharacter == " ")
+        } else {
+            Issue.record("Expected box shape")
         }
     }
 

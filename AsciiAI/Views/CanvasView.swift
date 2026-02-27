@@ -317,7 +317,7 @@ struct CanvasView: View {
                 .overlay(
                     Rectangle()
                         .strokeBorder(
-                            style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                            style: SwiftUI.StrokeStyle(lineWidth: 1, dash: [4, 3])
                         )
                         .foregroundStyle(Color.accentColor)
                 )
@@ -489,7 +489,7 @@ struct CanvasView: View {
             .box(BoxShape(
                 origin: GridPoint(column: 5, row: 3),
                 size: GridSize(width: 14, height: 5),
-                borderStyle: .single,
+                strokeStyle: .single,
                 label: "Server"
             )),
             toLayerAt: 0
@@ -498,7 +498,7 @@ struct CanvasView: View {
             .box(BoxShape(
                 origin: GridPoint(column: 30, row: 3),
                 size: GridSize(width: 14, height: 5),
-                borderStyle: .double,
+                strokeStyle: .double,
                 label: "Database"
             )),
             toLayerAt: 0

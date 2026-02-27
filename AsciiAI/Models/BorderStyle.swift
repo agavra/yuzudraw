@@ -1,6 +1,6 @@
 import Foundation
 
-enum BorderStyle: String, Codable, CaseIterable, Sendable {
+enum StrokeStyle: String, Codable, CaseIterable, Sendable {
     case single
     case double
     case rounded
@@ -98,3 +98,5 @@ enum BorderStyle: String, Codable, CaseIterable, Sendable {
         }
     }
 }
+
+typealias BorderStyle = StrokeStyle

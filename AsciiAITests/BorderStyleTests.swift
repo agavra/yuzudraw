@@ -2,10 +2,10 @@ import Testing
 
 @testable import AsciiAI
 
-struct BorderStyleTests {
+struct StrokeStyleTests {
     @Test func should_provide_single_border_characters() {
         // given
-        let style = BorderStyle.single
+        let style = StrokeStyle.single
 
         // then
         #expect(style.horizontal == "─")
@@ -18,7 +18,7 @@ struct BorderStyleTests {
 
     @Test func should_provide_double_border_characters() {
         // given
-        let style = BorderStyle.double
+        let style = StrokeStyle.double
 
         // then
         #expect(style.horizontal == "═")
@@ -31,7 +31,7 @@ struct BorderStyleTests {
 
     @Test func should_provide_rounded_border_characters() {
         // given
-        let style = BorderStyle.rounded
+        let style = StrokeStyle.rounded
 
         // then
         #expect(style.horizontal == "─")
@@ -44,7 +44,7 @@ struct BorderStyleTests {
 
     @Test func should_provide_heavy_border_characters() {
         // given
-        let style = BorderStyle.heavy
+        let style = StrokeStyle.heavy
 
         // then
         #expect(style.horizontal == "━")
@@ -57,6 +57,6 @@ struct BorderStyleTests {
 
     @Test func should_have_four_cases() {
         // then
-        #expect(BorderStyle.allCases.count == 4)
+        #expect(StrokeStyle.allCases.count == 4)
     }
 }

@@ -22,6 +22,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     var start: GridPoint
     var end: GridPoint
     var label: String
+    var strokeStyle: StrokeStyle
     var bendDirection: ArrowBendDirection
     var startAttachment: ArrowAttachment?
     var endAttachment: ArrowAttachment?
@@ -31,6 +32,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         start: GridPoint,
         end: GridPoint,
         label: String = "",
+        strokeStyle: StrokeStyle = .single,
         bendDirection: ArrowBendDirection = .horizontalFirst,
         startAttachment: ArrowAttachment? = nil,
         endAttachment: ArrowAttachment? = nil
@@ -39,6 +41,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         self.start = start
         self.end = end
         self.label = label
+        self.strokeStyle = strokeStyle
         self.bendDirection = bendDirection
         self.startAttachment = startAttachment
         self.endAttachment = endAttachment
@@ -136,7 +139,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
 
     private func mergeGlyph(existing: Character, adding: LineConnections) -> Character {
         let base = connections(for: existing) ?? []
-        return glyph(for: base.union(adding))
+        return glyph(for: base.union(adding), style: strokeStyle)
     }
 
     private func headCharacter(for attachment: ArrowAttachment) -> Character {
@@ -159,7 +162,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         connections.remove(inward)
         connections.insert(outward)
 
-        canvas.setCharacter(glyph(for: connections), atColumn: start.column, row: start.row)
+        canvas.setCharacter(glyph(for: connections, style: strokeStyle), atColumn: start.column, row: start.row)
     }
 
     private func baseConnections(for side: ArrowAttachmentSide) -> LineConnections {
@@ -191,17 +194,28 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
 
     private func connections(for char: Character) -> LineConnections? {
         switch char {
-        case "─": return [.left, .right]
-        case "│": return [.up, .down]
-        case "┌", "╭": return [.right, .down]
-        case "┐", "╮": return [.left, .down]
-        case "└", "╰": return [.right, .up]
-        case "┘", "╯": return [.left, .up]
-        case "├": return [.up, .right, .down]
-        case "┤": return [.up, .left, .down]
-        case "┬": return [.left, .right, .down]
-        case "┴": return [.left, .right, .up]
-        case "┼": return [.up, .left, .right, .down]
+        case "─", "═", "━":
+            return [.left, .right]
+        case "│", "║", "┃":
+            return [.up, .down]
+        case "┌", "╭", "╔", "┏":
+            return [.right, .down]
+        case "┐", "╮", "╗", "┓":
+            return [.left, .down]
+        case "└", "╰", "╚", "┗":
+            return [.right, .up]
+        case "┘", "╯", "╝", "┛":
+            return [.left, .up]
+        case "├", "╠", "┣":
+            return [.up, .right, .down]
+        case "┤", "╣", "┫":
+            return [.up, .left, .down]
+        case "┬", "╦", "┳":
+            return [.left, .right, .down]
+        case "┴", "╩", "┻":
+            return [.left, .right, .up]
+        case "┼", "╬", "╋":
+            return [.up, .left, .right, .down]
         case "▶": return [.left]
         case "◀": return [.right]
         case "▲": return [.down]
@@ -211,36 +225,36 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
-    private func glyph(for connections: LineConnections) -> Character {
+    private func glyph(for connections: LineConnections, style: StrokeStyle) -> Character {
         switch connections {
         case [.left, .right]:
-            return "─"
+            return style.horizontal
         case [.up, .down]:
-            return "│"
+            return style.vertical
         case [.right, .down]:
-            return "┌"
+            return style.topLeft
         case [.left, .down]:
-            return "┐"
+            return style.topRight
         case [.right, .up]:
-            return "└"
+            return style.bottomLeft
         case [.left, .up]:
-            return "┘"
+            return style.bottomRight
         case [.up, .right, .down]:
-            return "├"
+            return style.teeRight
         case [.up, .left, .down]:
-            return "┤"
+            return style.teeLeft
         case [.left, .right, .down]:
-            return "┬"
+            return style.teeDown
         case [.left, .right, .up]:
-            return "┴"
+            return style.teeUp
         case [.up, .left, .right, .down]:
-            return "┼"
+            return style.cross
         default:
             if connections.contains(.left) || connections.contains(.right) {
-                return "─"
+                return style.horizontal
             }
             if connections.contains(.up) || connections.contains(.down) {
-                return "│"
+                return style.vertical
             }
             return "+"
         }
@@ -253,6 +267,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         case start
         case end
         case label
+        case strokeStyle
         case bendDirection
         case startAttachment
         case endAttachment
@@ -264,6 +279,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         start = try container.decode(GridPoint.self, forKey: .start)
         end = try container.decode(GridPoint.self, forKey: .end)
         label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
+        strokeStyle = try container.decodeIfPresent(StrokeStyle.self, forKey: .strokeStyle) ?? .single
         bendDirection =
             try container.decodeIfPresent(ArrowBendDirection.self, forKey: .bendDirection)
             ?? .horizontalFirst

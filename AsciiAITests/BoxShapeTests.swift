@@ -9,7 +9,7 @@ struct BoxShapeTests {
         let box = BoxShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 12, height: 5),
-            borderStyle: .single
+            strokeStyle: .single
         )
 
         // when
@@ -29,7 +29,7 @@ struct BoxShapeTests {
         let box = BoxShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 3),
-            borderStyle: .double
+            strokeStyle: .double
         )
 
         // when
@@ -49,7 +49,7 @@ struct BoxShapeTests {
         let box = BoxShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 12, height: 5),
-            borderStyle: .single,
+            strokeStyle: .single,
             label: "Server"
         )
 
@@ -68,7 +68,7 @@ struct BoxShapeTests {
         let box = BoxShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 3),
-            borderStyle: .single,
+            strokeStyle: .single,
             label: "VeryLongLabel"
         )
 
@@ -115,7 +115,7 @@ struct BoxShapeTests {
         let box = BoxShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 3),
-            borderStyle: .rounded
+            strokeStyle: .rounded
         )
 
         // when
@@ -126,5 +126,26 @@ struct BoxShapeTests {
         let lines = rendered.split(separator: "\n", omittingEmptySubsequences: false)
         #expect(lines[0] == "╭────╮")
         #expect(lines[2] == "╰────╯")
+    }
+
+    @Test func should_render_solid_fill_inside_box() {
+        // given
+        var canvas = Canvas(columns: 7, rows: 5)
+        let box = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 7, height: 5),
+            strokeStyle: .single,
+            fillMode: .solid,
+            fillCharacter: "."
+        )
+
+        // when
+        box.render(into: &canvas)
+
+        // then
+        let rendered = canvas.render()
+        let lines = rendered.split(separator: "\n", omittingEmptySubsequences: false)
+        #expect(lines[1] == "│.....│")
+        #expect(lines[3] == "│.....│")
     }
 }

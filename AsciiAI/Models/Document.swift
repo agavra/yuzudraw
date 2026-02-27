@@ -63,6 +63,126 @@ struct Document: Codable, Equatable, Sendable {
         layers.remove(at: index)
     }
 
+    @discardableResult
+    mutating func moveLayerUp(at index: Int) -> Bool {
+        guard layers.indices.contains(index), index < layers.count - 1 else { return false }
+        layers.swapAt(index, index + 1)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveLayerDown(at index: Int) -> Bool {
+        guard layers.indices.contains(index), index > 0 else { return false }
+        layers.swapAt(index, index - 1)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveShapeForward(id shapeID: UUID) -> Bool {
+        guard let layerIndex = layerIndex(containingShape: shapeID),
+            let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+            shapeIndex < layers[layerIndex].shapes.count - 1
+        else { return false }
+        layers[layerIndex].shapes.swapAt(shapeIndex, shapeIndex + 1)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveShapeBackward(id shapeID: UUID) -> Bool {
+        guard let layerIndex = layerIndex(containingShape: shapeID),
+            let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+            shapeIndex > 0
+        else { return false }
+        layers[layerIndex].shapes.swapAt(shapeIndex, shapeIndex - 1)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveLayer(id layerID: UUID, before targetLayerID: UUID) -> Bool {
+        guard layerID != targetLayerID,
+            let sourceIndex = layers.firstIndex(where: { $0.id == layerID }),
+            layers.contains(where: { $0.id == targetLayerID })
+        else { return false }
+
+        let layer = layers.remove(at: sourceIndex)
+        guard let targetIndex = layers.firstIndex(where: { $0.id == targetLayerID }) else { return false }
+        let insertionIndex = targetIndex
+        layers.insert(layer, at: insertionIndex)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveShape(id shapeID: UUID, before targetShapeID: UUID, in layerID: UUID) -> Bool {
+        guard shapeID != targetShapeID,
+            let layerIndex = layers.firstIndex(where: { $0.id == layerID }),
+            let sourceIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+            layers[layerIndex].shapes.contains(where: { $0.id == targetShapeID })
+        else { return false }
+
+        let shape = layers[layerIndex].shapes.remove(at: sourceIndex)
+        guard let targetIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == targetShapeID }) else {
+            return false
+        }
+        let insertionIndex = targetIndex
+        layers[layerIndex].shapes.insert(shape, at: insertionIndex)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveLayer(id layerID: UUID, after targetLayerID: UUID) -> Bool {
+        guard layerID != targetLayerID,
+            let sourceIndex = layers.firstIndex(where: { $0.id == layerID }),
+            layers.contains(where: { $0.id == targetLayerID })
+        else { return false }
+
+        let layer = layers.remove(at: sourceIndex)
+        guard let targetIndex = layers.firstIndex(where: { $0.id == targetLayerID }) else { return false }
+        layers.insert(layer, at: targetIndex + 1)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveShape(id shapeID: UUID, after targetShapeID: UUID, in layerID: UUID) -> Bool {
+        guard shapeID != targetShapeID,
+            let layerIndex = layers.firstIndex(where: { $0.id == layerID }),
+            let sourceIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+            layers[layerIndex].shapes.contains(where: { $0.id == targetShapeID })
+        else { return false }
+
+        let shape = layers[layerIndex].shapes.remove(at: sourceIndex)
+        guard let targetIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == targetShapeID }) else {
+            return false
+        }
+        layers[layerIndex].shapes.insert(shape, at: targetIndex + 1)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveShape(id shapeID: UUID, toLayer targetLayerID: UUID) -> Bool {
+        guard let sourceLayerIndex = layerIndex(containingShape: shapeID),
+            let targetLayerIndex = layers.firstIndex(where: { $0.id == targetLayerID }),
+            let shape = findShape(id: shapeID)
+        else { return false }
+
+        layers[sourceLayerIndex].removeShape(id: shapeID)
+        layers[targetLayerIndex].addShape(shape)
+        return true
+    }
+
+    func canMoveShapeForward(id shapeID: UUID) -> Bool {
+        guard let layerIndex = layerIndex(containingShape: shapeID),
+            let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID })
+        else { return false }
+        return shapeIndex < layers[layerIndex].shapes.count - 1
+    }
+
+    func canMoveShapeBackward(id shapeID: UUID) -> Bool {
+        guard let layerIndex = layerIndex(containingShape: shapeID),
+            let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID })
+        else { return false }
+        return shapeIndex > 0
+    }
+
     // MARK: - Marquee selection
 
     func shapesInRect(_ rect: GridRect, excludingLockedLayers: Bool) -> [AnyShape] {

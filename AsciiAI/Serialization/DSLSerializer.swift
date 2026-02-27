@@ -54,11 +54,16 @@ enum DSLSerializer {
         switch shape {
         case .box(let box):
             let result =
-                "box \"\(box.label)\" at \(box.origin.column),\(box.origin.row) size \(box.size.width)x\(box.size.height) style \(box.borderStyle.rawValue)"
-            return result
+                "box \"\(box.label)\" at \(box.origin.column),\(box.origin.row) size \(box.size.width)x\(box.size.height) style \(box.strokeStyle.rawValue)"
+            var fill = " fill \(box.fillMode.rawValue)"
+            if box.fillMode == .solid {
+                fill += " char \"\(String(box.fillCharacter))\""
+            }
+            return result + fill
         case .arrow(let arrow):
             var result =
                 "arrow from \(arrow.start.column),\(arrow.start.row) to \(arrow.end.column),\(arrow.end.row)"
+            result += " style \(arrow.strokeStyle.rawValue)"
             if !arrow.label.isEmpty {
                 result += " label \"\(arrow.label)\""
             }

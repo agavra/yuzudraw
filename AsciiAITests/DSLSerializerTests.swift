@@ -9,7 +9,7 @@ struct DSLSerializerTests {
         let box = BoxShape(
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 20, height: 5),
-            borderStyle: .single,
+            strokeStyle: .single,
             label: "Server"
         )
         doc.addShape(.box(box), toLayerAt: 0)
@@ -28,7 +28,8 @@ struct DSLSerializerTests {
         let arrow = ArrowShape(
             start: GridPoint(column: 15, row: 7),
             end: GridPoint(column: 15, row: 15),
-            label: "SQL"
+            label: "SQL",
+            strokeStyle: .heavy
         )
         doc.addShape(.arrow(arrow), toLayerAt: 0)
 
@@ -36,7 +37,27 @@ struct DSLSerializerTests {
         let dsl = DSLSerializer.serialize(doc)
 
         // then
-        #expect(dsl.contains("arrow from 15,7 to 15,15 label \"SQL\""))
+        #expect(dsl.contains("arrow from 15,7 to 15,15 style heavy label \"SQL\""))
+    }
+
+    @Test func should_serialize_box_fill() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(
+            origin: GridPoint(column: 1, row: 1),
+            size: GridSize(width: 8, height: 4),
+            strokeStyle: .single,
+            fillMode: .solid,
+            fillCharacter: ".",
+            label: "Filled"
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains("box \"Filled\" at 1,1 size 8x4 style single fill solid char \".\""))
     }
 
     @Test func should_serialize_text_shape() {

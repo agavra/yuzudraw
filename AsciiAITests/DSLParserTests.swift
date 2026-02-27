@@ -22,7 +22,7 @@ struct DSLParserTests {
             #expect(box.label == "Server")
             #expect(box.origin == GridPoint(column: 5, row: 3))
             #expect(box.size == GridSize(width: 20, height: 5))
-            #expect(box.borderStyle == .single)
+            #expect(box.strokeStyle == .single)
         } else {
             Issue.record("Expected box shape")
         }
@@ -32,7 +32,7 @@ struct DSLParserTests {
         // given
         let dsl = """
             layer "Layer 1" visible
-              arrow from 15,7 to 15,15 label "SQL"
+              arrow from 15,7 to 15,15 style double label "SQL"
             """
 
         // when
@@ -43,8 +43,28 @@ struct DSLParserTests {
             #expect(arrow.start == GridPoint(column: 15, row: 7))
             #expect(arrow.end == GridPoint(column: 15, row: 15))
             #expect(arrow.label == "SQL")
+            #expect(arrow.strokeStyle == .double)
         } else {
             Issue.record("Expected arrow shape")
+        }
+    }
+
+    @Test func should_parse_box_with_solid_fill() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              box "Server" at 5,3 size 20x5 style single fill solid char "."
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .box(let box) = doc.layers[0].shapes[0] {
+            #expect(box.fillMode == .solid)
+            #expect(box.fillCharacter == ".")
+        } else {
+            Issue.record("Expected box shape")
         }
     }
 
@@ -131,7 +151,7 @@ struct DSLParserTests {
                 BoxShape(
                     origin: GridPoint(column: 5, row: 3),
                     size: GridSize(width: 20, height: 5),
-                    borderStyle: .double,
+                    strokeStyle: .double,
                     label: "DB"
                 )), toLayerAt: 0)
         doc.addShape(

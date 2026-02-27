@@ -70,7 +70,7 @@ struct BoxToolTests {
     @Test func should_use_configured_border_style() {
         // given
         let tool = BoxTool()
-        tool.borderStyle = .double
+        tool.strokeStyle = .double
         let doc = Document()
 
         // when
@@ -79,7 +79,7 @@ struct BoxToolTests {
 
         // then
         if case .addShape(.box(let box), _) = action {
-            #expect(box.borderStyle == .double)
+            #expect(box.strokeStyle == .double)
         } else {
             Issue.record("Expected addShape action with box")
         }

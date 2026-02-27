@@ -1,9 +1,20 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 private let indentStep: CGFloat = 14
+private let dropMidlineY: CGFloat = 12
+
+private enum DropEdge {
+    case before
+    case after
+}
 
 struct LayerPanel: View {
     @Bindable var viewModel: EditorViewModel
+    @State private var draggedLayerID: UUID?
+    @State private var draggedShapeID: UUID?
+    @State private var layerDropTarget: (id: UUID, edge: DropEdge)?
+    @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,7 +49,6 @@ struct LayerPanel: View {
 
     private func layerSection(layer: Layer, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Layer header row
             HStack(spacing: 2) {
                 chevron(isExpanded: viewModel.expandedItemIDs.contains(layer.id)) {
                     viewModel.toggleExpanded(layer.id)
@@ -82,15 +92,56 @@ struct LayerPanel: View {
             .onTapGesture {
                 viewModel.activeLayerIndex = index
             }
+            .onDrag {
+                draggedLayerID = layer.id
+                return NSItemProvider(object: "layer:\(layer.id.uuidString)" as NSString)
+            }
+            .onDrop(
+                of: [UTType.text],
+                delegate: LayerDropDelegate(
+                    targetLayerID: layer.id,
+                    draggedLayerID: $draggedLayerID,
+                    draggedShapeID: $draggedShapeID,
+                    dropTargetLayer: $layerDropTarget,
+                    viewModel: viewModel
+                )
+            )
 
-            // Expanded children
             if viewModel.expandedItemIDs.contains(layer.id) {
                 ForEach(layer.groups) { group in
-                    GroupRow(group: group, layer: layer, viewModel: viewModel, depth: 1)
+                    GroupRow(
+                        group: group,
+                        layer: layer,
+                        viewModel: viewModel,
+                        draggedShapeID: $draggedShapeID,
+                        shapeDropTarget: $shapeDropTarget,
+                        depth: 1
+                    )
                 }
-                ForEach(layer.ungroupedShapes) { shape in
-                    ShapeRow(shape: shape, viewModel: viewModel, depth: 1)
+                ForEach(Array(layer.ungroupedShapes.reversed())) { shape in
+                    ShapeRow(
+                        shape: shape,
+                        layerID: layer.id,
+                        viewModel: viewModel,
+                        draggedShapeID: $draggedShapeID,
+                        shapeDropTarget: $shapeDropTarget,
+                        depth: 1
+                    )
                 }
+            }
+        }
+        .overlay(alignment: .top) {
+            if draggedLayerID != nil, layerDropTarget?.id == layer.id, layerDropTarget?.edge == .before {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if draggedLayerID != nil, layerDropTarget?.id == layer.id, layerDropTarget?.edge == .after {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
             }
         }
     }
@@ -133,7 +184,14 @@ private struct GroupRow: View {
     let group: ShapeGroup
     let layer: Layer
     @Bindable var viewModel: EditorViewModel
+    @Binding var draggedShapeID: UUID?
+    @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
+
+    private var orderedGroupShapeIDs: [UUID] {
+        let memberIDs = Set(group.shapeIDs)
+        return layer.shapes.map(\.id).filter { memberIDs.contains($0) }.reversed()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -154,11 +212,24 @@ private struct GroupRow: View {
             if viewModel.expandedItemIDs.contains(group.id) {
                 ForEach(group.children) { child in
                     GroupRow(
-                        group: child, layer: layer, viewModel: viewModel, depth: depth + 1)
+                        group: child,
+                        layer: layer,
+                        viewModel: viewModel,
+                        draggedShapeID: $draggedShapeID,
+                        shapeDropTarget: $shapeDropTarget,
+                        depth: depth + 1
+                    )
                 }
-                ForEach(group.shapeIDs, id: \.self) { shapeID in
+                ForEach(orderedGroupShapeIDs, id: \.self) { shapeID in
                     if let shape = layer.findShape(id: shapeID) {
-                        ShapeRow(shape: shape, viewModel: viewModel, depth: depth + 1)
+                        ShapeRow(
+                            shape: shape,
+                            layerID: layer.id,
+                            viewModel: viewModel,
+                            draggedShapeID: $draggedShapeID,
+                            shapeDropTarget: $shapeDropTarget,
+                            depth: depth + 1
+                        )
                     }
                 }
             }
@@ -179,7 +250,10 @@ private struct GroupRow: View {
 
 private struct ShapeRow: View {
     let shape: AnyShape
+    let layerID: UUID
     @Bindable var viewModel: EditorViewModel
+    @Binding var draggedShapeID: UUID?
+    @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
 
     var body: some View {
@@ -205,6 +279,34 @@ private struct ShapeRow: View {
         .onTapGesture {
             viewModel.selectShapeFromPanel(shape.id)
         }
+        .onDrag {
+            draggedShapeID = shape.id
+            return NSItemProvider(object: "shape:\(shape.id.uuidString)" as NSString)
+        }
+        .onDrop(
+            of: [UTType.text],
+            delegate: ShapeDropDelegate(
+                targetShapeID: shape.id,
+                layerID: layerID,
+                draggedShapeID: $draggedShapeID,
+                dropTargetShape: $shapeDropTarget,
+                viewModel: viewModel
+            )
+        )
+        .overlay(alignment: .top) {
+            if draggedShapeID != nil, shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .before {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if draggedShapeID != nil, shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .after {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+            }
+        }
     }
 
     private var shapeTypeIcon: String {
@@ -213,6 +315,94 @@ private struct ShapeRow: View {
         case .arrow: return "arrow.right"
         case .text: return "textformat"
         }
+    }
+}
+
+private struct LayerDropDelegate: DropDelegate {
+    let targetLayerID: UUID
+    @Binding var draggedLayerID: UUID?
+    @Binding var draggedShapeID: UUID?
+    @Binding var dropTargetLayer: (id: UUID, edge: DropEdge)?
+    let viewModel: EditorViewModel
+
+    func dropEntered(info: DropInfo) {
+        guard draggedLayerID != nil else { return }
+        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+        dropTargetLayer = (targetLayerID, edge)
+    }
+
+    func dropExited(info _: DropInfo) {
+        if dropTargetLayer?.id == targetLayerID {
+            dropTargetLayer = nil
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard draggedLayerID != nil else { return DropProposal(operation: .move) }
+        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+        dropTargetLayer = (targetLayerID, edge)
+        return DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard draggedLayerID != nil || draggedShapeID != nil else { return false }
+        if let draggedLayerID, draggedLayerID != targetLayerID {
+            let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+            // Layer rows are shown top->bottom, but model order is bottom->top.
+            if edge == .before {
+                viewModel.moveLayer(draggedLayerID: draggedLayerID, after: targetLayerID)
+            } else {
+                viewModel.moveLayer(draggedLayerID: draggedLayerID, before: targetLayerID)
+            }
+        }
+        if let draggedShapeID {
+            viewModel.moveShape(draggedShapeID: draggedShapeID, toLayer: targetLayerID)
+        }
+        draggedLayerID = nil
+        draggedShapeID = nil
+        dropTargetLayer = nil
+        return true
+    }
+}
+
+private struct ShapeDropDelegate: DropDelegate {
+    let targetShapeID: UUID
+    let layerID: UUID
+    @Binding var draggedShapeID: UUID?
+    @Binding var dropTargetShape: (id: UUID, edge: DropEdge)?
+    let viewModel: EditorViewModel
+
+    func dropEntered(info: DropInfo) {
+        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+        dropTargetShape = (targetShapeID, edge)
+    }
+
+    func dropExited(info _: DropInfo) {
+        if dropTargetShape?.id == targetShapeID {
+            dropTargetShape = nil
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+        dropTargetShape = (targetShapeID, edge)
+        return DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard draggedShapeID != nil else { return false }
+        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+        if let draggedShapeID, draggedShapeID != targetShapeID {
+            // Shape rows are shown top->bottom, but model order is bottom->top.
+            if edge == .before {
+                viewModel.moveShape(draggedShapeID: draggedShapeID, after: targetShapeID, in: layerID)
+            } else {
+                viewModel.moveShape(draggedShapeID: draggedShapeID, before: targetShapeID, in: layerID)
+            }
+        }
+        draggedShapeID = nil
+        dropTargetShape = nil
+        return true
     }
 }
 

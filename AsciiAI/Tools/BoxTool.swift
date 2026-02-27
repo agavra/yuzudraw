@@ -5,7 +5,7 @@ final class BoxTool: Tool, @unchecked Sendable {
 
     private var startPoint: GridPoint?
     private var currentPoint: GridPoint?
-    var borderStyle: BorderStyle = .single
+    var strokeStyle: StrokeStyle = .single
 
     func mouseDown(at point: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
         startPoint = point
@@ -33,7 +33,7 @@ final class BoxTool: Tool, @unchecked Sendable {
         let box = BoxShape(
             origin: rect.origin,
             size: rect.size,
-            borderStyle: borderStyle
+            strokeStyle: strokeStyle
         )
 
         cancel()
@@ -53,7 +53,7 @@ final class BoxTool: Tool, @unchecked Sendable {
             BoxShape(
                 origin: rect.origin,
                 size: rect.size,
-                borderStyle: borderStyle
+                strokeStyle: strokeStyle
             ))
     }
 }

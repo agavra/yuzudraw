@@ -9,7 +9,6 @@ struct InspectorPanel: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    borderStyleSection
                     if viewModel.selectedShapes.count > 1 {
                         Divider()
                         multiSelectionView
@@ -55,6 +54,7 @@ struct InspectorPanel: View {
     private func shapeProperties(_ shape: AnyShape) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             propertyRow("Type", value: shape.typeName)
+            arrangementSection(shapeID: shape.id)
 
             switch shape {
             case .box(let box):
@@ -98,14 +98,34 @@ struct InspectorPanel: View {
 
             sectionHeader("Style")
             Picker("Border", selection: Binding(
-                get: { box.borderStyle },
-                set: { viewModel.updateSelectedBoxBorderStyle($0) }
+                get: { box.strokeStyle },
+                set: { viewModel.updateSelectedBoxStrokeStyle($0) }
             )) {
-                ForEach(BorderStyle.allCases, id: \.self) { style in
+                ForEach(StrokeStyle.allCases, id: \.self) { style in
                     Text(style.rawValue.capitalized).tag(style)
                 }
             }
             .pickerStyle(.menu)
+
+            Picker("Fill", selection: Binding(
+                get: { box.fillMode },
+                set: { viewModel.updateSelectedBoxFillMode($0) }
+            )) {
+                Text("Transparent").tag(BoxFillMode.transparent)
+                Text("Solid").tag(BoxFillMode.solid)
+            }
+            .pickerStyle(.menu)
+
+            if box.fillMode == .solid {
+                TextField("Fill Char", text: Binding(
+                    get: { String(box.fillCharacter) },
+                    set: { newValue in
+                        let char = newValue.first ?? Character(" ")
+                        viewModel.updateSelectedBoxFillCharacter(char)
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+            }
 
             sectionHeader("Label")
             TextField("Label", text: Binding(
@@ -128,6 +148,16 @@ struct InspectorPanel: View {
                 set: { viewModel.updateSelectedArrowLabel($0) }
             ))
             .textFieldStyle(.roundedBorder)
+
+            Picker("Stroke", selection: Binding(
+                get: { arrow.strokeStyle },
+                set: { viewModel.updateSelectedArrowStrokeStyle($0) }
+            )) {
+                ForEach(StrokeStyle.allCases, id: \.self) { style in
+                    Text(style.rawValue.capitalized).tag(style)
+                }
+            }
+            .pickerStyle(.menu)
         }
     }
 
@@ -140,22 +170,22 @@ struct InspectorPanel: View {
         }
     }
 
-    // MARK: - Border style
+    // MARK: - Arrangement
 
-    private var borderStyleSection: some View {
+    private func arrangementSection(shapeID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionHeader("Stroke")
-            Picker("Stroke", selection: Binding(
-                get: { viewModel.activeBorderStyle },
-                set: { viewModel.setBorderStyle($0) }
-            )) {
-                Text("Single ─│┌┐").tag(BorderStyle.single)
-                Text("Double ═║╔╗").tag(BorderStyle.double)
-                Text("Rounded ─│╭╮").tag(BorderStyle.rounded)
-                Text("Heavy ━┃┏┓").tag(BorderStyle.heavy)
+            sectionHeader("Arrange")
+            HStack {
+                Button("Back") {
+                    viewModel.moveSelectedShapeBackward()
+                }
+                .disabled(!viewModel.canMoveShapeBackward(shapeID))
+
+                Button("Front") {
+                    viewModel.moveSelectedShapeForward()
+                }
+                .disabled(!viewModel.canMoveShapeForward(shapeID))
             }
-            .pickerStyle(.radioGroup)
-            .labelsHidden()
         }
     }
 

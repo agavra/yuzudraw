@@ -7,7 +7,6 @@ final class EditorViewModel {
     var canvas: Canvas
     var selectedShapeIDs: Set<UUID> = []
     var activeToolType: ToolType = .select
-    var activeBorderStyle: BorderStyle = .single
     var activeLayerIndex: Int = 0
     var expandedItemIDs: Set<UUID> = []
     var isEditingText: Bool = false
@@ -176,11 +175,29 @@ final class EditorViewModel {
         rerender()
     }
 
-    func updateSelectedBoxBorderStyle(_ style: BorderStyle) {
+    func updateSelectedBoxStrokeStyle(_ style: StrokeStyle) {
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
-        box.borderStyle = style
+        box.strokeStyle = style
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxFillMode(_ fillMode: BoxFillMode) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.fillMode = fillMode
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxFillCharacter(_ fillCharacter: Character) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.fillCharacter = fillCharacter
         updateShapeAndAttachments(.box(box))
         rerender()
     }
@@ -208,6 +225,15 @@ final class EditorViewModel {
             case .arrow(var arrow) = shape
         else { return }
         arrow.label = label
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowStrokeStyle(_ style: StrokeStyle) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.strokeStyle = style
         document.updateShape(.arrow(arrow))
         rerender()
     }
@@ -288,6 +314,92 @@ final class EditorViewModel {
         document.layers[index].isLocked.toggle()
     }
 
+    func moveActiveLayerUp() {
+        guard document.moveLayerUp(at: activeLayerIndex) else { return }
+        activeLayerIndex += 1
+        rerender()
+    }
+
+    func moveActiveLayerDown() {
+        guard document.moveLayerDown(at: activeLayerIndex) else { return }
+        activeLayerIndex -= 1
+        rerender()
+    }
+
+    func canMoveActiveLayerUp() -> Bool {
+        activeLayerIndex < document.layers.count - 1
+    }
+
+    func canMoveActiveLayerDown() -> Bool {
+        activeLayerIndex > 0
+    }
+
+    func moveSelectedShapeForward() {
+        guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
+        guard document.moveShapeForward(id: shapeID) else { return }
+        rerender()
+    }
+
+    func moveSelectedShapeBackward() {
+        guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
+        guard document.moveShapeBackward(id: shapeID) else { return }
+        rerender()
+    }
+
+    func canMoveShapeForward(_ shapeID: UUID) -> Bool {
+        document.canMoveShapeForward(id: shapeID)
+    }
+
+    func canMoveShapeBackward(_ shapeID: UUID) -> Bool {
+        document.canMoveShapeBackward(id: shapeID)
+    }
+
+    func moveLayer(draggedLayerID: UUID, before targetLayerID: UUID) {
+        let activeLayerID =
+            document.layers.indices.contains(activeLayerIndex)
+            ? document.layers[activeLayerIndex].id
+            : nil
+        guard document.moveLayer(id: draggedLayerID, before: targetLayerID) else { return }
+        if let activeLayerID,
+            let newActive = document.layers.firstIndex(where: { $0.id == activeLayerID })
+        {
+            activeLayerIndex = newActive
+        }
+        rerender()
+    }
+
+    func moveLayer(draggedLayerID: UUID, after targetLayerID: UUID) {
+        let activeLayerID =
+            document.layers.indices.contains(activeLayerIndex)
+            ? document.layers[activeLayerIndex].id
+            : nil
+        guard document.moveLayer(id: draggedLayerID, after: targetLayerID) else { return }
+        if let activeLayerID,
+            let newActive = document.layers.firstIndex(where: { $0.id == activeLayerID })
+        {
+            activeLayerIndex = newActive
+        }
+        rerender()
+    }
+
+    func moveShape(draggedShapeID: UUID, before targetShapeID: UUID, in layerID: UUID) {
+        guard document.moveShape(id: draggedShapeID, before: targetShapeID, in: layerID) else { return }
+        rerender()
+    }
+
+    func moveShape(draggedShapeID: UUID, after targetShapeID: UUID, in layerID: UUID) {
+        guard document.moveShape(id: draggedShapeID, after: targetShapeID, in: layerID) else { return }
+        rerender()
+    }
+
+    func moveShape(draggedShapeID: UUID, toLayer targetLayerID: UUID) {
+        guard document.moveShape(id: draggedShapeID, toLayer: targetLayerID) else { return }
+        if let newLayerIndex = document.layerIndex(containingShape: draggedShapeID) {
+            activeLayerIndex = newLayerIndex
+        }
+        rerender()
+    }
+
     func toggleExpanded(_ itemID: UUID) {
         if expandedItemIDs.contains(itemID) {
             expandedItemIDs.remove(itemID)
@@ -348,13 +460,6 @@ final class EditorViewModel {
         if let preview = activeTool.previewShape() {
             preview.render(into: &canvas)
         }
-    }
-
-    // MARK: - Border style sync
-
-    func setBorderStyle(_ style: BorderStyle) {
-        activeBorderStyle = style
-        boxTool.borderStyle = style
     }
 
     // MARK: - Arrow attachments

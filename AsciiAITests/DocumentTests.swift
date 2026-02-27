@@ -177,6 +177,79 @@ struct DocumentTests {
         #expect(doc.layers.count == 1)
     }
 
+    @Test func should_move_layers_up_and_down() {
+        // given
+        var doc = Document(layers: [
+            Layer(name: "Bottom"),
+            Layer(name: "Top"),
+        ])
+
+        // when
+        let movedDown = doc.moveLayerDown(at: 1)
+        let movedUp = doc.moveLayerUp(at: 0)
+
+        // then
+        #expect(movedDown)
+        #expect(movedUp)
+        #expect(doc.layers[0].name == "Bottom")
+        #expect(doc.layers[1].name == "Top")
+    }
+
+    @Test func should_move_shape_forward_and_backward_within_layer() {
+        // given
+        var doc = Document()
+        let back = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 6, height: 4),
+            label: "Back"
+        )
+        let front = BoxShape(
+            origin: GridPoint(column: 2, row: 1),
+            size: GridSize(width: 6, height: 4),
+            label: "Front"
+        )
+        doc.addShape(.box(back), toLayerAt: 0)
+        doc.addShape(.box(front), toLayerAt: 0)
+
+        // when
+        let movedBackward = doc.moveShapeBackward(id: front.id)
+        let movedForward = doc.moveShapeForward(id: front.id)
+
+        // then
+        #expect(movedBackward)
+        #expect(movedForward)
+        #expect(doc.layers[0].shapes[1].id == front.id)
+    }
+
+    @Test func should_occlude_lower_layer_when_top_box_fill_is_solid() {
+        // given
+        var doc = Document(layers: [
+            Layer(name: "Bottom"),
+            Layer(name: "Top"),
+        ], canvasSize: GridSize(width: 10, height: 6))
+        let bottom = BoxShape(
+            origin: GridPoint(column: 1, row: 1),
+            size: GridSize(width: 8, height: 4),
+            strokeStyle: .single
+        )
+        let top = BoxShape(
+            origin: GridPoint(column: 2, row: 2),
+            size: GridSize(width: 6, height: 3),
+            strokeStyle: .single,
+            fillMode: .solid,
+            fillCharacter: " "
+        )
+        doc.addShape(.box(bottom), toLayerAt: 0)
+        doc.addShape(.box(top), toLayerAt: 1)
+        var canvas = Canvas(size: doc.canvasSize)
+
+        // when
+        doc.render(into: &canvas)
+
+        // then
+        #expect(canvas.character(atColumn: 3, row: 3) == " ")
+    }
+
     @Test func should_render_all_visible_shapes() {
         // given
         var doc = Document(
@@ -185,7 +258,7 @@ struct DocumentTests {
         let box = BoxShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 3),
-            borderStyle: .single
+            strokeStyle: .single
         )
         doc.addShape(.box(box), toLayerAt: 0)
         var canvas = Canvas(size: doc.canvasSize)
