@@ -271,8 +271,8 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                 for c in fillAreaStartCol..<(fillAreaStartCol + fillAreaWidth) {
                     canvas.setCharacter(
                         fillCharacter,
-                        foreground: nil,
-                        background: fillColor,
+                        foreground: fillCharacter != " " ? fillColor : nil,
+                        background: fillCharacter == " " ? fillColor : nil,
                         atColumn: c, row: r
                     )
                 }

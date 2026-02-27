@@ -41,8 +41,7 @@ struct ShapeColor: Codable, Equatable, Hashable, Sendable {
         let r = UInt8(clamping: Int((red * 255).rounded()))
         let g = UInt8(clamping: Int((green * 255).rounded()))
         let b = UInt8(clamping: Int((blue * 255).rounded()))
-        let a = UInt8(clamping: Int((alpha * 255).rounded()))
-        return String(format: "#%02X%02X%02X%02X", r, g, b, a)
+        return String(format: "#%02X%02X%02X", r, g, b)
     }
 
     var swiftUIColor: Color {

@@ -5,7 +5,12 @@ import SwiftUI
 final class EditorViewModel {
     var document: Document
     var canvas: Canvas
-    var selectedShapeIDs: Set<UUID> = []
+    var selectedShapeIDs: Set<UUID> = [] {
+        didSet {
+            clearSelectedLayerIfNeeded()
+        }
+    }
+    var selectedLayerID: UUID?
     var activeToolType: ToolType = .select
     var activeLayerIndex: Int = 0
     var expandedItemIDs: Set<UUID> = []
@@ -235,6 +240,160 @@ final class EditorViewModel {
     var selectedShape: AnyShape? {
         guard selectedShapeIDs.count == 1, let id = selectedShapeIDs.first else { return nil }
         return document.findShape(id: id)
+    }
+
+    var selectedLayer: Layer? {
+        guard let id = selectedLayerID else { return nil }
+        return document.layers.first { $0.id == id }
+    }
+
+    private func clearSelectedLayerIfNeeded() {
+        guard let layerID = selectedLayerID,
+            let layer = document.layers.first(where: { $0.id == layerID })
+        else {
+            selectedLayerID = nil
+            return
+        }
+        let layerShapeIDs = Set(layer.shapes.map(\.id))
+        if selectedShapeIDs != layerShapeIDs {
+            selectedLayerID = nil
+        }
+    }
+
+    // MARK: - Layer aggregate colors
+
+    var hasLayerFillShapes: Bool {
+        selectedLayer?.shapes.contains { if case .box = $0 { return true }; return false } ?? false
+    }
+
+    var hasLayerBorderShapes: Bool {
+        selectedLayer?.shapes.contains {
+            if case .box = $0 { return true }
+            if case .arrow = $0 { return true }
+            return false
+        } ?? false
+    }
+
+    var hasLayerTextShapes: Bool {
+        selectedLayer?.shapes.isEmpty == false
+    }
+
+    var layerFillColor: ShapeColor? {
+        guard let layer = selectedLayer else { return nil }
+        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
+            if case .box(let box) = shape { return box.fillColor }
+            return nil
+        }
+        guard let first = colors.first else { return nil }
+        return colors.allSatisfy({ $0 == first }) ? first : nil
+    }
+
+    var isLayerFillColorMixed: Bool {
+        guard let layer = selectedLayer else { return false }
+        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
+            if case .box(let box) = shape { return box.fillColor }
+            return nil
+        }
+        guard colors.count > 1 else { return false }
+        return !colors.allSatisfy { $0 == colors[0] }
+    }
+
+    var layerBorderColor: ShapeColor? {
+        guard let layer = selectedLayer else { return nil }
+        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
+            switch shape {
+            case .box(let box): return box.borderColor
+            case .arrow(let arrow): return arrow.strokeColor
+            case .text: return nil
+            }
+        }
+        guard let first = colors.first else { return nil }
+        return colors.allSatisfy({ $0 == first }) ? first : nil
+    }
+
+    var isLayerBorderColorMixed: Bool {
+        guard let layer = selectedLayer else { return false }
+        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
+            switch shape {
+            case .box(let box): return box.borderColor
+            case .arrow(let arrow): return arrow.strokeColor
+            case .text: return nil
+            }
+        }
+        guard colors.count > 1 else { return false }
+        return !colors.allSatisfy { $0 == colors[0] }
+    }
+
+    var layerTextColor: ShapeColor? {
+        guard let layer = selectedLayer else { return nil }
+        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
+            switch shape {
+            case .box(let box): return box.textColor
+            case .arrow(let arrow): return arrow.labelColor
+            case .text(let text): return text.textColor
+            }
+        }
+        guard let first = colors.first else { return nil }
+        return colors.allSatisfy({ $0 == first }) ? first : nil
+    }
+
+    var isLayerTextColorMixed: Bool {
+        guard let layer = selectedLayer else { return false }
+        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
+            switch shape {
+            case .box(let box): return box.textColor
+            case .arrow(let arrow): return arrow.labelColor
+            case .text(let text): return text.textColor
+            }
+        }
+        guard colors.count > 1 else { return false }
+        return !colors.allSatisfy { $0 == colors[0] }
+    }
+
+    func updateLayerFillColor(_ color: ShapeColor?) {
+        guard let layer = selectedLayer else { return }
+        for shape in layer.shapes {
+            if case .box(var box) = shape {
+                box.fillColor = color
+                updateShapeAndAttachments(.box(box))
+            }
+        }
+        rerender()
+    }
+
+    func updateLayerBorderColor(_ color: ShapeColor?) {
+        guard let layer = selectedLayer else { return }
+        for shape in layer.shapes {
+            switch shape {
+            case .box(var box):
+                box.borderColor = color
+                updateShapeAndAttachments(.box(box))
+            case .arrow(var arrow):
+                arrow.strokeColor = color
+                document.updateShape(.arrow(arrow))
+            case .text:
+                break
+            }
+        }
+        rerender()
+    }
+
+    func updateLayerTextColor(_ color: ShapeColor?) {
+        guard let layer = selectedLayer else { return }
+        for shape in layer.shapes {
+            switch shape {
+            case .box(var box):
+                box.textColor = color
+                updateShapeAndAttachments(.box(box))
+            case .arrow(var arrow):
+                arrow.labelColor = color
+                document.updateShape(.arrow(arrow))
+            case .text(var text):
+                text.textColor = color
+                document.updateShape(.text(text))
+            }
+        }
+        rerender()
     }
 
     func updateSelectedBoxLabel(_ label: String) {
@@ -594,12 +753,6 @@ final class EditorViewModel {
 
     func removePaletteColor(id: UUID) {
         document.palette.entries.removeAll { $0.id == id }
-    }
-
-    func updateLayerBackgroundColor(at index: Int, color: ShapeColor?) {
-        guard document.layers.indices.contains(index) else { return }
-        document.layers[index].backgroundColor = color
-        rerender()
     }
 
     func deleteSelectedShapes() {

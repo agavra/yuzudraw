@@ -20,7 +20,7 @@ struct ColorPickerPopover: View {
         self.onColorSelected = onColorSelected
         self.onEditPalette = onEditPalette
         self._customColor = State(initialValue: currentColor?.swiftUIColor ?? .black)
-        let hex = currentColor?.hexString ?? "#000000FF"
+        let hex = currentColor?.hexString ?? "#000000"
         self._hexText = State(initialValue: String(hex.dropFirst()))
     }
 

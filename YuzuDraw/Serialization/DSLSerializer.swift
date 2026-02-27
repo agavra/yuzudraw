@@ -14,9 +14,6 @@ enum DSLSerializer {
             if layer.isLocked {
                 layerLine += " locked"
             }
-            if let bgColor = layer.backgroundColor {
-                layerLine += " bgColor \(bgColor.hexString)"
-            }
             lines.append(layerLine)
 
             // Emit groups with their shapes

@@ -305,18 +305,6 @@ struct Document: Codable, Equatable, Sendable {
         canvas.clear()
         for layer in layers {
             guard layer.isVisible else { continue }
-            if let bgColor = layer.backgroundColor {
-                for r in 0..<canvas.rows {
-                    for c in 0..<canvas.columns {
-                        canvas.setCharacter(
-                            " ",
-                            foreground: nil,
-                            background: bgColor,
-                            atColumn: c, row: r
-                        )
-                    }
-                }
-            }
             for shape in layer.shapes {
                 shape.render(into: &canvas)
             }

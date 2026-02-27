@@ -71,7 +71,6 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
     var isLocked: Bool
     var shapes: [AnyShape]
     var groups: [ShapeGroup]
-    var backgroundColor: ShapeColor?
 
     init(
         id: UUID = UUID(),
@@ -79,8 +78,7 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         isVisible: Bool = true,
         isLocked: Bool = false,
         shapes: [AnyShape] = [],
-        groups: [ShapeGroup] = [],
-        backgroundColor: ShapeColor? = nil
+        groups: [ShapeGroup] = []
     ) {
         self.id = id
         self.name = name
@@ -88,7 +86,32 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         self.isLocked = isLocked
         self.shapes = shapes
         self.groups = groups
-        self.backgroundColor = backgroundColor
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, isVisible, isLocked, shapes, groups, backgroundColor
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        isVisible = try container.decode(Bool.self, forKey: .isVisible)
+        isLocked = try container.decode(Bool.self, forKey: .isLocked)
+        shapes = try container.decode([AnyShape].self, forKey: .shapes)
+        groups = try container.decodeIfPresent([ShapeGroup].self, forKey: .groups) ?? []
+        // backgroundColor decoded and ignored for backward compatibility
+        _ = try container.decodeIfPresent(ShapeColor.self, forKey: .backgroundColor)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(isVisible, forKey: .isVisible)
+        try container.encode(isLocked, forKey: .isLocked)
+        try container.encode(shapes, forKey: .shapes)
+        try container.encode(groups, forKey: .groups)
     }
 
     var groupedShapeIDs: Set<UUID> {

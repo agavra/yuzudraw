@@ -109,9 +109,10 @@ enum DSLParser {
 
         let isVisible = line.contains(" visible")
         let isLocked = line.contains(" locked")
-        let bgColor = parseColorKeyword("bgColor", in: line)
+        // bgColor is parsed and ignored for backward compatibility
+        _ = parseColorKeyword("bgColor", in: line)
 
-        return Layer(name: name, isVisible: isVisible, isLocked: isLocked, backgroundColor: bgColor)
+        return Layer(name: name, isVisible: isVisible, isLocked: isLocked)
     }
 
     private static func parseShape(_ line: String) throws -> AnyShape {

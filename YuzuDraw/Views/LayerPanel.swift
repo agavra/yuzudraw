@@ -15,9 +15,7 @@ struct LayerPanel: View {
     @State private var draggedShapeID: UUID?
     @State private var layerDropTarget: (id: UUID, edge: DropEdge)?
     @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
-    @State private var explicitlySelectedLayerID: UUID?
     @State private var ignoreNextRowTap = false
-    @State private var layerBgColorPopoverIndex: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,19 +26,6 @@ struct LayerPanel: View {
             bottomButtons
         }
         .frame(minWidth: 160, idealWidth: 200, maxWidth: 260)
-        .onChange(of: viewModel.selectedShapeIDs) { _, newSelection in
-            guard let layerID = explicitlySelectedLayerID,
-                let layer = viewModel.document.layers.first(where: { $0.id == layerID })
-            else {
-                explicitlySelectedLayerID = nil
-                return
-            }
-
-            let layerSelection = Set(layer.shapes.map(\.id))
-            if newSelection != layerSelection {
-                explicitlySelectedLayerID = nil
-            }
-        }
     }
 
     private var header: some View {
@@ -120,36 +105,6 @@ struct LayerPanel: View {
 
                 Spacer()
 
-                Button {
-                    layerBgColorPopoverIndex = layerBgColorPopoverIndex == index ? nil : index
-                } label: {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(layer.backgroundColor?.swiftUIColor ?? Color.clear)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 2)
-                                .stroke(Color.secondary.opacity(0.4), lineWidth: 0.5)
-                        )
-                        .frame(width: 12, height: 12)
-                }
-                .buttonStyle(.plain)
-                .help("Layer background color")
-                .popover(isPresented: Binding(
-                    get: { layerBgColorPopoverIndex == index },
-                    set: { if !$0 { layerBgColorPopoverIndex = nil } }
-                )) {
-                    ColorPickerPopover(
-                        palette: viewModel.document.palette,
-                        currentColor: layer.backgroundColor,
-                        onColorSelected: { color in
-                            viewModel.updateLayerBackgroundColor(at: index, color: color)
-                            layerBgColorPopoverIndex = nil
-                        },
-                        onEditPalette: {
-                            layerBgColorPopoverIndex = nil
-                        }
-                    )
-                }
-
                 if !layer.shapes.isEmpty {
                     Text("\(layer.shapes.count)")
                         .font(.caption2)
@@ -161,7 +116,7 @@ struct LayerPanel: View {
             .padding(.vertical, 2)
             .contentShape(Rectangle())
             .background(
-                explicitlySelectedLayerID == layer.id
+                viewModel.selectedLayerID == layer.id
                     ? Color.accentColor.opacity(0.2)
                     : Color.clear
             )
@@ -174,7 +129,7 @@ struct LayerPanel: View {
                 }
                 viewModel.activeLayerIndex = index
                 viewModel.selectedShapeIDs = Set(layer.shapes.map(\.id))
-                explicitlySelectedLayerID = layer.id
+                viewModel.selectedLayerID = layer.id
             }
             .onDrag {
                 draggedLayerID = layer.id

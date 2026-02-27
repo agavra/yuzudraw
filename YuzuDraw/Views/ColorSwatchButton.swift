@@ -95,6 +95,38 @@ struct InlineColorRow<Popover: View>: View {
     }
 }
 
+struct MixedColorSwatch: View {
+    var size: CGFloat = 20
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(NSColor.controlBackgroundColor))
+
+            // Diagonal hatching pattern
+            GeometryReader { geometry in
+                let w = geometry.size.width
+                let h = geometry.size.height
+                Path { path in
+                    let step: CGFloat = 4
+                    var x: CGFloat = -h
+                    while x < w + h {
+                        path.move(to: CGPoint(x: x, y: h))
+                        path.addLine(to: CGPoint(x: x + h, y: 0))
+                        x += step
+                    }
+                }
+                .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 2))
+
+            RoundedRectangle(cornerRadius: 2)
+                .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 private func colorSwatch(color: ShapeColor, size: CGFloat = 20) -> some View {
     RoundedRectangle(cornerRadius: 2)
         .fill(color.swiftUIColor)

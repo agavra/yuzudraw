@@ -19,6 +19,9 @@ struct InspectorPanel: View {
         case arrowStroke
         case arrowLabel
         case textColor
+        case layerFill
+        case layerBorder
+        case layerText
     }
 
     var body: some View {
@@ -27,7 +30,9 @@ struct InspectorPanel: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if viewModel.selectedShapes.count > 1 {
+                    if let layer = viewModel.selectedLayer {
+                        layerProperties(layer)
+                    } else if viewModel.selectedShapes.count > 1 {
                         multiSelectionView
                             .padding(12)
                     } else if let shape = viewModel.selectedShape {
@@ -52,7 +57,18 @@ struct InspectorPanel: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            if viewModel.selectedShapes.count > 1 {
+            if let layer = viewModel.selectedLayer {
+                Image(systemName: "square.3.layers.3d")
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(layer.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text("Layer")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else if viewModel.selectedShapes.count > 1 {
                 Image(systemName: "square.on.square")
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 1) {
@@ -148,6 +164,106 @@ struct InspectorPanel: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+    }
+
+    // MARK: - Layer properties
+
+    @ViewBuilder
+    private func layerProperties(_ layer: Layer) -> some View {
+        if viewModel.hasLayerFillShapes {
+            Divider()
+
+            staticSection(label: "Fill", icon: "paintbrush") {
+                mixableColorSwatchRow(
+                    color: viewModel.layerFillColor,
+                    isMixed: viewModel.isLayerFillColorMixed,
+                    target: .layerFill,
+                    onColorSelected: { viewModel.updateLayerFillColor($0) }
+                )
+            }
+        }
+
+        if viewModel.hasLayerBorderShapes {
+            Divider()
+
+            staticSection(label: "Border", icon: "square") {
+                mixableColorSwatchRow(
+                    color: viewModel.layerBorderColor,
+                    isMixed: viewModel.isLayerBorderColorMixed,
+                    target: .layerBorder,
+                    onColorSelected: { viewModel.updateLayerBorderColor($0) }
+                )
+            }
+        }
+
+        if viewModel.hasLayerTextShapes {
+            Divider()
+
+            staticSection(label: "Text", icon: "textformat") {
+                mixableColorSwatchRow(
+                    color: viewModel.layerTextColor,
+                    isMixed: viewModel.isLayerTextColorMixed,
+                    target: .layerText,
+                    onColorSelected: { viewModel.updateLayerTextColor($0) }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func mixableColorSwatchRow(
+        color: ShapeColor?,
+        isMixed: Bool,
+        target: ColorTarget,
+        onColorSelected: @escaping (ShapeColor?) -> Void
+    ) -> some View {
+        if isMixed {
+            HStack(spacing: 0) {
+                Button {
+                    activeColorTarget = activeColorTarget == target ? nil : target
+                } label: {
+                    MixedColorSwatch(size: 14)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 3)
+                .padding(.trailing, 10)
+                .popover(isPresented: Binding(
+                    get: { activeColorTarget == target },
+                    set: { newValue in activeColorTarget = newValue ? target : nil }
+                )) {
+                    ColorPickerPopover(
+                        palette: viewModel.document.palette,
+                        currentColor: nil,
+                        onColorSelected: { newColor in
+                            onColorSelected(newColor)
+                            activeColorTarget = nil
+                        },
+                        onEditPalette: {
+                            activeColorTarget = nil
+                            showPaletteEditor = true
+                        }
+                    )
+                }
+                Text("Mixed")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 4)
+            }
+            .frame(height: 20)
+            .fixedSize()
+            .background(Color(NSColor.controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+        } else {
+            colorSwatchRow(
+                color: color,
+                target: target,
+                onColorSelected: onColorSelected
+            )
+        }
     }
 
     // MARK: - Shape properties

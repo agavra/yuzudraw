@@ -56,14 +56,14 @@ struct ShapeColorTests {
         let hex = color.hexString
 
         // then
-        #expect(hex == "#FF0000FF")
+        #expect(hex == "#FF0000")
     }
 
     // MARK: - Hex Round-trip
 
     @Test func should_round_trip_hex() {
         // given
-        let original = ShapeColor(red: 0.5, green: 0.25, blue: 0.75, alpha: 0.5)
+        let original = ShapeColor(red: 0.5, green: 0.25, blue: 0.75)
 
         // when
         let hex = original.hexString
@@ -74,7 +74,7 @@ struct ShapeColorTests {
         #expect(abs(restored!.red - original.red) < 0.01)
         #expect(abs(restored!.green - original.green) < 0.01)
         #expect(abs(restored!.blue - original.blue) < 0.01)
-        #expect(abs(restored!.alpha - original.alpha) < 0.01)
+        #expect(restored!.alpha == 1.0)
     }
 
     // MARK: - Codable Round-trip
