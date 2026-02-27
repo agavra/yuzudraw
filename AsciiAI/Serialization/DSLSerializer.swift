@@ -53,13 +53,25 @@ enum DSLSerializer {
     private static func serializeShape(_ shape: AnyShape) -> String {
         switch shape {
         case .box(let box):
-            let result =
+            var result =
                 "box \"\(box.label)\" at \(box.origin.column),\(box.origin.row) size \(box.size.width)x\(box.size.height) style \(box.strokeStyle.rawValue)"
-            var fill = " fill \(box.fillMode.rawValue)"
+            let fill = " fill \(box.fillMode.rawValue)"
             if box.fillMode == .solid {
-                fill += " char \"\(String(box.fillCharacter))\""
+                result += "\(fill) char \"\(String(box.fillCharacter))\""
+            } else {
+                result += fill
             }
-            return result + fill
+            result += box.hasBorder ? " border visible" : " border hidden"
+            result +=
+                " halign \(box.textHorizontalAlignment.rawValue) valign \(box.textVerticalAlignment.rawValue)"
+            result +=
+                " textOnBorder \(box.allowTextOnBorder ? "true" : "false")"
+            result +=
+                " padding \(box.textPaddingLeft),\(box.textPaddingRight),\(box.textPaddingTop),\(box.textPaddingBottom)"
+            if box.hasShadow {
+                result += " shadow \(box.shadowStyle.rawValue) x \(box.shadowOffsetX) y \(box.shadowOffsetY)"
+            }
+            return result
         case .arrow(let arrow):
             var result =
                 "arrow from \(arrow.start.column),\(arrow.start.row) to \(arrow.end.column),\(arrow.end.row)"

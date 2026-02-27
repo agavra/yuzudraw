@@ -27,6 +27,14 @@ struct DocumentCodableTests {
             #expect(decodedBox.size == box.size)
             #expect(decodedBox.strokeStyle == .double)
             #expect(decodedBox.label == "Server")
+            #expect(decodedBox.hasBorder)
+            #expect(decodedBox.textHorizontalAlignment == .center)
+            #expect(decodedBox.textVerticalAlignment == .middle)
+            #expect(decodedBox.allowTextOnBorder == false)
+            #expect(decodedBox.hasShadow == false)
+            #expect(decodedBox.shadowStyle == .light)
+            #expect(decodedBox.shadowOffsetX == 1)
+            #expect(decodedBox.shadowOffsetY == 1)
         } else {
             Issue.record("Expected box shape")
         }
@@ -144,8 +152,20 @@ struct DocumentCodableTests {
         // then
         if case .box(let box) = decoded.layers[0].shapes[0] {
             #expect(box.strokeStyle == .double)
+            #expect(box.hasBorder)
             #expect(box.fillMode == .transparent)
             #expect(box.fillCharacter == " ")
+            #expect(box.textHorizontalAlignment == .center)
+            #expect(box.textVerticalAlignment == .middle)
+            #expect(box.allowTextOnBorder == false)
+            #expect(box.textPaddingLeft == 0)
+            #expect(box.textPaddingRight == 0)
+            #expect(box.textPaddingTop == 0)
+            #expect(box.textPaddingBottom == 0)
+            #expect(box.hasShadow == false)
+            #expect(box.shadowStyle == .light)
+            #expect(box.shadowOffsetX == 1)
+            #expect(box.shadowOffsetY == 1)
         } else {
             Issue.record("Expected box shape")
         }

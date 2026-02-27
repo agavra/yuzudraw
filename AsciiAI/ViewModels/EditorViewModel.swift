@@ -175,6 +175,103 @@ final class EditorViewModel {
         rerender()
     }
 
+    func updateSelectedBoxTextHorizontalAlignment(_ alignment: BoxTextHorizontalAlignment) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.textHorizontalAlignment = alignment
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxTextVerticalAlignment(_ alignment: BoxTextVerticalAlignment) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.textVerticalAlignment = alignment
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxHasBorder(_ hasBorder: Bool) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.hasBorder = hasBorder
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxAllowTextOnBorder(_ allow: Bool) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.allowTextOnBorder = allow
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxHasShadow(_ hasShadow: Bool) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.hasShadow = hasShadow
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxShadowStyle(_ style: BoxShadowStyle) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.shadowStyle = style
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxShadowOffsetX(_ value: Int) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.shadowOffsetX = value
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxShadowOffsetY(_ value: Int) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.shadowOffsetY = value
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxTextPadding(
+        left: Int? = nil,
+        right: Int? = nil,
+        top: Int? = nil,
+        bottom: Int? = nil
+    ) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        if let left {
+            box.textPaddingLeft = max(0, left)
+        }
+        if let right {
+            box.textPaddingRight = max(0, right)
+        }
+        if let top {
+            box.textPaddingTop = max(0, top)
+        }
+        if let bottom {
+            box.textPaddingBottom = max(0, bottom)
+        }
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
     func updateSelectedBoxStrokeStyle(_ style: StrokeStyle) {
         guard let shape = selectedShape,
             case .box(var box) = shape
@@ -191,6 +288,10 @@ final class EditorViewModel {
         box.fillMode = fillMode
         updateShapeAndAttachments(.box(box))
         rerender()
+    }
+
+    func updateSelectedBoxFillEnabled(_ isEnabled: Bool) {
+        updateSelectedBoxFillMode(isEnabled ? .solid : .transparent)
     }
 
     func updateSelectedBoxFillCharacter(_ fillCharacter: Character) {

@@ -60,6 +60,57 @@ struct DSLSerializerTests {
         #expect(dsl.contains("box \"Filled\" at 1,1 size 8x4 style single fill solid char \".\""))
     }
 
+    @Test func should_serialize_box_text_layout_settings() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(
+            origin: GridPoint(column: 1, row: 1),
+            size: GridSize(width: 8, height: 4),
+            hasBorder: false,
+            label: "Note",
+            textHorizontalAlignment: .left,
+            textVerticalAlignment: .top,
+            allowTextOnBorder: true,
+            textPaddingLeft: 1,
+            textPaddingRight: 2,
+            textPaddingTop: 0,
+            textPaddingBottom: 1
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains("border hidden"))
+        #expect(dsl.contains("halign left valign top"))
+        #expect(dsl.contains("textOnBorder true"))
+        #expect(dsl.contains("padding 1,2,0,1"))
+    }
+
+    @Test func should_serialize_box_shadow_settings() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(
+            origin: GridPoint(column: 1, row: 1),
+            size: GridSize(width: 8, height: 4),
+            label: "Note",
+            hasShadow: true,
+            shadowStyle: .full,
+            shadowOffsetX: -2,
+            shadowOffsetY: -3
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains("shadow full"))
+        #expect(dsl.contains("x -2"))
+        #expect(dsl.contains("y -3"))
+    }
+
     @Test func should_serialize_text_shape() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])

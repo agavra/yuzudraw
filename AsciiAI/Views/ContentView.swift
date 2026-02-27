@@ -1,4 +1,4 @@
-import SwiftUI
+    import SwiftUI
 
 struct ContentView: View {
     @Bindable var viewModel: EditorViewModel
@@ -20,7 +20,7 @@ struct ContentView: View {
 
 #Preview {
     ContentView(viewModel: .previewSeeded())
-        .frame(width: 1100, height: 950)
+        .frame(width: 1100, height: 570)
 }
 
 private extension EditorViewModel {

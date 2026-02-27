@@ -68,6 +68,52 @@ struct DSLParserTests {
         }
     }
 
+    @Test func should_parse_box_text_layout_settings() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              box "Server" at 5,3 size 20x5 style single fill transparent border hidden halign right valign bottom textOnBorder true padding 1,2,3,4
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .box(let box) = doc.layers[0].shapes[0] {
+            #expect(box.hasBorder == false)
+            #expect(box.textHorizontalAlignment == .right)
+            #expect(box.textVerticalAlignment == .bottom)
+            #expect(box.allowTextOnBorder)
+            #expect(box.textPaddingLeft == 1)
+            #expect(box.textPaddingRight == 2)
+            #expect(box.textPaddingTop == 3)
+            #expect(box.textPaddingBottom == 4)
+        } else {
+            Issue.record("Expected box shape")
+        }
+    }
+
+    @Test func should_parse_box_shadow_settings() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              box "Server" at 5,3 size 20x5 style single fill transparent border visible halign center valign middle textOnBorder false padding 0,0,0,0 shadow dark x 2 y -3
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .box(let box) = doc.layers[0].shapes[0] {
+            #expect(box.hasShadow)
+            #expect(box.shadowStyle == .dark)
+            #expect(box.shadowOffsetX == 2)
+            #expect(box.shadowOffsetY == -3)
+        } else {
+            Issue.record("Expected box shape")
+        }
+    }
+
     @Test func should_parse_text_shape() throws {
         // given
         let dsl = """

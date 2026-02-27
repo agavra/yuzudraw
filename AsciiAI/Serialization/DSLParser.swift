@@ -168,13 +168,117 @@ enum DSLParser {
             fillMode = .transparent
         }
 
+        var hasBorder = true
+        if line.contains(" border hidden") {
+            hasBorder = false
+        }
+
+        var textHorizontalAlignment: BoxTextHorizontalAlignment = .center
+        if let horizontalRange = line.range(of: " halign ") {
+            let value = String(
+                line[horizontalRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            if let parsed = BoxTextHorizontalAlignment(rawValue: value) {
+                textHorizontalAlignment = parsed
+            }
+        }
+
+        var textVerticalAlignment: BoxTextVerticalAlignment = .middle
+        if let verticalRange = line.range(of: " valign ") {
+            let value = String(line[verticalRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            if let parsed = BoxTextVerticalAlignment(rawValue: value) {
+                textVerticalAlignment = parsed
+            }
+        }
+
+        var allowTextOnBorder = false
+        if let textOnBorderRange = line.range(of: " textOnBorder ") {
+            let value = String(
+                line[textOnBorderRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            allowTextOnBorder = value == "true"
+        }
+
+        var textPaddingLeft = 0
+        var textPaddingRight = 0
+        var textPaddingTop = 0
+        var textPaddingBottom = 0
+        if let paddingRange = line.range(of: " padding ") {
+            let value = String(
+                line[paddingRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            let parts = value.split(separator: ",")
+            if parts.count == 4 {
+                textPaddingLeft = Int(parts[0]) ?? 0
+                textPaddingRight = Int(parts[1]) ?? 0
+                textPaddingTop = Int(parts[2]) ?? 0
+                textPaddingBottom = Int(parts[3]) ?? 0
+            }
+        }
+
+        var hasShadow = false
+        var shadowStyle: BoxShadowStyle = .light
+        var shadowOffsetX = 1
+        var shadowOffsetY = 1
+        if let shadowRange = line.range(of: " shadow ") {
+            hasShadow = true
+            let shadowSection = String(line[shadowRange.upperBound...])
+
+            let styleValue = String(shadowSection.prefix(while: { !$0.isWhitespace }))
+            if let parsed = BoxShadowStyle(rawValue: styleValue) {
+                shadowStyle = parsed
+            }
+
+            if let xRange = shadowSection.range(of: " x ") {
+                let value = String(
+                    shadowSection[xRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+                shadowOffsetX = Int(value) ?? 1
+            }
+
+            if let yRange = shadowSection.range(of: " y ") {
+                let value = String(
+                    shadowSection[yRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+                shadowOffsetY = Int(value) ?? 1
+            }
+
+            // Backward compatibility with old syntax:
+            // shadow <style> direction <dir> offset <n> size <n>
+            if shadowSection.contains(" direction ") || shadowSection.contains(" offset ") {
+                var legacyDirection: BoxShadowDirection = .bottomRight
+                var legacyOffset = 1
+                if let directionRange = shadowSection.range(of: " direction ") {
+                    let value = String(
+                        shadowSection[directionRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+                    if let parsed = BoxShadowDirection(rawValue: value) {
+                        legacyDirection = parsed
+                    }
+                }
+                if let offsetRange = shadowSection.range(of: " offset ") {
+                    let value = String(
+                        shadowSection[offsetRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+                    legacyOffset = Int(value) ?? 1
+                }
+                shadowOffsetX = legacyDirection.xSign * legacyOffset
+                shadowOffsetY = legacyDirection.ySign * legacyOffset
+            }
+        }
+
         return BoxShape(
             origin: GridPoint(column: col, row: row),
             size: GridSize(width: width, height: height),
             strokeStyle: strokeStyle,
+            hasBorder: hasBorder,
             fillMode: fillMode,
             fillCharacter: fillCharacter,
-            label: label
+            label: label,
+            textHorizontalAlignment: textHorizontalAlignment,
+            textVerticalAlignment: textVerticalAlignment,
+            allowTextOnBorder: allowTextOnBorder,
+            textPaddingLeft: textPaddingLeft,
+            textPaddingRight: textPaddingRight,
+            textPaddingTop: textPaddingTop,
+            textPaddingBottom: textPaddingBottom,
+            hasShadow: hasShadow,
+            shadowStyle: shadowStyle,
+            shadowOffsetX: shadowOffsetX,
+            shadowOffsetY: shadowOffsetY
         )
     }
 

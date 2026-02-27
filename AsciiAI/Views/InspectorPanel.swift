@@ -54,7 +54,7 @@ struct InspectorPanel: View {
     private func shapeProperties(_ shape: AnyShape) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             propertyRow("Type", value: shape.typeName)
-            arrangementSection(shapeID: shape.id)
+            Divider()
 
             switch shape {
             case .box(let box):
@@ -95,44 +95,125 @@ struct InspectorPanel: View {
                     viewModel.updateSelectedBoxSize(width: box.size.width, height: newVal)
                 }
             }
+            Divider()
 
-            sectionHeader("Style")
-            Picker("Border", selection: Binding(
-                get: { box.strokeStyle },
-                set: { viewModel.updateSelectedBoxStrokeStyle($0) }
-            )) {
-                ForEach(StrokeStyle.allCases, id: \.self) { style in
-                    Text(style.rawValue.capitalized).tag(style)
-                }
-            }
-            .pickerStyle(.menu)
-
-            Picker("Fill", selection: Binding(
-                get: { box.fillMode },
-                set: { viewModel.updateSelectedBoxFillMode($0) }
-            )) {
-                Text("Transparent").tag(BoxFillMode.transparent)
-                Text("Solid").tag(BoxFillMode.solid)
-            }
-            .pickerStyle(.menu)
-
-            if box.fillMode == .solid {
-                TextField("Fill Char", text: Binding(
-                    get: { String(box.fillCharacter) },
-                    set: { newValue in
-                        let char = newValue.first ?? Character(" ")
-                        viewModel.updateSelectedBoxFillCharacter(char)
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
-            }
-
-            sectionHeader("Label")
-            TextField("Label", text: Binding(
+            sectionHeader("Text")
+            TextField("Text", text: Binding(
                 get: { box.label },
                 set: { viewModel.updateSelectedBoxLabel($0) }
             ))
             .textFieldStyle(.roundedBorder)
+
+            Picker("Horizontal", selection: Binding(
+                get: { box.textHorizontalAlignment },
+                set: { viewModel.updateSelectedBoxTextHorizontalAlignment($0) }
+            )) {
+                ForEach(BoxTextHorizontalAlignment.allCases, id: \.self) { alignment in
+                    Text(alignment.rawValue.capitalized).tag(alignment)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Picker("Vertical", selection: Binding(
+                get: { box.textVerticalAlignment },
+                set: { viewModel.updateSelectedBoxTextVerticalAlignment($0) }
+            )) {
+                ForEach(BoxTextVerticalAlignment.allCases, id: \.self) { alignment in
+                    Text(alignment.rawValue.capitalized).tag(alignment)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Toggle("Allow Text On Border", isOn: Binding(
+                get: { box.allowTextOnBorder },
+                set: { viewModel.updateSelectedBoxAllowTextOnBorder($0) }
+            ))
+            .disabled(!box.hasBorder)
+
+            HStack {
+                numberField("Pad L", value: box.textPaddingLeft) { newVal in
+                    viewModel.updateSelectedBoxTextPadding(left: newVal)
+                }
+                numberField("Pad R", value: box.textPaddingRight) { newVal in
+                    viewModel.updateSelectedBoxTextPadding(right: newVal)
+                }
+            }
+
+            HStack {
+                numberField("Pad T", value: box.textPaddingTop) { newVal in
+                    viewModel.updateSelectedBoxTextPadding(top: newVal)
+                }
+                numberField("Pad B", value: box.textPaddingBottom) { newVal in
+                    viewModel.updateSelectedBoxTextPadding(bottom: newVal)
+                }
+            }
+            Divider()
+
+            sectionHeader("Style")
+            Toggle("Border", isOn: Binding(
+                get: { box.hasBorder },
+                set: { viewModel.updateSelectedBoxHasBorder($0) }
+            ))
+
+            if box.hasBorder {
+                Picker("Border Style", selection: Binding(
+                    get: { box.strokeStyle },
+                    set: { viewModel.updateSelectedBoxStrokeStyle($0) }
+                )) {
+                    ForEach(StrokeStyle.allCases, id: \.self) { style in
+                        Text(style.rawValue.capitalized).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            HStack {
+                Toggle("Fill", isOn: Binding(
+                    get: { box.fillMode == .solid },
+                    set: { viewModel.updateSelectedBoxFillEnabled($0) }
+                ))
+
+                if box.fillMode == .solid {
+                    Text("Char")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    TextField("", text: Binding(
+                        get: { box.fillCharacter == " " ? "" : String(box.fillCharacter) },
+                        set: { newValue in
+                            let char = newValue.first ?? Character(" ")
+                            viewModel.updateSelectedBoxFillCharacter(char)
+                        }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 24)
+                }
+            }
+
+            Toggle("Enable Shadow", isOn: Binding(
+                get: { box.hasShadow },
+                set: { viewModel.updateSelectedBoxHasShadow($0) }
+            ))
+
+            if box.hasShadow {
+                Picker("Style", selection: Binding(
+                    get: { box.shadowStyle },
+                    set: { viewModel.updateSelectedBoxShadowStyle($0) }
+                )) {
+                    ForEach(BoxShadowStyle.allCases, id: \.self) { style in
+                        Text(style.rawValue.capitalized).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                HStack {
+                    numberField("X", value: box.shadowOffsetX) { newVal in
+                        viewModel.updateSelectedBoxShadowOffsetX(newVal)
+                    }
+                    numberField("Y", value: box.shadowOffsetY) { newVal in
+                        viewModel.updateSelectedBoxShadowOffsetY(newVal)
+                    }
+                }
+            }
         }
     }
 
@@ -170,25 +251,6 @@ struct InspectorPanel: View {
         }
     }
 
-    // MARK: - Arrangement
-
-    private func arrangementSection(shapeID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            sectionHeader("Arrange")
-            HStack {
-                Button("Back") {
-                    viewModel.moveSelectedShapeBackward()
-                }
-                .disabled(!viewModel.canMoveShapeBackward(shapeID))
-
-                Button("Front") {
-                    viewModel.moveSelectedShapeForward()
-                }
-                .disabled(!viewModel.canMoveShapeForward(shapeID))
-            }
-        }
-    }
-
     // MARK: - Helper views
 
     private func propertyRow(_ label: String, value: String) -> some View {
@@ -203,8 +265,8 @@ struct InspectorPanel: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.black)
             .textCase(.uppercase)
     }
 
@@ -227,6 +289,7 @@ struct InspectorPanel: View {
             .frame(width: 50)
         }
     }
+
 }
 
 #Preview {
