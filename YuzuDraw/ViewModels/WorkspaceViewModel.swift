@@ -8,7 +8,7 @@ final class WorkspaceViewModel {
     var recentProjects: [RecentProject] = []
 
     private(set) var editors: [UUID: EditorViewModel] = [:]
-    private nonisolated(unsafe) var autoSaveTask: Task<Void, Never>?
+    @ObservationIgnored private var autoSaveTask: Task<Void, Never>?
 
     private static let recentProjectsKey = "recentProjects"
 

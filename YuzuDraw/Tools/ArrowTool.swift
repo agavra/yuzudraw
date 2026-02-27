@@ -2,6 +2,7 @@ import Foundation
 
 final class ArrowTool: Tool, @unchecked Sendable {
     private static let attachmentSnapRadius: Double = 1.5
+    private static let attachmentDisplayRadius: Double = 3.0
 
     private struct AttachPoint {
         let box: BoxShape
@@ -11,6 +12,9 @@ final class ArrowTool: Tool, @unchecked Sendable {
 
     let toolType: ToolType = .arrow
 
+    /// When true, attachment snapping is suppressed (e.g. Option key held).
+    var suppressAttachment: Bool = false
+
     private var startPoint: GridPoint?
     private var startBox: BoxShape?
     private var startAttachmentSide: ArrowAttachmentSide?
@@ -18,7 +22,11 @@ final class ArrowTool: Tool, @unchecked Sendable {
     private var previewArrow: ArrowShape?
 
     func mouseDown(at point: GridPoint, in document: Document, activeLayerIndex _: Int) -> ToolAction {
-        if let containingBox = box(at: point, in: document) {
+        if suppressAttachment {
+            startPoint = point
+            startBox = nil
+            startAttachmentSide = nil
+        } else if let containingBox = box(at: point, in: document) {
             if let side = attachmentSide(at: point, on: containingBox) {
                 let snapped = AttachPoint(
                     box: containingBox,
@@ -78,28 +86,34 @@ final class ArrowTool: Tool, @unchecked Sendable {
         return .arrow(arrow)
     }
 
-    func attachmentPreviewPoints(in document: Document) -> [GridPoint] {
-        // When not drawing, show all visible box attachment points to hint valid termini.
+    func attachmentPreviewPoints(near hoverPoint: GridPoint?, in document: Document) -> [GridPoint] {
+        guard !suppressAttachment, let hoverPoint else { return [] }
+
+        let allBoxes = document.layers
+            .filter(\.isVisible)
+            .flatMap(\.shapes)
+            .compactMap { shape -> BoxShape? in
+                guard case .box(let box) = shape else { return nil }
+                return box
+            }
+
         if startPoint == nil {
-            return document.layers
-                .filter(\.isVisible)
-                .flatMap(\.shapes)
-                .compactMap { shape -> BoxShape? in
-                    guard case .box(let box) = shape else { return nil }
-                    return box
-                }
-                .flatMap { box in
-                    ArrowAttachmentSide.allCases.map { box.attachmentPoint(for: $0) }
-                }
+            // Not drawing: show attachment points only for boxes near the cursor.
+            return allBoxes.filter { box in
+                nearestAttachmentDistance(from: hoverPoint, box: box) <= Self.attachmentDisplayRadius
+            }.flatMap { box in
+                ArrowAttachmentSide.allCases.map { box.attachmentPoint(for: $0) }
+            }
         }
 
+        // While drawing: show start box + boxes near the cursor.
         var boxesByID: [UUID: BoxShape] = [:]
         if let startBox {
             boxesByID[startBox.id] = startBox
         }
 
-        if let currentPoint, let endBox = box(at: currentPoint, in: document) {
-            boxesByID[endBox.id] = endBox
+        for box in allBoxes where nearestAttachmentDistance(from: hoverPoint, box: box) <= Self.attachmentDisplayRadius {
+            boxesByID[box.id] = box
         }
 
         return boxesByID.values.flatMap { box in
@@ -110,8 +124,8 @@ final class ArrowTool: Tool, @unchecked Sendable {
     private func routedArrow(to endPoint: GridPoint, in document: Document) -> ArrowShape? {
         guard let startPoint else { return nil }
 
-        let containingEndBox = box(at: endPoint, in: document)
-        let snappedEnd = containingEndBox == nil ? snappedAttachment(near: endPoint, in: document) : nil
+        let containingEndBox = suppressAttachment ? nil : box(at: endPoint, in: document)
+        let snappedEnd = containingEndBox == nil && !suppressAttachment ? snappedAttachment(near: endPoint, in: document) : nil
         let endBox = containingEndBox ?? snappedEnd?.box
 
         let endTarget = startBox.map(\.boundingRect.centerPoint) ?? startPoint
@@ -248,6 +262,13 @@ final class ArrowTool: Tool, @unchecked Sendable {
         }
 
         return best
+    }
+
+    private func nearestAttachmentDistance(from point: GridPoint, box: BoxShape) -> Double {
+        ArrowAttachmentSide.allCases.map { side in
+            let ap = box.attachmentPoint(for: side)
+            return hypot(Double(point.column - ap.column), Double(point.row - ap.row))
+        }.min() ?? .greatestFiniteMagnitude
     }
 
 }

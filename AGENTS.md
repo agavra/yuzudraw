@@ -8,11 +8,11 @@ A macOS app for drawing ASCII diagrams (Monodraw/Figma-like).
 # Generate Xcode project (after modifying project.yml)
 xcodegen generate
 
-# Build
-xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDraw -configuration Debug build
+# Build (warnings are treated as errors via project.yml settings)
+xcodebuild -scheme YuzuDraw -destination 'platform=macOS' build
 
 # Run tests
-xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawTests -configuration Debug test
+xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
 ```
 
 ## Project Structure
@@ -101,7 +101,7 @@ YuzuDrawApp
 
 - Architecture: MVVM with `@Observable` view models
 - UI: SwiftUI, targeting macOS 14+
-- Swift version: 6.0 with strict concurrency
+- Swift version: 6.0 with strict concurrency; warnings are treated as errors (`SWIFT_TREAT_WARNINGS_AS_ERRORS`, `GCC_TREAT_WARNINGS_AS_ERRORS` in `project.yml`)
 - Tests: Swift Testing framework (`import Testing`), use given/when/then pattern, name tests `should_xyz`
 - Regenerate `YuzuDraw.xcodeproj` with `xcodegen generate` after adding/removing Swift files or changing `project.yml` — the `.xcodeproj` is gitignored
 - New Swift files are auto-discovered by XcodeGen from directory structure (no need to edit `project.yml`), but you **must** run `xcodegen generate` to pick them up

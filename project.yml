@@ -10,6 +10,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: true
+    GCC_TREAT_WARNINGS_AS_ERRORS: true
 
 targets:
   YuzuDraw:
@@ -17,11 +19,14 @@ targets:
     platform: macOS
     sources:
       - YuzuDraw
+    dependencies:
+      - sdk: AppIntents.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDraw
         INFOPLIST_FILE: YuzuDraw/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_APP_INTENTS_METADATA_GENERATION: false
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_ENTITLEMENTS: YuzuDraw/Resources/YuzuDraw.entitlements
         SWIFT_STRICT_CONCURRENCY: complete

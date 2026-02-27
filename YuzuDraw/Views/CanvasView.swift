@@ -13,6 +13,7 @@ struct CanvasView: View {
     @State private var lastMouseDownTime: Date?
     @State private var lastMouseDownPoint: GridPoint?
     @State private var lastScrollOrigin: CGPoint?
+    @State private var flagsMonitor: Any?
     private let rulerGutterLeft: CGFloat = 30
     private let rulerGutterTop: CGFloat = 16
     private static let diagonalNWSECursor = NSCursor(
@@ -86,6 +87,18 @@ struct CanvasView: View {
             }
             .focusable()
             .focusEffectDisabled()
+            .onAppear {
+                flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+                    viewModel.isOptionKeyPressed = event.modifierFlags.contains(.option)
+                    return event
+                }
+            }
+            .onDisappear {
+                if let monitor = flagsMonitor {
+                    NSEvent.removeMonitor(monitor)
+                    flagsMonitor = nil
+                }
+            }
             .onKeyPress(keys: [.delete, .deleteForward]) { _ in
                 guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
                     return .ignored
@@ -571,6 +584,7 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
         }
     }
 
+    @MainActor
     final class Coordinator {
         var onOffsetChange: (CGPoint) -> Void
         private weak var clipView: NSClipView?
@@ -592,8 +606,10 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
                 object: clip,
                 queue: .main
             ) { [weak self, weak clip] _ in
-                guard let self, let clip else { return }
-                self.onOffsetChange(clip.bounds.origin)
+                MainActor.assumeIsolated {
+                    guard let self, let clip else { return }
+                    self.onOffsetChange(clip.bounds.origin)
+                }
             }
             clipView = clip
             onOffsetChange(clip.bounds.origin)
@@ -607,8 +623,14 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
             clipView = nil
         }
 
+        nonisolated func cleanUp() {
+            MainActor.assumeIsolated {
+                detach()
+            }
+        }
+
         deinit {
-            detach()
+            cleanUp()
         }
     }
 }

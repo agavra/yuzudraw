@@ -15,6 +15,7 @@ final class EditorViewModel {
     var textEditShapeID: UUID?
     var viewportSize: CGSize = .zero
     var hoverGridPoint: GridPoint?
+    var isOptionKeyPressed: Bool = false
 
     private var selectionTool = SelectionTool()
     private var boxTool = BoxTool()
@@ -33,7 +34,7 @@ final class EditorViewModel {
     var arrowAttachmentPreviewPoints: [GridPoint] {
         switch activeToolType {
         case .arrow:
-            return arrowTool.attachmentPreviewPoints(in: document)
+            return arrowTool.attachmentPreviewPoints(near: hoverGridPoint, in: document)
         case .select:
             return selectionTool.arrowAttachmentPreviewPoints
         case .box, .text:
@@ -79,6 +80,7 @@ final class EditorViewModel {
         if isEditingText {
             commitTextEdit()
         }
+        arrowTool.suppressAttachment = isOptionKeyPressed
         let action = activeTool.mouseDown(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
@@ -115,6 +117,7 @@ final class EditorViewModel {
     }
 
     func mouseDragged(to point: GridPoint) {
+        arrowTool.suppressAttachment = isOptionKeyPressed
         let action = activeTool.mouseDragged(
             to: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
@@ -122,6 +125,7 @@ final class EditorViewModel {
     }
 
     func mouseUp(at point: GridPoint) {
+        arrowTool.suppressAttachment = isOptionKeyPressed
         let action = activeTool.mouseUp(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
