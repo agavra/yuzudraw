@@ -95,4 +95,97 @@ struct CanvasTests {
         // then
         #expect(rendered == "A  \n  B")
     }
+
+    // MARK: - CanvasCell
+
+    @Test func should_set_and_get_colored_cell() {
+        // given
+        var canvas = Canvas(columns: 10, rows: 10)
+
+        // when
+        canvas.setCharacter(
+            "#",
+            foreground: .red,
+            background: .blue,
+            atColumn: 3, row: 2
+        )
+
+        // then
+        let cell = canvas.cell(atColumn: 3, row: 2)
+        #expect(cell?.character == "#")
+        #expect(cell?.foregroundColor == .red)
+        #expect(cell?.backgroundColor == .blue)
+    }
+
+    @Test func should_preserve_existing_background_when_foreground_only() {
+        // given
+        var canvas = Canvas(columns: 10, rows: 10)
+        canvas.setCharacter(
+            " ",
+            foreground: nil,
+            background: .green,
+            atColumn: 1, row: 1
+        )
+
+        // when
+        canvas.setCharacter(
+            "X",
+            foreground: .red,
+            background: nil,
+            atColumn: 1, row: 1
+        )
+
+        // then
+        let cell = canvas.cell(atColumn: 1, row: 1)
+        #expect(cell?.character == "X")
+        #expect(cell?.foregroundColor == .red)
+        #expect(cell?.backgroundColor == .green)
+    }
+
+    @Test func should_return_nil_cell_for_out_of_bounds() {
+        // given
+        let canvas = Canvas(columns: 5, rows: 5)
+
+        // then
+        #expect(canvas.cell(atColumn: -1, row: 0) == nil)
+        #expect(canvas.cell(atColumn: 5, row: 0) == nil)
+    }
+
+    @Test func should_render_plain_text_ignoring_colors() {
+        // given
+        var canvas = Canvas(columns: 3, rows: 1)
+        canvas.setCharacter(
+            "A",
+            foreground: .red,
+            background: .blue,
+            atColumn: 0, row: 0
+        )
+        canvas.setCharacter("B", atColumn: 1, row: 0)
+
+        // when
+        let rendered = canvas.render()
+
+        // then
+        #expect(rendered == "AB ")
+    }
+
+    @Test func should_clear_canvas_cells() {
+        // given
+        var canvas = Canvas(columns: 5, rows: 5)
+        canvas.setCharacter(
+            "X",
+            foreground: .red,
+            background: .blue,
+            atColumn: 2, row: 2
+        )
+
+        // when
+        canvas.clear()
+
+        // then
+        let cell = canvas.cell(atColumn: 2, row: 2)
+        #expect(cell?.character == " ")
+        #expect(cell?.foregroundColor == nil)
+        #expect(cell?.backgroundColor == nil)
+    }
 }

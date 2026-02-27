@@ -524,6 +524,84 @@ final class EditorViewModel {
         rerender()
     }
 
+    // MARK: - Color editing
+
+    func updateSelectedBoxBorderColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.borderColor = color
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxFillColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.fillColor = color
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxTextColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.textColor = color
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedArrowStrokeColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.strokeColor = color
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowLabelColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.labelColor = color
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedTextShapeColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .text(var text) = shape
+        else { return }
+        text.textColor = color
+        document.updateShape(.text(text))
+        rerender()
+    }
+
+    // MARK: - Palette editing
+
+    func addPaletteColor(name: String, color: ShapeColor) {
+        document.palette.entries.append(ColorPaletteEntry(name: name, color: color))
+    }
+
+    func updatePaletteColor(id: UUID, name: String? = nil, color: ShapeColor? = nil) {
+        guard let index = document.palette.entries.firstIndex(where: { $0.id == id }) else { return }
+        if let name { document.palette.entries[index].name = name }
+        if let color { document.palette.entries[index].color = color }
+    }
+
+    func removePaletteColor(id: UUID) {
+        document.palette.entries.removeAll { $0.id == id }
+    }
+
+    func updateLayerBackgroundColor(at index: Int, color: ShapeColor?) {
+        guard document.layers.indices.contains(index) else { return }
+        document.layers[index].backgroundColor = color
+        rerender()
+    }
+
     func deleteSelectedShapes() {
         for id in selectedShapeIDs {
             detachArrows(referencing: id)

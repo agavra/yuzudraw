@@ -3,13 +3,29 @@ import Foundation
 struct Document: Codable, Equatable, Sendable {
     var layers: [Layer]
     var canvasSize: GridSize
+    var palette: ColorPalette
+
+    private enum CodingKeys: String, CodingKey {
+        case layers
+        case canvasSize
+        case palette
+    }
 
     init(
         layers: [Layer] = [Layer(name: "Layer 1")],
-        canvasSize: GridSize = GridSize(width: Canvas.defaultColumns, height: Canvas.defaultRows)
+        canvasSize: GridSize = GridSize(width: Canvas.defaultColumns, height: Canvas.defaultRows),
+        palette: ColorPalette = .default
     ) {
         self.layers = layers
         self.canvasSize = canvasSize
+        self.palette = palette
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        layers = try container.decode([Layer].self, forKey: .layers)
+        canvasSize = try container.decode(GridSize.self, forKey: .canvasSize)
+        palette = try container.decodeIfPresent(ColorPalette.self, forKey: .palette) ?? .default
     }
 
     var hasContent: Bool {
@@ -289,6 +305,18 @@ struct Document: Codable, Equatable, Sendable {
         canvas.clear()
         for layer in layers {
             guard layer.isVisible else { continue }
+            if let bgColor = layer.backgroundColor {
+                for r in 0..<canvas.rows {
+                    for c in 0..<canvas.columns {
+                        canvas.setCharacter(
+                            " ",
+                            foreground: nil,
+                            background: bgColor,
+                            atColumn: c, row: r
+                        )
+                    }
+                }
+            }
             for shape in layer.shapes {
                 shape.render(into: &canvas)
             }

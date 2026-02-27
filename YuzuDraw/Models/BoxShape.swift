@@ -99,6 +99,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
     var shadowStyle: BoxShadowStyle
     var shadowOffsetX: Int
     var shadowOffsetY: Int
+    var borderColor: ShapeColor?
+    var fillColor: ShapeColor?
+    var textColor: ShapeColor?
 
     init(
         id: UUID = UUID(),
@@ -124,7 +127,10 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         hasShadow: Bool = false,
         shadowStyle: BoxShadowStyle = .light,
         shadowOffsetX: Int = 1,
-        shadowOffsetY: Int = 1
+        shadowOffsetY: Int = 1,
+        borderColor: ShapeColor? = nil,
+        fillColor: ShapeColor? = nil,
+        textColor: ShapeColor? = nil
     ) {
         self.id = id
         self.name = name
@@ -150,6 +156,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         self.shadowStyle = shadowStyle
         self.shadowOffsetX = shadowOffsetX
         self.shadowOffsetY = shadowOffsetY
+        self.borderColor = borderColor
+        self.fillColor = fillColor
+        self.textColor = textColor
     }
 
     var boundingRect: GridRect {
@@ -242,7 +251,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                     if insideBoxX && insideBoxY {
                         continue
                     }
-                    canvas.setCharacter(shadowStyle.character, atColumn: c, row: r)
+                    canvas.setCharacter(
+                        shadowStyle.character,
+                        foreground: nil,
+                        background: nil,
+                        atColumn: c, row: r
+                    )
                 }
             }
         }
@@ -255,7 +269,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         if fillMode == .solid, fillAreaWidth > 0, fillAreaHeight > 0 {
             for r in fillAreaStartRow..<(fillAreaStartRow + fillAreaHeight) {
                 for c in fillAreaStartCol..<(fillAreaStartCol + fillAreaWidth) {
-                    canvas.setCharacter(fillCharacter, atColumn: c, row: r)
+                    canvas.setCharacter(
+                        fillCharacter,
+                        foreground: nil,
+                        background: fillColor,
+                        atColumn: c, row: r
+                    )
                 }
             }
         }
@@ -264,25 +283,45 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
             if drawTop {
                 for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(style.horizontal, atColumn: c, row: row)
+                    canvas.setCharacter(
+                        style.horizontal,
+                        foreground: borderColor,
+                        background: nil,
+                        atColumn: c, row: row
+                    )
                 }
             }
             if drawBottom {
                 for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(style.horizontal, atColumn: c, row: row + h - 1)
+                    canvas.setCharacter(
+                        style.horizontal,
+                        foreground: borderColor,
+                        background: nil,
+                        atColumn: c, row: row + h - 1
+                    )
                 }
             }
             if drawLeft {
                 for (index, r) in ((row + 1)..<(row + h - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(style.vertical, atColumn: col, row: r)
+                    canvas.setCharacter(
+                        style.vertical,
+                        foreground: borderColor,
+                        background: nil,
+                        atColumn: col, row: r
+                    )
                 }
             }
             if drawRight {
                 for (index, r) in ((row + 1)..<(row + h - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(style.vertical, atColumn: col + w - 1, row: r)
+                    canvas.setCharacter(
+                        style.vertical,
+                        foreground: borderColor,
+                        background: nil,
+                        atColumn: col + w - 1, row: r
+                    )
                 }
             }
 
@@ -293,7 +332,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                 corner: style.topLeft,
                 style: style
             ) {
-                canvas.setCharacter(topLeftCharacter, atColumn: col, row: row)
+                canvas.setCharacter(
+                    topLeftCharacter,
+                    foreground: borderColor,
+                    background: nil,
+                    atColumn: col, row: row
+                )
             }
             if let topRightCharacter = cornerCharacter(
                 horizontalEnabled: drawTop,
@@ -301,7 +345,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                 corner: style.topRight,
                 style: style
             ) {
-                canvas.setCharacter(topRightCharacter, atColumn: col + w - 1, row: row)
+                canvas.setCharacter(
+                    topRightCharacter,
+                    foreground: borderColor,
+                    background: nil,
+                    atColumn: col + w - 1, row: row
+                )
             }
             if let bottomLeftCharacter = cornerCharacter(
                 horizontalEnabled: drawBottom,
@@ -309,7 +358,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                 corner: style.bottomLeft,
                 style: style
             ) {
-                canvas.setCharacter(bottomLeftCharacter, atColumn: col, row: row + h - 1)
+                canvas.setCharacter(
+                    bottomLeftCharacter,
+                    foreground: borderColor,
+                    background: nil,
+                    atColumn: col, row: row + h - 1
+                )
             }
             if let bottomRightCharacter = cornerCharacter(
                 horizontalEnabled: drawBottom,
@@ -317,7 +371,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                 corner: style.bottomRight,
                 style: style
             ) {
-                canvas.setCharacter(bottomRightCharacter, atColumn: col + w - 1, row: row + h - 1)
+                canvas.setCharacter(
+                    bottomRightCharacter,
+                    foreground: borderColor,
+                    background: nil,
+                    atColumn: col + w - 1, row: row + h - 1
+                )
             }
         }
 
@@ -367,6 +426,8 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
                 for (i, char) in truncatedLine.enumerated() {
                     canvas.setCharacter(
                         char,
+                        foreground: textColor,
+                        background: fillColor,
                         atColumn: textAreaStartCol + horizontalOffset + i,
                         row: textRow
                     )
@@ -401,6 +462,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         case shadowStyle
         case shadowOffsetX
         case shadowOffsetY
+        case borderColor
+        case fillColor
+        case textColor
         // Legacy keys
         case shadowDirection
         case shadowOffset
@@ -472,6 +536,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
             shadowOffsetX = legacyDirection.xSign * legacyOffset
             shadowOffsetY = legacyDirection.ySign * legacyOffset
         }
+        borderColor = try container.decodeIfPresent(ShapeColor.self, forKey: .borderColor)
+        fillColor = try container.decodeIfPresent(ShapeColor.self, forKey: .fillColor)
+        textColor = try container.decodeIfPresent(ShapeColor.self, forKey: .textColor)
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -500,6 +567,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         try container.encode(shadowStyle, forKey: .shadowStyle)
         try container.encode(shadowOffsetX, forKey: .shadowOffsetX)
         try container.encode(shadowOffsetY, forKey: .shadowOffsetY)
+        try container.encodeIfPresent(borderColor, forKey: .borderColor)
+        try container.encodeIfPresent(fillColor, forKey: .fillColor)
+        try container.encodeIfPresent(textColor, forKey: .textColor)
     }
 
     private func shouldDraw(_ side: BoxBorderSide) -> Bool {

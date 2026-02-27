@@ -109,8 +109,9 @@ enum DSLParser {
 
         let isVisible = line.contains(" visible")
         let isLocked = line.contains(" locked")
+        let bgColor = parseColorKeyword("bgColor", in: line)
 
-        return Layer(name: name, isVisible: isVisible, isLocked: isLocked)
+        return Layer(name: name, isVisible: isVisible, isLocked: isLocked, backgroundColor: bgColor)
     }
 
     private static func parseShape(_ line: String) throws -> AnyShape {
@@ -290,6 +291,10 @@ enum DSLParser {
             }
         }
 
+        let borderColor = parseColorKeyword("borderColor", in: line)
+        let fillColor = parseColorKeyword("fillColor", in: line)
+        let textColor = parseColorKeyword("textColor", in: line)
+
         return BoxShape(
             origin: GridPoint(column: col, row: row),
             size: GridSize(width: width, height: height),
@@ -312,7 +317,10 @@ enum DSLParser {
             hasShadow: hasShadow,
             shadowStyle: shadowStyle,
             shadowOffsetX: shadowOffsetX,
-            shadowOffsetY: shadowOffsetY
+            shadowOffsetY: shadowOffsetY,
+            borderColor: borderColor,
+            fillColor: fillColor,
+            textColor: textColor
         )
     }
 
@@ -350,11 +358,16 @@ enum DSLParser {
             }
         }
 
+        let strokeColor = parseColorKeyword("strokeColor", in: line)
+        let labelColor = parseColorKeyword("labelColor", in: line)
+
         return ArrowShape(
             start: GridPoint(column: startCol, row: startRow),
             end: GridPoint(column: endCol, row: endRow),
             label: label,
-            strokeStyle: strokeStyle
+            strokeStyle: strokeStyle,
+            strokeColor: strokeColor,
+            labelColor: labelColor
         )
     }
 
@@ -371,7 +384,12 @@ enum DSLParser {
         let (col, row) = try parseCoordinate(afterAt)
 
         let unescaped = content.replacingOccurrences(of: "\\n", with: "\n")
-        return TextShape(origin: GridPoint(column: col, row: row), text: unescaped)
+        let textColor = parseColorKeyword("textColor", in: line)
+        return TextShape(
+            origin: GridPoint(column: col, row: row),
+            text: unescaped,
+            textColor: textColor
+        )
     }
 
     // MARK: - Parsing helpers
@@ -410,5 +428,11 @@ enum DSLParser {
             throw DSLParserError.invalidSyntax("Invalid dimension: \(text)")
         }
         return (w, h)
+    }
+
+    private static func parseColorKeyword(_ keyword: String, in line: String) -> ShapeColor? {
+        guard let range = line.range(of: " \(keyword) ") else { return nil }
+        let hex = String(line[range.upperBound...].prefix(while: { !$0.isWhitespace }))
+        return ShapeColor(hex: hex)
     }
 }

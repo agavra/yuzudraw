@@ -17,6 +17,7 @@ struct LayerPanel: View {
     @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @State private var explicitlySelectedLayerID: UUID?
     @State private var ignoreNextRowTap = false
+    @State private var layerBgColorPopoverIndex: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -118,6 +119,36 @@ struct LayerPanel: View {
                     .fontWeight(index == viewModel.activeLayerIndex ? .semibold : .regular)
 
                 Spacer()
+
+                Button {
+                    layerBgColorPopoverIndex = layerBgColorPopoverIndex == index ? nil : index
+                } label: {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(layer.backgroundColor?.swiftUIColor ?? Color.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 2)
+                                .stroke(Color.secondary.opacity(0.4), lineWidth: 0.5)
+                        )
+                        .frame(width: 12, height: 12)
+                }
+                .buttonStyle(.plain)
+                .help("Layer background color")
+                .popover(isPresented: Binding(
+                    get: { layerBgColorPopoverIndex == index },
+                    set: { if !$0 { layerBgColorPopoverIndex = nil } }
+                )) {
+                    ColorPickerPopover(
+                        palette: viewModel.document.palette,
+                        currentColor: layer.backgroundColor,
+                        onColorSelected: { color in
+                            viewModel.updateLayerBackgroundColor(at: index, color: color)
+                            layerBgColorPopoverIndex = nil
+                        },
+                        onEditPalette: {
+                            layerBgColorPopoverIndex = nil
+                        }
+                    )
+                }
 
                 if !layer.shapes.isEmpty {
                     Text("\(layer.shapes.count)")

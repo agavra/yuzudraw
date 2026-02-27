@@ -71,6 +71,7 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
     var isLocked: Bool
     var shapes: [AnyShape]
     var groups: [ShapeGroup]
+    var backgroundColor: ShapeColor?
 
     init(
         id: UUID = UUID(),
@@ -78,7 +79,8 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         isVisible: Bool = true,
         isLocked: Bool = false,
         shapes: [AnyShape] = [],
-        groups: [ShapeGroup] = []
+        groups: [ShapeGroup] = [],
+        backgroundColor: ShapeColor? = nil
     ) {
         self.id = id
         self.name = name
@@ -86,6 +88,7 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         self.isLocked = isLocked
         self.shapes = shapes
         self.groups = groups
+        self.backgroundColor = backgroundColor
     }
 
     var groupedShapeIDs: Set<UUID> {

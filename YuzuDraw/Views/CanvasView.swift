@@ -252,7 +252,7 @@ struct CanvasView: View {
     // MARK: - Canvas text
 
     private var canvasText: some View {
-        Text(viewModel.canvas.render())
+        Text(viewModel.canvas.renderAttributed(defaultForeground: .black))
             .font(.system(size: canvasFontSize, design: .monospaced))
             .textSelection(.disabled)
             .fixedSize()

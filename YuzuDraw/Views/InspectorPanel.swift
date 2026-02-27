@@ -8,8 +8,18 @@ struct InspectorPanel: View {
     @State private var draftName = ""
     @FocusState private var nameFieldFocused: Bool
 
-    // MARK: - Section expansion state
+    // MARK: - Color popover state
+    @State private var activeColorTarget: ColorTarget?
+    @State private var showPaletteEditor = false
 
+    private enum ColorTarget: Hashable {
+        case boxBorder
+        case boxFill
+        case boxText
+        case arrowStroke
+        case arrowLabel
+        case textColor
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -33,6 +43,9 @@ struct InspectorPanel: View {
             }
         }
         .frame(minWidth: 160, idealWidth: 180, maxWidth: 220)
+        .sheet(isPresented: $showPaletteEditor) {
+            ColorPaletteEditor(viewModel: viewModel)
+        }
     }
 
     // MARK: - Header
@@ -179,6 +192,11 @@ struct InspectorPanel: View {
 
         // Text
         staticSection(label: "Text", icon: "textformat") {
+            colorSwatchRow(
+                color: box.textColor,
+                target: .boxText,
+                onColorSelected: { viewModel.updateSelectedBoxTextColor($0) }
+            )
             HStack(spacing: 6) {
                     Text("H")
                         .font(.caption.weight(.medium))
@@ -310,6 +328,11 @@ struct InspectorPanel: View {
             onToggle: { viewModel.updateSelectedBoxHasBorder($0) }
         ) {
             VStack(alignment: .leading, spacing: 8) {
+                colorSwatchRow(
+                    color: box.borderColor,
+                    target: .boxBorder,
+                    onColorSelected: { viewModel.updateSelectedBoxBorderColor($0) }
+                )
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Style")
                         .font(.caption)
@@ -361,6 +384,11 @@ struct InspectorPanel: View {
             isEnabled: box.fillMode == .solid,
             onToggle: { viewModel.updateSelectedBoxFillEnabled($0) }
         ) {
+            colorSwatchRow(
+                color: box.fillColor,
+                target: .boxFill,
+                onColorSelected: { viewModel.updateSelectedBoxFillColor($0) }
+            )
             HStack {
                 Text("Char")
                     .foregroundStyle(.secondary)
@@ -404,6 +432,7 @@ struct InspectorPanel: View {
                 }
             }
         }
+
     }
 
     // MARK: - Arrow properties
@@ -437,6 +466,17 @@ struct InspectorPanel: View {
 
         // Style
         staticSection(label: "Style", icon: "paintbrush") {
+            colorSwatchRow(
+                color: arrow.strokeColor,
+                target: .arrowStroke,
+                onColorSelected: { viewModel.updateSelectedArrowStrokeColor($0) }
+            )
+            colorSwatchRow(
+                color: arrow.labelColor,
+                target: .arrowLabel,
+                onColorSelected: { viewModel.updateSelectedArrowLabelColor($0) }
+            )
+
             strokeStylePicker(
                 selected: arrow.strokeStyle,
                 onChange: { viewModel.updateSelectedArrowStrokeStyle($0) }
@@ -482,6 +522,7 @@ struct InspectorPanel: View {
                 }
             }
         }
+
     }
 
     @ViewBuilder
@@ -520,6 +561,11 @@ struct InspectorPanel: View {
                         column: text.origin.column, row: newVal)
                 }
             }
+            colorSwatchRow(
+                color: text.textColor,
+                target: .textColor,
+                onColorSelected: { viewModel.updateSelectedTextShapeColor($0) }
+            )
         }
     }
 
@@ -821,6 +867,38 @@ struct InspectorPanel: View {
                 return .primary
             }
             return .secondary.opacity(0.5)
+        }
+    }
+
+    private func colorSwatchRow(
+        color: ShapeColor?,
+        defaultColor: ShapeColor = .black,
+        target: ColorTarget,
+        onColorSelected: @escaping (ShapeColor?) -> Void
+    ) -> some View {
+        InlineColorRow(
+            color: color,
+            defaultColor: defaultColor,
+            onColorSelected: onColorSelected,
+            isPopoverPresented: Binding(
+                get: { activeColorTarget == target },
+                set: { newValue in
+                    activeColorTarget = newValue ? target : nil
+                }
+            )
+        ) {
+            ColorPickerPopover(
+                palette: viewModel.document.palette,
+                currentColor: color,
+                onColorSelected: { newColor in
+                    onColorSelected(newColor)
+                    activeColorTarget = nil
+                },
+                onEditPalette: {
+                    activeColorTarget = nil
+                    showPaletteEditor = true
+                }
+            )
         }
     }
 

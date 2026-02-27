@@ -89,6 +89,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     var endAttachment: ArrowAttachment?
     var startHeadStyle: ArrowHeadStyle
     var endHeadStyle: ArrowHeadStyle
+    var strokeColor: ShapeColor?
+    var labelColor: ShapeColor?
 
     init(
         id: UUID = UUID(),
@@ -101,7 +103,9 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         startAttachment: ArrowAttachment? = nil,
         endAttachment: ArrowAttachment? = nil,
         startHeadStyle: ArrowHeadStyle = .none,
-        endHeadStyle: ArrowHeadStyle = .filled
+        endHeadStyle: ArrowHeadStyle = .filled,
+        strokeColor: ShapeColor? = nil,
+        labelColor: ShapeColor? = nil
     ) {
         self.id = id
         self.name = name
@@ -114,6 +118,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         self.endAttachment = endAttachment
         self.startHeadStyle = startHeadStyle
         self.endHeadStyle = endHeadStyle
+        self.strokeColor = strokeColor
+        self.labelColor = labelColor
     }
 
     var boundingRect: GridRect {
@@ -140,7 +146,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
                 includeFrom: index == 0,
                 includeTo: isLast,
                 headCharacterOverride: endHeadChar,
-                mergeGlyph: mergeGlyph
+                mergeGlyph: mergeGlyph,
+                foregroundColor: strokeColor
             )
         }
 
@@ -154,7 +161,12 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
                 )
                 let existing = canvas.character(atColumn: corner.column, row: corner.row) ?? " "
                 let merged = mergeGlyph(existing: existing, adding: cornerConnections)
-                canvas.setCharacter(merged, atColumn: corner.column, row: corner.row)
+                canvas.setCharacter(
+                    merged,
+                    foreground: strokeColor,
+                    background: nil,
+                    atColumn: corner.column, row: corner.row
+                )
             }
         }
 
@@ -164,14 +176,24 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         if startHeadStyle != .none, let firstSegment = segments.first {
             let direction = startHeadDirection(for: firstSegment)
             let headChar = startHeadStyle.character(for: direction)
-            canvas.setCharacter(headChar, atColumn: start.column, row: start.row)
+            canvas.setCharacter(
+                headChar,
+                foreground: strokeColor,
+                background: nil,
+                atColumn: start.column, row: start.row
+            )
         }
 
         // Render label at midpoint of path
         if !label.isEmpty {
             let mid = labelEditPoint
             for (i, char) in label.enumerated() {
-                canvas.setCharacter(char, atColumn: mid.column + i, row: mid.row)
+                canvas.setCharacter(
+                    char,
+                    foreground: labelColor,
+                    background: nil,
+                    atColumn: mid.column + i, row: mid.row
+                )
             }
         }
     }
@@ -263,7 +285,12 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         connections.remove(inward)
         connections.insert(outward)
 
-        canvas.setCharacter(glyph(for: connections, style: strokeStyle), atColumn: start.column, row: start.row)
+        canvas.setCharacter(
+            glyph(for: connections, style: strokeStyle),
+            foreground: strokeColor,
+            background: nil,
+            atColumn: start.column, row: start.row
+        )
     }
 
     private func baseConnections(for side: ArrowAttachmentSide) -> LineConnections {
@@ -375,6 +402,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         case endAttachment
         case startHeadStyle
         case endHeadStyle
+        case strokeColor
+        case labelColor
     }
 
     init(from decoder: any Decoder) throws {
@@ -394,6 +423,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
             try container.decodeIfPresent(ArrowHeadStyle.self, forKey: .startHeadStyle) ?? .none
         endHeadStyle =
             try container.decodeIfPresent(ArrowHeadStyle.self, forKey: .endHeadStyle) ?? .filled
+        strokeColor = try container.decodeIfPresent(ShapeColor.self, forKey: .strokeColor)
+        labelColor = try container.decodeIfPresent(ShapeColor.self, forKey: .labelColor)
     }
 }
 
@@ -441,7 +472,8 @@ struct ArrowSegment: Equatable, Sendable {
         includeFrom: Bool,
         includeTo: Bool,
         headCharacterOverride: Character?,
-        mergeGlyph: (Character, LineConnections) -> Character
+        mergeGlyph: (Character, LineConnections) -> Character,
+        foregroundColor: ShapeColor? = nil
     ) {
         if isHorizontal {
             let minCol = min(from.column, to.column)
@@ -454,12 +486,22 @@ struct ArrowSegment: Equatable, Sendable {
                 if !includeTo, col == to.column { continue }
                 let existing = canvas.character(atColumn: col, row: from.row) ?? " "
                 let merged = mergeGlyph(existing, [.left, .right])
-                canvas.setCharacter(merged, atColumn: col, row: from.row)
+                canvas.setCharacter(
+                    merged,
+                    foreground: foregroundColor,
+                    background: nil,
+                    atColumn: col, row: from.row
+                )
             }
             if drawHead {
                 let headChar: Character =
                     headCharacterOverride ?? (to.column >= from.column ? "▶" : "◀")
-                canvas.setCharacter(headChar, atColumn: to.column, row: to.row)
+                canvas.setCharacter(
+                    headChar,
+                    foreground: foregroundColor,
+                    background: nil,
+                    atColumn: to.column, row: to.row
+                )
             }
         } else if isVertical {
             let minRow = min(from.row, to.row)
@@ -472,12 +514,22 @@ struct ArrowSegment: Equatable, Sendable {
                 if !includeTo, row == to.row { continue }
                 let existing = canvas.character(atColumn: from.column, row: row) ?? " "
                 let merged = mergeGlyph(existing, [.up, .down])
-                canvas.setCharacter(merged, atColumn: from.column, row: row)
+                canvas.setCharacter(
+                    merged,
+                    foreground: foregroundColor,
+                    background: nil,
+                    atColumn: from.column, row: row
+                )
             }
             if drawHead {
                 let headChar: Character =
                     headCharacterOverride ?? (to.row >= from.row ? "▼" : "▲")
-                canvas.setCharacter(headChar, atColumn: to.column, row: to.row)
+                canvas.setCharacter(
+                    headChar,
+                    foreground: foregroundColor,
+                    background: nil,
+                    atColumn: to.column, row: to.row
+                )
             }
         }
 

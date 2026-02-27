@@ -14,6 +14,9 @@ enum DSLSerializer {
             if layer.isLocked {
                 layerLine += " locked"
             }
+            if let bgColor = layer.backgroundColor {
+                layerLine += " bgColor \(bgColor.hexString)"
+            }
             lines.append(layerLine)
 
             // Emit groups with their shapes
@@ -82,6 +85,15 @@ enum DSLSerializer {
             if box.hasShadow {
                 result += " shadow \(box.shadowStyle.rawValue) x \(box.shadowOffsetX) y \(box.shadowOffsetY)"
             }
+            if let borderColor = box.borderColor {
+                result += " borderColor \(borderColor.hexString)"
+            }
+            if let fillColor = box.fillColor {
+                result += " fillColor \(fillColor.hexString)"
+            }
+            if let textColor = box.textColor {
+                result += " textColor \(textColor.hexString)"
+            }
             return result
         case .arrow(let arrow):
             var result =
@@ -90,10 +102,20 @@ enum DSLSerializer {
             if !arrow.label.isEmpty {
                 result += " label \"\(arrow.label)\""
             }
+            if let strokeColor = arrow.strokeColor {
+                result += " strokeColor \(strokeColor.hexString)"
+            }
+            if let labelColor = arrow.labelColor {
+                result += " labelColor \(labelColor.hexString)"
+            }
             return result
         case .text(let text):
             let escaped = text.text.replacingOccurrences(of: "\n", with: "\\n")
-            return "text \"\(escaped)\" at \(text.origin.column),\(text.origin.row)"
+            var result = "text \"\(escaped)\" at \(text.origin.column),\(text.origin.row)"
+            if let textColor = text.textColor {
+                result += " textColor \(textColor.hexString)"
+            }
+            return result
         }
     }
 }
