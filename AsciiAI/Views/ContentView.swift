@@ -4,15 +4,11 @@ struct ContentView: View {
     @Bindable var viewModel: EditorViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            ToolbarView(viewModel: viewModel)
-            Divider()
-            HSplitView {
-                LayerPanel(viewModel: viewModel)
-                CanvasView(viewModel: viewModel)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                InspectorPanel(viewModel: viewModel)
-            }
+        HSplitView {
+            LayerPanel(viewModel: viewModel)
+            CanvasView(viewModel: viewModel)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            InspectorPanel(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

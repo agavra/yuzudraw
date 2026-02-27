@@ -4,20 +4,23 @@ struct ToolbarView: View {
     @Bindable var viewModel: EditorViewModel
 
     var body: some View {
-        HStack {
-            Spacer()
-            HStack(spacing: 4) {
-                toolButton(type: .select, icon: "cursorarrow", tooltip: "Select")
-                toolButton(type: .box, icon: "rectangle", tooltip: "Box")
-                toolButton(type: .arrow, icon: "arrow.right", tooltip: "Line")
-                toolButton(type: .text, icon: "textformat", tooltip: "Text")
-            }
-            .padding(.vertical, 3)
-            Spacer()
+        HStack(spacing: 6) {
+            toolButton(type: .select, icon: "cursorarrow", tooltip: "Select")
+            toolButton(type: .box, icon: "rectangle", tooltip: "Box")
+            toolButton(type: .arrow, icon: "arrow.right", tooltip: "Line")
+            toolButton(type: .text, icon: "textformat", tooltip: "Text")
         }
         .padding(.horizontal, 8)
-        .frame(height: 34)
-        .background(.bar)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 12, y: 2)
     }
 
     private func toolButton(type: ToolType, icon: String, tooltip: String) -> some View {

@@ -2,8 +2,9 @@ import SwiftUI
 
 struct CanvasView: View {
     @Bindable var viewModel: EditorViewModel
+    private let canvasFontSize: CGFloat = 10
     @State private var charSize: CGSize = {
-        let font = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
+        let font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
         let size = ("M" as NSString).size(withAttributes: [.font: font])
         return size
     }()
@@ -70,6 +71,10 @@ struct CanvasView: View {
                 }
             }
             .background(Color(nsColor: .textBackgroundColor))
+            .overlay(alignment: .bottom) {
+                ToolbarView(viewModel: viewModel)
+                    .padding(.bottom, 12)
+            }
             .focusable()
             .onKeyPress(keys: [.delete, .deleteForward]) { _ in
                 guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
@@ -199,7 +204,7 @@ struct CanvasView: View {
 
     private var canvasText: some View {
         Text(viewModel.canvas.render())
-            .font(.system(size: 14, design: .monospaced))
+            .font(.system(size: canvasFontSize, design: .monospaced))
             .textSelection(.disabled)
             .fixedSize()
             .contentShape(Rectangle())
@@ -369,7 +374,7 @@ struct CanvasView: View {
         if viewModel.isEditingText, let point = viewModel.textEditPoint {
             TextField("Type text...", text: $viewModel.textEditContent)
                 .textFieldStyle(.plain)
-                .font(.system(size: 14, design: .monospaced))
+                .font(.system(size: canvasFontSize, design: .monospaced))
                 .frame(width: 200)
                 .padding(2)
                 .background(Color(nsColor: .textBackgroundColor))
