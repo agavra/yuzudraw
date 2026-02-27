@@ -339,6 +339,89 @@ final class EditorViewModel {
         rerender()
     }
 
+    func updateSelectedArrowStart(column: Int, row: Int) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.start = GridPoint(column: column, row: row)
+        arrow.startAttachment = nil
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowEnd(column: Int, row: Int) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.end = GridPoint(column: column, row: row)
+        arrow.endAttachment = nil
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowBendDirection(_ direction: ArrowBendDirection) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.bendDirection = direction
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowStartHeadStyle(_ style: ArrowHeadStyle) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.startHeadStyle = style
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowEndHeadStyle(_ style: ArrowHeadStyle) {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.endHeadStyle = style
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowDetachStart() {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.startAttachment = nil
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowDetachEnd() {
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.endAttachment = nil
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedTextOrigin(column: Int, row: Int) {
+        guard let shape = selectedShape,
+            case .text(var text) = shape
+        else { return }
+        text.origin = GridPoint(column: column, row: row)
+        document.updateShape(.text(text))
+        rerender()
+    }
+
+    func updateSelectedTextContent(_ content: String) {
+        guard let shape = selectedShape,
+            case .text(var text) = shape
+        else { return }
+        text.text = content
+        document.updateShape(.text(text))
+        rerender()
+    }
+
     func deleteSelectedShapes() {
         for id in selectedShapeIDs {
             detachArrows(referencing: id)

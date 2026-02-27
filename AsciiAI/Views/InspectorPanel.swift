@@ -220,16 +220,26 @@ struct InspectorPanel: View {
     @ViewBuilder
     private func arrowProperties(_ arrow: ArrowShape) -> some View {
         Group {
-            propertyRow("Start", value: "\(arrow.start.column), \(arrow.start.row)")
-            propertyRow("End", value: "\(arrow.end.column), \(arrow.end.row)")
+            sectionHeader("Position")
+            HStack {
+                numberField("Start X", value: arrow.start.column) { newVal in
+                    viewModel.updateSelectedArrowStart(column: newVal, row: arrow.start.row)
+                }
+                numberField("Start Y", value: arrow.start.row) { newVal in
+                    viewModel.updateSelectedArrowStart(column: arrow.start.column, row: newVal)
+                }
+            }
+            HStack {
+                numberField("End X", value: arrow.end.column) { newVal in
+                    viewModel.updateSelectedArrowEnd(column: newVal, row: arrow.end.row)
+                }
+                numberField("End Y", value: arrow.end.row) { newVal in
+                    viewModel.updateSelectedArrowEnd(column: arrow.end.column, row: newVal)
+                }
+            }
+            Divider()
 
-            sectionHeader("Label")
-            TextField("Label", text: Binding(
-                get: { arrow.label },
-                set: { viewModel.updateSelectedArrowLabel($0) }
-            ))
-            .textFieldStyle(.roundedBorder)
-
+            sectionHeader("Style")
             Picker("Stroke", selection: Binding(
                 get: { arrow.strokeStyle },
                 set: { viewModel.updateSelectedArrowStrokeStyle($0) }
@@ -239,15 +249,104 @@ struct InspectorPanel: View {
                 }
             }
             .pickerStyle(.menu)
+
+            Picker("Bend", selection: Binding(
+                get: { arrow.bendDirection },
+                set: { viewModel.updateSelectedArrowBendDirection($0) }
+            )) {
+                ForEach(ArrowBendDirection.allCases, id: \.self) { dir in
+                    Text(dir.rawValue).tag(dir)
+                }
+            }
+            .pickerStyle(.menu)
+
+            HStack {
+                Picker("Start", selection: Binding(
+                    get: { arrow.startHeadStyle },
+                    set: { viewModel.updateSelectedArrowStartHeadStyle($0) }
+                )) {
+                    ForEach(ArrowHeadStyle.allCases, id: \.self) { style in
+                        Text(style.pickerCharacter).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Picker("End", selection: Binding(
+                    get: { arrow.endHeadStyle },
+                    set: { viewModel.updateSelectedArrowEndHeadStyle($0) }
+                )) {
+                    ForEach(ArrowHeadStyle.allCases, id: \.self) { style in
+                        Text(style.pickerCharacter).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            Divider()
+
+            sectionHeader("Label")
+            TextField("Label", text: Binding(
+                get: { arrow.label },
+                set: { viewModel.updateSelectedArrowLabel($0) }
+            ))
+            .textFieldStyle(.roundedBorder)
+
+            if arrow.startAttachment != nil || arrow.endAttachment != nil {
+                Divider()
+                sectionHeader("Attachments")
+
+                if let attachment = arrow.startAttachment {
+                    attachmentRow("Start", attachment: attachment) {
+                        viewModel.updateSelectedArrowDetachStart()
+                    }
+                }
+                if let attachment = arrow.endAttachment {
+                    attachmentRow("End", attachment: attachment) {
+                        viewModel.updateSelectedArrowDetachEnd()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func attachmentRow(_ label: String, attachment: ArrowAttachment, onDetach: @escaping () -> Void) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption.weight(.medium))
+                let shapeName = viewModel.document.findShape(id: attachment.shapeID)?.displayName ?? "Unknown"
+                Text("\(shapeName) (\(attachment.side.rawValue))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Detach") {
+                onDetach()
+            }
+            .font(.caption)
         }
     }
 
     @ViewBuilder
     private func textProperties(_ text: TextShape) -> some View {
         Group {
-            propertyRow(
-                "Position", value: "\(text.origin.column), \(text.origin.row)")
-            propertyRow("Content", value: text.text)
+            sectionHeader("Position")
+            HStack {
+                numberField("X", value: text.origin.column) { newVal in
+                    viewModel.updateSelectedTextOrigin(column: newVal, row: text.origin.row)
+                }
+                numberField("Y", value: text.origin.row) { newVal in
+                    viewModel.updateSelectedTextOrigin(column: text.origin.column, row: newVal)
+                }
+            }
+            Divider()
+
+            sectionHeader("Content")
+            TextField("Text", text: Binding(
+                get: { text.text },
+                set: { viewModel.updateSelectedTextContent($0) }
+            ))
+            .textFieldStyle(.roundedBorder)
         }
     }
 

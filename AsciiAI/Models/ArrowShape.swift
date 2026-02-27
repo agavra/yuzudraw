@@ -1,8 +1,68 @@
 import Foundation
 
-enum ArrowBendDirection: String, Codable, Equatable, Sendable {
+enum ArrowBendDirection: String, Codable, Equatable, Sendable, CaseIterable {
     case horizontalFirst
     case verticalFirst
+}
+
+enum ArrowHeadStyle: String, Codable, Equatable, Sendable, CaseIterable {
+    case none
+    case filled
+    case ascii
+    case dot
+    case openDot
+    case diamond
+    case openDiamond
+    case square
+    case openSquare
+
+    var pickerCharacter: String {
+        switch self {
+        case .none: return "—"
+        case .filled: return "▶"
+        case .ascii: return ">"
+        case .dot: return "●"
+        case .openDot: return "○"
+        case .diamond: return "◆"
+        case .openDiamond: return "◇"
+        case .square: return "■"
+        case .openSquare: return "□"
+        }
+    }
+
+    func character(for direction: ArrowHeadDirection) -> Character {
+        switch self {
+        case .none:
+            return " "
+        case .filled:
+            switch direction {
+            case .right: return "▶"
+            case .left: return "◀"
+            case .down: return "▼"
+            case .up: return "▲"
+            }
+        case .ascii:
+            switch direction {
+            case .right: return ">"
+            case .left: return "<"
+            case .down: return "v"
+            case .up: return "^"
+            }
+        case .dot: return "●"
+        case .openDot: return "○"
+        case .diamond: return "◆"
+        case .openDiamond: return "◇"
+        case .square: return "■"
+        case .openSquare: return "□"
+        }
+    }
+}
+
+enum ArrowHeadDirection: Sendable {
+    case left
+    case right
+    case up
+    case down
 }
 
 enum ArrowAttachmentSide: String, Codable, Equatable, Sendable, CaseIterable {
@@ -26,6 +86,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     var bendDirection: ArrowBendDirection
     var startAttachment: ArrowAttachment?
     var endAttachment: ArrowAttachment?
+    var startHeadStyle: ArrowHeadStyle
+    var endHeadStyle: ArrowHeadStyle
 
     init(
         id: UUID = UUID(),
@@ -35,7 +97,9 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         strokeStyle: StrokeStyle = .single,
         bendDirection: ArrowBendDirection = .horizontalFirst,
         startAttachment: ArrowAttachment? = nil,
-        endAttachment: ArrowAttachment? = nil
+        endAttachment: ArrowAttachment? = nil,
+        startHeadStyle: ArrowHeadStyle = .none,
+        endHeadStyle: ArrowHeadStyle = .filled
     ) {
         self.id = id
         self.start = start
@@ -45,6 +109,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         self.bendDirection = bendDirection
         self.startAttachment = startAttachment
         self.endAttachment = endAttachment
+        self.startHeadStyle = startHeadStyle
+        self.endHeadStyle = endHeadStyle
     }
 
     var boundingRect: GridRect {
@@ -64,12 +130,13 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         let segments = pathSegments()
         for (index, segment) in segments.enumerated() {
             let isLast = index == segments.count - 1
+            let endHeadChar: Character? = isLast ? endHeadCharacter(for: segment) : nil
             segment.render(
                 into: &canvas,
-                drawHead: isLast,
+                drawHead: isLast && endHeadStyle != .none,
                 includeFrom: index == 0,
                 includeTo: isLast,
-                headCharacterOverride: isLast ? endAttachment.map(headCharacter(for:)) : nil,
+                headCharacterOverride: endHeadChar,
                 mergeGlyph: mergeGlyph
             )
         }
@@ -89,6 +156,13 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         }
 
         normalizeAttachedStartGlyph(into: &canvas)
+
+        // Render start head
+        if startHeadStyle != .none, let firstSegment = segments.first {
+            let direction = startHeadDirection(for: firstSegment)
+            let headChar = startHeadStyle.character(for: direction)
+            canvas.setCharacter(headChar, atColumn: start.column, row: start.row)
+        }
 
         // Render label at midpoint of path
         if !label.isEmpty {
@@ -142,12 +216,36 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         return glyph(for: base.union(adding), style: strokeStyle)
     }
 
-    private func headCharacter(for attachment: ArrowAttachment) -> Character {
-        switch attachment.side {
-        case .top: return "▼"
-        case .right: return "◀"
-        case .bottom: return "▲"
-        case .left: return "▶"
+    private func endHeadCharacter(for segment: ArrowSegment) -> Character {
+        let direction: ArrowHeadDirection
+        if let attachment = endAttachment {
+            switch attachment.side {
+            case .top: direction = .down
+            case .bottom: direction = .up
+            case .left: direction = .right
+            case .right: direction = .left
+            }
+        } else if segment.isHorizontal {
+            direction = segment.to.column >= segment.from.column ? .right : .left
+        } else {
+            direction = segment.to.row >= segment.from.row ? .down : .up
+        }
+        return endHeadStyle.character(for: direction)
+    }
+
+    private func startHeadDirection(for segment: ArrowSegment) -> ArrowHeadDirection {
+        if let attachment = startAttachment {
+            switch attachment.side {
+            case .top: return .down
+            case .bottom: return .up
+            case .left: return .right
+            case .right: return .left
+            }
+        }
+        if segment.isHorizontal {
+            return segment.to.column >= segment.from.column ? .left : .right
+        } else {
+            return segment.to.row >= segment.from.row ? .up : .down
         }
     }
 
@@ -271,6 +369,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         case bendDirection
         case startAttachment
         case endAttachment
+        case startHeadStyle
+        case endHeadStyle
     }
 
     init(from decoder: any Decoder) throws {
@@ -285,6 +385,10 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
             ?? .horizontalFirst
         startAttachment = try container.decodeIfPresent(ArrowAttachment.self, forKey: .startAttachment)
         endAttachment = try container.decodeIfPresent(ArrowAttachment.self, forKey: .endAttachment)
+        startHeadStyle =
+            try container.decodeIfPresent(ArrowHeadStyle.self, forKey: .startHeadStyle) ?? .none
+        endHeadStyle =
+            try container.decodeIfPresent(ArrowHeadStyle.self, forKey: .endHeadStyle) ?? .filled
     }
 }
 
