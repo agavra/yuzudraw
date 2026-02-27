@@ -18,10 +18,15 @@ struct TabBarContentView: View {
             // Left padding for macOS traffic light buttons
             Color.clear.frame(width: 78)
 
-            Text("YuzuDraw")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, 12)
+            (
+                Text("yuzu")
+                    .font(.system(size: 14, weight: .thin))
+                +
+                Text("draw")
+                    .font(.system(size: 14, weight: .regular))
+            )
+            .foregroundStyle(.tertiary)
+            .padding(.horizontal, 12)
 
             // Scrollable tabs + new tab button together
             ScrollView(.horizontal, showsIndicators: false) {
