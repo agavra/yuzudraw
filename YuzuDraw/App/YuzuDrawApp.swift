@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct AsciiAIApp: App {
+struct YuzuDrawApp: App {
     @State private var viewModel = EditorViewModel()
 
     var body: some Scene {

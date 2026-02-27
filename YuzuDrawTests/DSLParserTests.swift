@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct DSLParserTests {
     @Test func should_parse_simple_document() throws {

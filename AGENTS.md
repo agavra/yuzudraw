@@ -1,4 +1,4 @@
-# AsciiAI
+# YuzuDraw
 
 A macOS app for drawing ASCII diagrams (Monodraw/Figma-like).
 
@@ -9,23 +9,23 @@ A macOS app for drawing ASCII diagrams (Monodraw/Figma-like).
 xcodegen generate
 
 # Build
-xcodebuild -project AsciiAI.xcodeproj -scheme AsciiAI -configuration Debug build
+xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDraw -configuration Debug build
 
 # Run tests
-xcodebuild -project AsciiAI.xcodeproj -scheme AsciiAITests -configuration Debug test
+xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawTests -configuration Debug test
 ```
 
 ## Project Structure
 
 - `project.yml` — XcodeGen spec (source of truth for the Xcode project)
-- `AsciiAI/App/` — App entry point
-- `AsciiAI/Models/` — Data models (Canvas, Geometry, Shapes, Layers, Document)
-- `AsciiAI/Views/` — SwiftUI views (ContentView, CanvasView, ToolbarView, LayerPanel, InspectorPanel)
-- `AsciiAI/ViewModels/` — Observable view models (EditorViewModel)
-- `AsciiAI/Tools/` — Drawing tool system (Tool protocol, SelectionTool, BoxTool, ArrowTool, TextTool)
-- `AsciiAI/Serialization/` — Document persistence (JSON via DocumentCodable, DSL via DSLSerializer/DSLParser)
-- `AsciiAI/Resources/` — Assets, Info.plist, entitlements
-- `AsciiAITests/` — Unit tests
+- `YuzuDraw/App/` — App entry point
+- `YuzuDraw/Models/` — Data models (Canvas, Geometry, Shapes, Layers, Document)
+- `YuzuDraw/Views/` — SwiftUI views (ContentView, CanvasView, ToolbarView, LayerPanel, InspectorPanel)
+- `YuzuDraw/ViewModels/` — Observable view models (EditorViewModel)
+- `YuzuDraw/Tools/` — Drawing tool system (Tool protocol, SelectionTool, BoxTool, ArrowTool, TextTool)
+- `YuzuDraw/Serialization/` — Document persistence (JSON via DocumentCodable, DSL via DSLSerializer/DSLParser)
+- `YuzuDraw/Resources/` — Assets, Info.plist, entitlements
+- `YuzuDrawTests/` — Unit tests
 
 ## Architecture
 
@@ -86,6 +86,6 @@ Two-tier serialization designed for AI agent interaction:
 - UI: SwiftUI, targeting macOS 14+
 - Swift version: 6.0 with strict concurrency
 - Tests: Swift Testing framework (`import Testing`), use given/when/then pattern, name tests `should_xyz`
-- Regenerate `AsciiAI.xcodeproj` with `xcodegen generate` after changing `project.yml` — the `.xcodeproj` is gitignored
+- Regenerate `YuzuDraw.xcodeproj` with `xcodegen generate` after changing `project.yml` — the `.xcodeproj` is gitignored
 - New files are auto-discovered by XcodeGen from directory structure (no need to edit `project.yml` for new Swift files)
 - Tool classes use `@unchecked Sendable` since they're only accessed from `@MainActor` EditorViewModel

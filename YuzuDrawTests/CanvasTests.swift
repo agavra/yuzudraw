@@ -1,5 +1,5 @@
 import Testing
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct CanvasTests {
     // MARK: - Initialization

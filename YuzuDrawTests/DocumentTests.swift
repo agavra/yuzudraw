@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct DocumentTests {
     @Test func should_create_document_with_default_layer() {

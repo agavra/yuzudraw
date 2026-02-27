@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct GeometryTests {
     // MARK: - GridPoint

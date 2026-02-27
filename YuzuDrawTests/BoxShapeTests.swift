@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct BoxShapeTests {
     @Test func should_render_single_border_box() {

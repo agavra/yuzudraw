@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct DSLSerializerTests {
     @Test func should_serialize_simple_document() {

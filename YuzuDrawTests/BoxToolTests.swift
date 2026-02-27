@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct BoxToolTests {
     @Test func should_create_box_on_drag_and_release() {

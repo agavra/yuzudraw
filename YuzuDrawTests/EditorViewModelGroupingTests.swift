@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 @MainActor
 struct EditorViewModelGroupingTests {

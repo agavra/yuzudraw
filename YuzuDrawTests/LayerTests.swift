@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct LayerTests {
     @Test func should_create_layer_with_defaults() {

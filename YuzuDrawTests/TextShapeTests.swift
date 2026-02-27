@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct TextShapeTests {
     @Test func should_render_single_line_text() {

@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct StrokeStyleTests {
     @Test func should_provide_single_border_characters() {

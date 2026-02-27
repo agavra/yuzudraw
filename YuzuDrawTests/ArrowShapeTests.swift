@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct ArrowShapeTests {
     @Test func should_render_horizontal_arrow() {

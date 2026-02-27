@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct DocumentCodableTests {
     @Test func should_round_trip_document_with_box() throws {

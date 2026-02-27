@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct ArrowToolTests {
     @Test func should_create_arrow_on_click_and_release() {

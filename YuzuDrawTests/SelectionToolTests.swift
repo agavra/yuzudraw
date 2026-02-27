@@ -1,6 +1,6 @@
 import Testing
 
-@testable import AsciiAI
+@testable import YuzuDraw
 
 struct SelectionToolTests {
     @Test func should_select_shape_on_mouse_down() {

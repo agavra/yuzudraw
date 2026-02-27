@@ -1,4 +1,4 @@
-name: AsciiAI
+name: YuzuDraw
 options:
   bundleIdPrefix: com.agavra
   deploymentTarget:
@@ -12,32 +12,32 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
 
 targets:
-  AsciiAI:
+  YuzuDraw:
     type: application
     platform: macOS
     sources:
-      - AsciiAI
+      - YuzuDraw
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.AsciiAI
-        INFOPLIST_FILE: AsciiAI/Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDraw
+        INFOPLIST_FILE: YuzuDraw/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: false
-        CODE_SIGN_ENTITLEMENTS: AsciiAI/Resources/AsciiAI.entitlements
+        CODE_SIGN_ENTITLEMENTS: YuzuDraw/Resources/YuzuDraw.entitlements
         SWIFT_STRICT_CONCURRENCY: complete
     entitlements:
-      path: AsciiAI/Resources/AsciiAI.entitlements
+      path: YuzuDraw/Resources/YuzuDraw.entitlements
 
-  AsciiAITests:
+  YuzuDrawTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - AsciiAITests
+      - YuzuDrawTests
     dependencies:
-      - target: AsciiAI
+      - target: YuzuDraw
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.AsciiAITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDrawTests
         GENERATE_INFOPLIST_FILE: true
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AsciiAI.app/Contents/MacOS/AsciiAI"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/YuzuDraw.app/Contents/MacOS/YuzuDraw"
         BUNDLE_LOADER: "$(TEST_HOST)"
