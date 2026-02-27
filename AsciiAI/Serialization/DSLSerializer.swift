@@ -16,24 +16,13 @@ enum DSLSerializer {
             }
             lines.append(layerLine)
 
-            // Track which shapes belong to groups
-            var groupedShapeIDs = Set<UUID>()
-            for group in layer.groups {
-                groupedShapeIDs.formUnion(group.shapeIDs)
-            }
-
             // Emit groups with their shapes
             for group in layer.groups {
-                lines.append("  group \"\(group.name)\"")
-                for shapeID in group.shapeIDs {
-                    if let shape = layer.findShape(id: shapeID) {
-                        lines.append("    \(serializeShape(shape))")
-                    }
-                }
+                serializeGroup(group, layer: layer, indent: 2, lines: &lines)
             }
 
             // Emit ungrouped shapes
-            for shape in layer.shapes where !groupedShapeIDs.contains(shape.id) {
+            for shape in layer.ungroupedShapes {
                 lines.append("  \(serializeShape(shape))")
             }
         }
@@ -41,10 +30,30 @@ enum DSLSerializer {
         return lines.joined(separator: "\n")
     }
 
+    private static func serializeGroup(
+        _ group: ShapeGroup, layer: Layer, indent: Int, lines: inout [String]
+    ) {
+        let pad = String(repeating: " ", count: indent)
+        lines.append("\(pad)group \"\(group.name)\"")
+
+        // Nested child groups
+        for child in group.children {
+            serializeGroup(child, layer: layer, indent: indent + 2, lines: &lines)
+        }
+
+        // Direct shape members
+        let shapePad = String(repeating: " ", count: indent + 2)
+        for shapeID in group.shapeIDs {
+            if let shape = layer.findShape(id: shapeID) {
+                lines.append("\(shapePad)\(serializeShape(shape))")
+            }
+        }
+    }
+
     private static func serializeShape(_ shape: AnyShape) -> String {
         switch shape {
         case .box(let box):
-            var result =
+            let result =
                 "box \"\(box.label)\" at \(box.origin.column),\(box.origin.row) size \(box.size.width)x\(box.size.height) style \(box.borderStyle.rawValue)"
             return result
         case .arrow(let arrow):

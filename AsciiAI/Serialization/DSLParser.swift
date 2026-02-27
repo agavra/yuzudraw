@@ -6,11 +6,17 @@ enum DSLParserError: Error, Equatable {
 }
 
 enum DSLParser {
+    private struct GroupStackEntry {
+        var name: String
+        var shapeIDs: [UUID]
+        var children: [ShapeGroup]
+        var indent: Int
+    }
+
     static func parse(_ input: String) throws -> Document {
         var layers: [Layer] = []
         var currentLayer: Layer?
-        var currentGroupName: String?
-        var currentGroupShapes: [AnyShape] = []
+        var groupStack: [GroupStackEntry] = []
 
         let lines = input.components(separatedBy: "\n")
 
@@ -21,19 +27,8 @@ enum DSLParser {
             let indentLevel = line.prefix(while: { $0 == " " }).count
 
             if trimmed.hasPrefix("layer ") {
-                // Flush previous group if any
-                if let groupName = currentGroupName {
-                    let group = ShapeGroup(
-                        name: groupName,
-                        shapeIDs: currentGroupShapes.map(\.id)
-                    )
-                    currentLayer?.groups.append(group)
-                    for shape in currentGroupShapes {
-                        currentLayer?.addShape(shape)
-                    }
-                    currentGroupShapes = []
-                    currentGroupName = nil
-                }
+                // Flush group stack
+                flushGroupStack(&groupStack, into: &currentLayer)
 
                 // Flush previous layer if any
                 if let layer = currentLayer {
@@ -42,42 +37,28 @@ enum DSLParser {
 
                 currentLayer = try parseLayerHeader(trimmed)
             } else if trimmed.hasPrefix("group ") {
-                // Flush previous group
-                if let groupName = currentGroupName {
-                    let group = ShapeGroup(
-                        name: groupName,
-                        shapeIDs: currentGroupShapes.map(\.id)
-                    )
-                    currentLayer?.groups.append(group)
-                    for shape in currentGroupShapes {
-                        currentLayer?.addShape(shape)
-                    }
-                    currentGroupShapes = []
-                }
-                currentGroupName = try parseQuotedString(from: trimmed, after: "group ")
+                // Pop groups from stack that are at same or deeper indent
+                popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
+
+                let name = try parseQuotedString(from: trimmed, after: "group ")
+                groupStack.append(
+                    GroupStackEntry(name: name, shapeIDs: [], children: [], indent: indentLevel))
             } else if trimmed.hasPrefix("box ") || trimmed.hasPrefix("arrow ")
                 || trimmed.hasPrefix("text ")
             {
-                let shape = try parseShape(trimmed)
-                if currentGroupName != nil {
-                    currentGroupShapes.append(shape)
-                } else {
-                    currentLayer?.addShape(shape)
-                }
-            }
-        }
+                // Pop groups whose indent is >= this shape's indent
+                popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
 
-        // Flush last group
-        if let groupName = currentGroupName {
-            let group = ShapeGroup(
-                name: groupName,
-                shapeIDs: currentGroupShapes.map(\.id)
-            )
-            currentLayer?.groups.append(group)
-            for shape in currentGroupShapes {
+                let shape = try parseShape(trimmed)
+                if !groupStack.isEmpty {
+                    groupStack[groupStack.count - 1].shapeIDs.append(shape.id)
+                }
                 currentLayer?.addShape(shape)
             }
         }
+
+        // Flush remaining group stack
+        flushGroupStack(&groupStack, into: &currentLayer)
 
         // Flush last layer
         if let layer = currentLayer {
@@ -89,6 +70,35 @@ enum DSLParser {
         }
 
         return Document(layers: layers)
+    }
+
+    private static func popGroupsToIndent(
+        _ indent: Int, stack: inout [GroupStackEntry], layer: inout Layer?
+    ) {
+        while let top = stack.last, top.indent >= indent {
+            let entry = stack.removeLast()
+            let group = ShapeGroup(
+                name: entry.name, shapeIDs: entry.shapeIDs, children: entry.children)
+            if stack.isEmpty {
+                layer?.groups.append(group)
+            } else {
+                stack[stack.count - 1].children.append(group)
+            }
+        }
+    }
+
+    private static func flushGroupStack(
+        _ stack: inout [GroupStackEntry], into layer: inout Layer?
+    ) {
+        while let entry = stack.popLast() {
+            let group = ShapeGroup(
+                name: entry.name, shapeIDs: entry.shapeIDs, children: entry.children)
+            if stack.isEmpty {
+                layer?.groups.append(group)
+            } else {
+                stack[stack.count - 1].children.append(group)
+            }
+        }
     }
 
     private static func parseLayerHeader(_ line: String) throws -> Layer {

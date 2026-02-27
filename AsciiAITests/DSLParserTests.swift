@@ -100,6 +100,29 @@ struct DSLParserTests {
         #expect(doc.layers[0].shapes.count == 2)
     }
 
+    @Test func should_parse_nested_groups() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              group "Outer"
+                group "Inner"
+                  box "A" at 0,0 size 5x3 style single
+                box "B" at 10,0 size 5x3 style single
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        #expect(doc.layers[0].groups.count == 1)
+        #expect(doc.layers[0].groups[0].name == "Outer")
+        #expect(doc.layers[0].groups[0].children.count == 1)
+        #expect(doc.layers[0].groups[0].children[0].name == "Inner")
+        #expect(doc.layers[0].groups[0].children[0].shapeIDs.count == 1)
+        #expect(doc.layers[0].groups[0].shapeIDs.count == 1)
+        #expect(doc.layers[0].shapes.count == 2)
+    }
+
     @Test func should_round_trip_through_dsl() throws {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])

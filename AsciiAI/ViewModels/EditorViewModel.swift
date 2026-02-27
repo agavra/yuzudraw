@@ -9,6 +9,7 @@ final class EditorViewModel {
     var activeToolType: ToolType = .select
     var activeBorderStyle: BorderStyle = .single
     var activeLayerIndex: Int = 0
+    var expandedItemIDs: Set<UUID> = []
     var isEditingText: Bool = false
     var textEditPoint: GridPoint?
     var textEditContent: String = ""
@@ -68,6 +69,7 @@ final class EditorViewModel {
     init(document: Document = Document()) {
         self.document = document
         self.canvas = Canvas(size: document.canvasSize)
+        expandedItemIDs = Set(document.layers.map(\.id))
         rerender()
     }
 
@@ -225,6 +227,7 @@ final class EditorViewModel {
         let name = "Layer \(document.layers.count + 1)"
         document.addLayer(name: name)
         activeLayerIndex = document.layers.count - 1
+        expandedItemIDs.insert(document.layers[activeLayerIndex].id)
     }
 
     func removeLayer(at index: Int) {
@@ -244,6 +247,24 @@ final class EditorViewModel {
     func toggleLayerLock(at index: Int) {
         guard document.layers.indices.contains(index) else { return }
         document.layers[index].isLocked.toggle()
+    }
+
+    func toggleExpanded(_ itemID: UUID) {
+        if expandedItemIDs.contains(itemID) {
+            expandedItemIDs.remove(itemID)
+        } else {
+            expandedItemIDs.insert(itemID)
+        }
+    }
+
+    func selectShapeFromPanel(_ shapeID: UUID) {
+        selectedShapeIDs = [shapeID]
+        for (index, layer) in document.layers.enumerated() {
+            if layer.findShape(id: shapeID) != nil {
+                activeLayerIndex = index
+                break
+            }
+        }
     }
 
     // MARK: - Canvas auto-grow

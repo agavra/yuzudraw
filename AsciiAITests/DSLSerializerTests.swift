@@ -68,6 +68,38 @@ struct DSLSerializerTests {
         #expect(dsl.contains("layer \"Background\" hidden locked"))
     }
 
+    @Test func should_serialize_nested_groups() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let box1 = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 5, height: 3),
+            label: "Inner"
+        )
+        let box2 = BoxShape(
+            origin: GridPoint(column: 10, row: 0),
+            size: GridSize(width: 5, height: 3),
+            label: "Outer"
+        )
+        layer.addShape(.box(box1))
+        layer.addShape(.box(box2))
+        let innerGroup = ShapeGroup(name: "InnerGroup", shapeIDs: [box1.id])
+        let outerGroup = ShapeGroup(
+            name: "OuterGroup", shapeIDs: [box2.id], children: [innerGroup])
+        layer.groups.append(outerGroup)
+
+        let doc = Document(layers: [layer])
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains("group \"OuterGroup\""))
+        #expect(dsl.contains("group \"InnerGroup\""))
+        #expect(dsl.contains("box \"Inner\""))
+        #expect(dsl.contains("box \"Outer\""))
+    }
+
     @Test func should_serialize_groups() {
         // given
         var layer = Layer(name: "Layer 1")
