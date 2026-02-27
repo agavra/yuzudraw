@@ -8,8 +8,7 @@ struct InspectorPanel: View {
     @State private var draftName = ""
     @FocusState private var nameFieldFocused: Bool
 
-    // MARK: - Color popover state
-    @State private var activeColorTarget: ColorTarget?
+    // MARK: - Export state
     @State private var isExportSectionExpanded = true
     @State private var exportScale = 1
     @State private var exportBackgroundColor: ShapeColor?
@@ -17,21 +16,6 @@ struct InspectorPanel: View {
 
     private enum LayerExportFormat: String, CaseIterable {
         case png = "PNG"
-    }
-
-    private enum ColorTarget: Hashable {
-        case boxBorder
-        case boxFill
-        case boxText
-        case arrowStroke
-        case arrowLabel
-        case textColor
-        case pencilColor
-        case pencilToolColor
-        case layerFill
-        case layerBorder
-        case layerText
-        case exportBackground
     }
 
     var body: some View {
@@ -305,36 +289,17 @@ struct InspectorPanel: View {
         if isMixed {
             HStack(spacing: 0) {
                 Button {
-                    activeColorTarget = activeColorTarget == target ? nil : target
+                    viewModel.openColorPicker(
+                        target: target,
+                        currentColor: nil,
+                        onColorSelected: onColorSelected
+                    )
                 } label: {
                     MixedColorSwatch(size: 14)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, 3)
                 .padding(.trailing, 10)
-                .popover(isPresented: Binding(
-                    get: { activeColorTarget == target },
-                    set: { newValue in activeColorTarget = newValue ? target : nil }
-                )) {
-                    ColorPickerPopover(
-                        customPalette: viewModel.document.palette,
-                        pageColors: viewModel.documentColors,
-                        currentColor: nil,
-                        onColorSelected: { newColor in
-                            onColorSelected(newColor)
-                        },
-                        onDismiss: {
-                            activeColorTarget = nil
-                        },
-                        onAddToPalette: { color in
-                            viewModel.addPaletteColor(name: color.hexString, color: color)
-                        },
-                        onRemoveFromPalette: { id in
-                            viewModel.removePaletteColor(id: id)
-                        }
-                    )
-                    .interactiveDismissDisabled()
-                }
                 Text("Mixed")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.secondary)
@@ -1297,33 +1262,15 @@ struct InspectorPanel: View {
             defaultColor: defaultColor,
             allowsNone: allowsNone,
             onColorSelected: onColorSelected,
-            isPopoverPresented: Binding(
-                get: { activeColorTarget == target },
-                set: { newValue in
-                    activeColorTarget = newValue ? target : nil
-                }
-            )
-        ) {
-            ColorPickerPopover(
-                customPalette: viewModel.document.palette,
-                pageColors: viewModel.documentColors,
-                currentColor: color,
-                allowsNone: allowsNone,
-                onColorSelected: { newColor in
-                    onColorSelected(newColor)
-                },
-                onDismiss: {
-                    activeColorTarget = nil
-                },
-                onAddToPalette: { color in
-                    viewModel.addPaletteColor(name: color.hexString, color: color)
-                },
-                onRemoveFromPalette: { id in
-                    viewModel.removePaletteColor(id: id)
-                }
-            )
-            .interactiveDismissDisabled()
-        }
+            onSwatchTapped: {
+                viewModel.openColorPicker(
+                    target: target,
+                    currentColor: color,
+                    allowsNone: allowsNone,
+                    onColorSelected: onColorSelected
+                )
+            }
+        )
     }
 
     private func alignmentIconButton<Content: View>(

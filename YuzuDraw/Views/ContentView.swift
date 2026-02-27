@@ -1,20 +1,133 @@
-    import SwiftUI
+import SwiftUI
 
 struct ContentView: View {
     @Bindable var viewModel: EditorViewModel
     var onDocumentChange: (() -> Void)?
+
+    @State private var colorPickerOffset: CGSize = .zero
+    @GestureState private var colorPickerDrag: CGSize = .zero
+    @State private var canvasSize: CGSize = .zero
+
+    private let pickerWidth: CGFloat = 220
+    private let pickerTopPad: CGFloat = 40
+    private let pickerTrailingPad: CGFloat = 8
+    private let pickerHeight: CGFloat = 420
 
     var body: some View {
         HSplitView {
             LayerPanel(viewModel: viewModel)
             CanvasView(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.onChange(of: geo.size, initial: true) { _, newSize in
+                            canvasSize = newSize
+                        }
+                    }
+                )
+                .overlay(alignment: .topTrailing) {
+                    if viewModel.activeColorTarget != nil {
+                        let clampedX = clampedDragX(colorPickerOffset.width + colorPickerDrag.width)
+                        let clampedY = clampedDragY(colorPickerOffset.height + colorPickerDrag.height)
+                        colorPickerPanel
+                            .offset(x: clampedX, y: clampedY)
+                            .padding(.top, pickerTopPad)
+                            .padding(.trailing, pickerTrailingPad)
+                    }
+                }
             InspectorPanel(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: viewModel.activeColorTarget) { _, newValue in
+            if newValue != nil {
+                colorPickerOffset = .zero
+            }
+        }
         .onChange(of: viewModel.document) {
             onDocumentChange?()
         }
+    }
+
+    // The picker is anchored at top-trailing with padding.
+    // Offset x < 0 moves left, x > 0 moves right (off-screen).
+    // Offset y < 0 moves up, y > 0 moves down.
+    private func clampedDragX(_ x: CGFloat) -> CGFloat {
+        let maxLeft = -(canvasSize.width - pickerWidth - pickerTrailingPad)
+        let maxRight: CGFloat = 0
+        return min(max(x, maxLeft), maxRight)
+    }
+
+    private func clampedDragY(_ y: CGFloat) -> CGFloat {
+        let maxUp = -pickerTopPad
+        let maxDown = max(canvasSize.height - pickerHeight - pickerTopPad, 0)
+        return min(max(y, maxUp), maxDown)
+    }
+
+    private var colorPickerPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header — draggable
+            HStack(spacing: 8) {
+                Text("Color")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    viewModel.closeColorPicker()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture()
+                    .updating($colorPickerDrag) { value, state, _ in
+                        state = value.translation
+                    }
+                    .onEnded { value in
+                        colorPickerOffset.width = clampedDragX(
+                            colorPickerOffset.width + value.translation.width
+                        )
+                        colorPickerOffset.height = clampedDragY(
+                            colorPickerOffset.height + value.translation.height
+                        )
+                    }
+            )
+
+            Divider()
+
+            ColorPickerPopover(
+                customPalette: viewModel.document.palette,
+                pageColors: viewModel.documentColors,
+                currentColor: viewModel.colorPickerCurrentColor,
+                allowsNone: viewModel.colorPickerAllowsNone,
+                onColorSelected: { color in
+                    viewModel.colorPickerOnColorSelected?(color)
+                },
+                onDismiss: {
+                    viewModel.closeColorPicker()
+                },
+                onAddToPalette: { color in
+                    viewModel.addPaletteColor(name: color.hexString, color: color)
+                },
+                onRemoveFromPalette: { id in
+                    viewModel.removePaletteColor(id: id)
+                }
+            )
+        }
+        .frame(width: 220)
+        .background(Color(NSColor.windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
     }
 }
 

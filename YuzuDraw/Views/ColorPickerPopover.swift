@@ -13,13 +13,6 @@ enum PaletteTab: Int, CaseIterable {
         }
     }
 
-    var icon: String {
-        switch self {
-        case .defaults: "paintpalette"
-        case .custom: "star"
-        case .page: "doc"
-        }
-    }
 }
 
 struct ColorPickerPopover: View {
@@ -70,18 +63,7 @@ struct ColorPickerPopover: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Spacer()
-                Button {
-                    onDismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
+        VStack(alignment: .leading, spacing: 6) {
             saturationBrightnessSquare
             hueSlider
             hexAndEyedropperRow
@@ -89,50 +71,50 @@ struct ColorPickerPopover: View {
             paletteTabs
             paletteContent
         }
-        .padding(10)
-        .padding(.top, 4)
-        .frame(width: 260)
+        .padding(8)
     }
 
     // MARK: - Saturation-Brightness Square
 
     private var saturationBrightnessSquare: some View {
-        let size: CGFloat = 240
-        return ZStack {
-            Color(hue: hue, saturation: 1, brightness: 1)
+        GeometryReader { geo in
+            let size = geo.size.width
+            ZStack {
+                Color(hue: hue, saturation: 1, brightness: 1)
 
-            LinearGradient(
-                colors: [.white, .white.opacity(0)],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-
-            LinearGradient(
-                colors: [.clear, .black],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            Circle()
-                .fill(activeColor.swiftUIColor)
-                .overlay(Circle().stroke(.white, lineWidth: 2))
-                .overlay(Circle().stroke(.black.opacity(0.2), lineWidth: 1).padding(-1))
-                .frame(width: 14, height: 14)
-                .position(
-                    x: saturation * size,
-                    y: (1 - brightness) * size
+                LinearGradient(
+                    colors: [.white, .white.opacity(0)],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
+
+                LinearGradient(
+                    colors: [.clear, .black],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                Circle()
+                    .fill(activeColor.swiftUIColor)
+                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                    .overlay(Circle().stroke(.black.opacity(0.2), lineWidth: 1).padding(-1))
+                    .frame(width: 12, height: 12)
+                    .position(
+                        x: saturation * size,
+                        y: (1 - brightness) * size
+                    )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 2))
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        saturation = min(max(value.location.x / size, 0), 1)
+                        brightness = 1 - min(max(value.location.y / size, 0), 1)
+                        syncHexAndEmit()
+                    }
+            )
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    saturation = min(max(value.location.x / size, 0), 1)
-                    brightness = 1 - min(max(value.location.y / size, 0), 1)
-                    syncHexAndEmit()
-                }
-        )
+        .aspectRatio(1, contentMode: .fit)
     }
 
     // MARK: - Hue Slider
@@ -141,7 +123,7 @@ struct ColorPickerPopover: View {
         GeometryReader { geo in
             let width = geo.size.width
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(
                         LinearGradient(
                             stops: [
@@ -162,8 +144,8 @@ struct ColorPickerPopover: View {
                     .fill(Color(hue: hue, saturation: 1, brightness: 1))
                     .overlay(Circle().stroke(.white, lineWidth: 2))
                     .overlay(Circle().stroke(.black.opacity(0.2), lineWidth: 1).padding(-1))
-                    .frame(width: 16, height: 16)
-                    .position(x: hue * width, y: 8)
+                    .frame(width: 14, height: 14)
+                    .position(x: hue * width, y: 6)
             }
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -173,27 +155,27 @@ struct ColorPickerPopover: View {
                     }
             )
         }
-        .frame(height: 16)
+        .frame(height: 12)
     }
 
     // MARK: - Hex + Eyedropper Row
 
     private var hexAndEyedropperRow: some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 4)
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 3)
                 .fill(activeColor.swiftUIColor)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 3)
                         .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                 )
-                .frame(width: 28, height: 28)
+                .frame(width: 22, height: 22)
 
             HStack(spacing: 2) {
                 Text("#")
-                    .font(.system(.caption, design: .monospaced))
+                    .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.secondary)
                 TextField("RRGGBB", text: $hexText)
-                    .font(.system(.caption, design: .monospaced))
+                    .font(.system(.caption2, design: .monospaced))
                     .textFieldStyle(.roundedBorder)
                     .onSubmit {
                         applyHexInput()
@@ -204,7 +186,7 @@ struct ColorPickerPopover: View {
                 sampleColor()
             } label: {
                 Image(systemName: "eyedropper")
-                    .font(.system(size: 14))
+                    .font(.system(size: 12))
             }
             .buttonStyle(.borderless)
             .help("Pick a color from screen")
@@ -219,22 +201,18 @@ struct ColorPickerPopover: View {
                 Button {
                     selectedTab = tab
                 } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: tab.icon)
-                            .font(.system(size: 9))
-                        Text(tab.label)
-                            .font(.system(size: 10))
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        selectedTab == tab
-                            ? Color.accentColor.opacity(0.15)
-                            : Color.clear
-                    )
-                    .foregroundStyle(selectedTab == tab ? .primary : .secondary)
-                    .cornerRadius(4)
+                    Text(tab.label)
+                        .font(.system(size: 10))
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            selectedTab == tab
+                                ? Color.accentColor.opacity(0.15)
+                                : Color.clear
+                        )
+                        .foregroundStyle(selectedTab == tab ? .primary : .secondary)
+                        .cornerRadius(4)
                 }
                 .buttonStyle(.plain)
             }
@@ -243,37 +221,38 @@ struct ColorPickerPopover: View {
 
     // MARK: - Palette Content
 
-    @ViewBuilder
     private var paletteContent: some View {
-        switch selectedTab {
-        case .defaults:
-            colorGrid(colors: ColorPalette.default.entries.map(\.color))
-        case .custom:
-            customPaletteContent
-        case .page:
-            if pageColors.isEmpty {
-                Text("No colors on this page")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-            } else {
-                colorGrid(colors: pageColors)
+        Group {
+            switch selectedTab {
+            case .defaults:
+                colorGrid(colors: ColorPalette.default.entries.map(\.color))
+            case .custom:
+                customPaletteContent
+            case .page:
+                if pageColors.isEmpty {
+                    Text("No colors on this page")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    colorGrid(colors: pageColors)
+                }
             }
         }
+        .frame(height: 80, alignment: .top)
     }
 
     private func colorGrid(colors: [ShapeColor]) -> some View {
-        let columns = Array(repeating: GridItem(.fixed(20), spacing: 4), count: 8)
-        return LazyVGrid(columns: columns, spacing: 4) {
+        let columns = Array(repeating: GridItem(.fixed(16), spacing: 3), count: 10)
+        return LazyVGrid(columns: columns, spacing: 3) {
             ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
                 Button {
                     applyColor(color)
                 } label: {
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: 2)
                         .fill(color.swiftUIColor)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 3)
+                            RoundedRectangle(cornerRadius: 2)
                                 .stroke(
                                     currentColor == color
                                         ? Color.accentColor
@@ -281,7 +260,7 @@ struct ColorPickerPopover: View {
                                     lineWidth: currentColor == color ? 2 : 1
                                 )
                         )
-                        .frame(width: 20, height: 20)
+                        .frame(width: 16, height: 16)
                 }
                 .buttonStyle(.plain)
                 .help(color.hexString)
@@ -290,9 +269,9 @@ struct ColorPickerPopover: View {
                 Button {
                     onColorSelected(nil)
                 } label: {
-                    transparentSwatch(size: 20)
+                    transparentSwatch(size: 16)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 3)
+                            RoundedRectangle(cornerRadius: 2)
                                 .stroke(
                                     currentColor == nil
                                         ? Color.accentColor
@@ -308,17 +287,17 @@ struct ColorPickerPopover: View {
     }
 
     private var customPaletteContent: some View {
-        let columns = Array(repeating: GridItem(.fixed(20), spacing: 4), count: 8)
-        return VStack(spacing: 6) {
-            LazyVGrid(columns: columns, spacing: 4) {
+        let columns = Array(repeating: GridItem(.fixed(16), spacing: 3), count: 10)
+        return VStack(spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 3) {
                 ForEach(customPalette.entries) { entry in
                     Button {
                         applyColor(entry.color)
                     } label: {
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: 2)
                             .fill(entry.color.swiftUIColor)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 3)
+                                RoundedRectangle(cornerRadius: 2)
                                     .stroke(
                                         currentColor == entry.color
                                             ? Color.accentColor
@@ -326,7 +305,7 @@ struct ColorPickerPopover: View {
                                         lineWidth: currentColor == entry.color ? 2 : 1
                                     )
                             )
-                            .frame(width: 20, height: 20)
+                            .frame(width: 16, height: 16)
                     }
                     .buttonStyle(.plain)
                     .help(entry.name)
@@ -340,9 +319,9 @@ struct ColorPickerPopover: View {
                     Button {
                         onColorSelected(nil)
                     } label: {
-                        transparentSwatch(size: 20)
+                        transparentSwatch(size: 16)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 3)
+                                RoundedRectangle(cornerRadius: 2)
                                     .stroke(
                                         currentColor == nil
                                             ? Color.accentColor
@@ -358,13 +337,13 @@ struct ColorPickerPopover: View {
             Button {
                 onAddToPalette(activeColor)
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Image(systemName: "plus")
-                        .font(.system(size: 9))
+                        .font(.system(size: 8))
                     Text("Add Current Color")
                 }
             }
-            .font(.caption)
+            .font(.caption2)
             .frame(maxWidth: .infinity)
         }
     }

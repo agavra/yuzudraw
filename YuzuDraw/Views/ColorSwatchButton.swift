@@ -19,13 +19,12 @@ struct ColorSwatchButton: View {
     }
 }
 
-struct InlineColorRow<Popover: View>: View {
+struct InlineColorRow: View {
     let color: ShapeColor?
     let defaultColor: ShapeColor
     let allowsNone: Bool
     let onColorSelected: (ShapeColor?) -> Void
-    @Binding var isPopoverPresented: Bool
-    @ViewBuilder let popover: () -> Popover
+    let onSwatchTapped: () -> Void
 
     @State private var hexText: String = ""
     @FocusState private var isHexFieldFocused: Bool
@@ -35,15 +34,13 @@ struct InlineColorRow<Popover: View>: View {
         defaultColor: ShapeColor = .black,
         allowsNone: Bool = false,
         onColorSelected: @escaping (ShapeColor?) -> Void,
-        isPopoverPresented: Binding<Bool>,
-        @ViewBuilder popover: @escaping () -> Popover
+        onSwatchTapped: @escaping () -> Void
     ) {
         self.color = color
         self.defaultColor = defaultColor
         self.allowsNone = allowsNone
         self.onColorSelected = onColorSelected
-        self._isPopoverPresented = isPopoverPresented
-        self.popover = popover
+        self.onSwatchTapped = onSwatchTapped
     }
 
     private var displayColor: ShapeColor {
@@ -57,7 +54,7 @@ struct InlineColorRow<Popover: View>: View {
     var body: some View {
         HStack(spacing: 0) {
             Button {
-                isPopoverPresented.toggle()
+                onSwatchTapped()
             } label: {
                 if isNone {
                     transparentSwatch(size: 14)
@@ -68,10 +65,6 @@ struct InlineColorRow<Popover: View>: View {
             .buttonStyle(.plain)
             .padding(.leading, 3)
             .padding(.trailing, 10)
-            .popover(isPresented: $isPopoverPresented) {
-                popover()
-                    .interactiveDismissDisabled()
-            }
             Text("#")
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.tertiary)

@@ -1,5 +1,20 @@
 import SwiftUI
 
+enum ColorTarget: Hashable {
+    case boxBorder
+    case boxFill
+    case boxText
+    case arrowStroke
+    case arrowLabel
+    case textColor
+    case pencilColor
+    case pencilToolColor
+    case layerFill
+    case layerBorder
+    case layerText
+    case exportBackground
+}
+
 @MainActor
 @Observable
 final class EditorViewModel {
@@ -21,6 +36,35 @@ final class EditorViewModel {
     var viewportSize: CGSize = .zero
     var hoverGridPoint: GridPoint?
     var isOptionKeyPressed: Bool = false
+
+    // MARK: - Color picker state
+    var activeColorTarget: ColorTarget?
+    var colorPickerCurrentColor: ShapeColor?
+    var colorPickerAllowsNone: Bool = false
+    var colorPickerOnColorSelected: ((ShapeColor?) -> Void)?
+
+    func openColorPicker(
+        target: ColorTarget,
+        currentColor: ShapeColor?,
+        allowsNone: Bool = false,
+        onColorSelected: @escaping (ShapeColor?) -> Void
+    ) {
+        if activeColorTarget == target {
+            closeColorPicker()
+            return
+        }
+        activeColorTarget = target
+        colorPickerCurrentColor = currentColor
+        colorPickerAllowsNone = allowsNone
+        colorPickerOnColorSelected = onColorSelected
+    }
+
+    func closeColorPicker() {
+        activeColorTarget = nil
+        colorPickerCurrentColor = nil
+        colorPickerAllowsNone = false
+        colorPickerOnColorSelected = nil
+    }
 
     private var selectionTool = SelectionTool()
     private var boxTool = BoxTool()
@@ -84,6 +128,9 @@ final class EditorViewModel {
     // MARK: - Mouse events
 
     func mouseDown(at point: GridPoint) {
+        if activeColorTarget != nil {
+            closeColorPicker()
+        }
         if isEditingText {
             commitTextEdit()
         }
