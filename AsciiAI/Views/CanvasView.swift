@@ -8,6 +8,7 @@ struct CanvasView: View {
         return size
     }()
 
+    @State private var didMouseDown = false
     private let rulerGutterLeft: CGFloat = 30
     private let rulerGutterTop: CGFloat = 16
     private static let diagonalNWSECursor = NSCursor(
@@ -69,6 +70,38 @@ struct CanvasView: View {
                 }
             }
             .background(Color(nsColor: .textBackgroundColor))
+            .focusable()
+            .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+                guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
+                    return .ignored
+                }
+                viewModel.deleteSelectedShapes()
+                return .handled
+            }
+            .onKeyPress(.escape) {
+                guard !viewModel.isEditingText else { return .ignored }
+                guard !viewModel.selectedShapeIDs.isEmpty else { return .ignored }
+                viewModel.selectedShapeIDs = []
+                return .handled
+            }
+            .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow]) { press in
+                guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
+                    return .ignored
+                }
+                switch press.key {
+                case .upArrow:
+                    viewModel.moveSelectedShapes(dx: 0, dy: -1)
+                case .downArrow:
+                    viewModel.moveSelectedShapes(dx: 0, dy: 1)
+                case .leftArrow:
+                    viewModel.moveSelectedShapes(dx: -1, dy: 0)
+                case .rightArrow:
+                    viewModel.moveSelectedShapes(dx: 1, dy: 0)
+                default:
+                    return .ignored
+                }
+                return .handled
+            }
         }
     }
 
@@ -364,7 +397,8 @@ struct CanvasView: View {
                     y: value.location.y - rulerGutterTop
                 )
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
-                if value.translation == .zero {
+                if !didMouseDown {
+                    didMouseDown = true
                     viewModel.mouseDown(at: point)
                 } else {
                     viewModel.mouseDragged(to: point)
@@ -377,6 +411,7 @@ struct CanvasView: View {
                 )
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
                 viewModel.mouseUp(at: point)
+                didMouseDown = false
             }
     }
 
@@ -448,33 +483,35 @@ struct CanvasView: View {
 }
 
 #Preview {
-    let vm = EditorViewModel()
-    vm.document.addShape(
-        .box(BoxShape(
-            origin: GridPoint(column: 5, row: 3),
-            size: GridSize(width: 14, height: 5),
-            borderStyle: .single,
-            label: "Server"
-        )),
-        toLayerAt: 0
-    )
-    vm.document.addShape(
-        .box(BoxShape(
-            origin: GridPoint(column: 30, row: 3),
-            size: GridSize(width: 14, height: 5),
-            borderStyle: .double,
-            label: "Database"
-        )),
-        toLayerAt: 0
-    )
-    vm.document.addShape(
-        .arrow(ArrowShape(
-            start: GridPoint(column: 19, row: 5),
-            end: GridPoint(column: 30, row: 5)
-        )),
-        toLayerAt: 0
-    )
-    vm.rerender()
-    return CanvasView(viewModel: vm)
-        .frame(width: 600, height: 400)
+    CanvasView(viewModel: {
+        let vm = EditorViewModel()
+        vm.document.addShape(
+            .box(BoxShape(
+                origin: GridPoint(column: 5, row: 3),
+                size: GridSize(width: 14, height: 5),
+                borderStyle: .single,
+                label: "Server"
+            )),
+            toLayerAt: 0
+        )
+        vm.document.addShape(
+            .box(BoxShape(
+                origin: GridPoint(column: 30, row: 3),
+                size: GridSize(width: 14, height: 5),
+                borderStyle: .double,
+                label: "Database"
+            )),
+            toLayerAt: 0
+        )
+        vm.document.addShape(
+            .arrow(ArrowShape(
+                start: GridPoint(column: 19, row: 5),
+                end: GridPoint(column: 30, row: 5)
+            )),
+            toLayerAt: 0
+        )
+        vm.rerender()
+        return vm
+    }())
+    .frame(width: 600, height: 400)
 }

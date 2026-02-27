@@ -221,6 +221,45 @@ final class EditorViewModel {
         rerender()
     }
 
+    func moveSelectedShapes(dx: Int, dy: Int) {
+        for id in selectedShapeIDs {
+            guard let layerIndex = document.layerIndex(containingShape: id),
+                !document.layers[layerIndex].isLocked,
+                let shape = document.findShape(id: id)
+            else { continue }
+
+            let movedShape: AnyShape
+            switch shape {
+            case .box(var box):
+                box.origin = GridPoint(
+                    column: box.origin.column + dx,
+                    row: box.origin.row + dy
+                )
+                movedShape = .box(box)
+            case .arrow(var arrow):
+                arrow.start = GridPoint(
+                    column: arrow.start.column + dx,
+                    row: arrow.start.row + dy
+                )
+                arrow.end = GridPoint(
+                    column: arrow.end.column + dx,
+                    row: arrow.end.row + dy
+                )
+                arrow.startAttachment = nil
+                arrow.endAttachment = nil
+                movedShape = .arrow(arrow)
+            case .text(var text):
+                text.origin = GridPoint(
+                    column: text.origin.column + dx,
+                    row: text.origin.row + dy
+                )
+                movedShape = .text(text)
+            }
+            updateShapeAndAttachments(movedShape)
+        }
+        rerender()
+    }
+
     // MARK: - Layer management
 
     func addLayer() {

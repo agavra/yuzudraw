@@ -18,7 +18,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
     /// Exposed for the canvas overlay to draw the marquee rectangle.
     var marqueeRect: GridRect? {
         guard case .marquee(let start, let current) = mode else { return nil }
-        return GridRect.enclosing(from: start, to: current)
+        let rect = GridRect.enclosing(from: start, to: current)
+        guard rect.size.width > 1 || rect.size.height > 1 else { return nil }
+        return rect
     }
 
     var arrowAttachmentPreviewPoints: [GridPoint] {
