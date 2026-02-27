@@ -28,6 +28,7 @@ final class WorkspaceViewModel {
     init() {
         loadRecentProjects()
         startAutoSave()
+        openStartPageTab()
     }
 
     init(tabs: [ProjectTab], editors: [UUID: EditorViewModel], activeTabID: UUID?) {
@@ -38,7 +39,31 @@ final class WorkspaceViewModel {
 
     // MARK: - Tab lifecycle
 
+    func openStartPageTab() {
+        if let existing = tabs.first(where: \.isStartPage) {
+            activeTabID = existing.id
+            return
+        }
+
+        let metadata = ProjectMetadata(name: "New File")
+        let tab = ProjectTab(metadata: metadata, hasUnsavedChanges: false, isStartPage: true)
+        tabs.append(tab)
+        activeTabID = tab.id
+    }
+
     func newProject() {
+        if let activeTabID,
+           let tabIndex = tabs.firstIndex(where: { $0.id == activeTabID }),
+           tabs[tabIndex].isStartPage
+        {
+            let name = nextUntitledName()
+            tabs[tabIndex].metadata = ProjectMetadata(id: activeTabID, name: name)
+            tabs[tabIndex].hasUnsavedChanges = false
+            tabs[tabIndex].isStartPage = false
+            editors[activeTabID] = EditorViewModel()
+            return
+        }
+
         let name = nextUntitledName()
         let metadata = ProjectMetadata(name: name)
         let tab = ProjectTab(metadata: metadata, hasUnsavedChanges: false)
@@ -60,12 +85,26 @@ final class WorkspaceViewModel {
             let document = try ProjectFileManager.load(from: url)
             let name = url.deletingPathExtension().lastPathComponent
             let metadata = ProjectMetadata(name: name, fileURL: url)
-            let tab = ProjectTab(metadata: metadata)
             let editor = EditorViewModel(document: document)
 
-            tabs.append(tab)
-            editors[tab.id] = editor
-            activeTabID = tab.id
+            if let activeTabID,
+               let tabIndex = tabs.firstIndex(where: { $0.id == activeTabID }),
+               tabs[tabIndex].isStartPage
+            {
+                tabs[tabIndex].metadata = ProjectMetadata(
+                    id: activeTabID,
+                    name: name,
+                    fileURL: url
+                )
+                tabs[tabIndex].hasUnsavedChanges = false
+                tabs[tabIndex].isStartPage = false
+                editors[activeTabID] = editor
+            } else {
+                let tab = ProjectTab(metadata: metadata)
+                tabs.append(tab)
+                editors[tab.id] = editor
+                activeTabID = tab.id
+            }
             addToRecentProjects(metadata: metadata)
         } catch {
             print("Failed to open project: \(error)")
@@ -97,12 +136,14 @@ final class WorkspaceViewModel {
         editors.removeValue(forKey: tabID)
 
         if activeTabID == tabID {
-            if tabs.isEmpty {
-                activeTabID = nil
-            } else {
+            if !tabs.isEmpty {
                 let newIndex = min(index, tabs.count - 1)
                 activeTabID = tabs[newIndex].id
             }
+        }
+
+        if tabs.isEmpty {
+            openStartPageTab()
         }
     }
 
@@ -287,4 +328,5 @@ final class WorkspaceViewModel {
         }
         return "Untitled \(counter)"
     }
+
 }

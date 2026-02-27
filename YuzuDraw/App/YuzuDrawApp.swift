@@ -38,13 +38,13 @@ struct YuzuDrawApp: App {
                     workspace.save()
                 }
                 .keyboardShortcut("s", modifiers: .command)
-                .disabled(!workspace.hasOpenProjects)
+                .disabled(workspace.activeEditor == nil)
 
                 Button("Save As...") {
                     workspace.saveAs()
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
-                .disabled(!workspace.hasOpenProjects)
+                .disabled(workspace.activeEditor == nil)
             }
 
             CommandGroup(after: .pasteboard) {

@@ -4,14 +4,8 @@ struct RootView: View {
     @Bindable var workspace: WorkspaceViewModel
 
     var body: some View {
-        Group {
-            if workspace.hasOpenProjects {
-                TabBarContentView(workspace: workspace)
-            } else {
-                WelcomeView(workspace: workspace)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabBarContentView(workspace: workspace)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

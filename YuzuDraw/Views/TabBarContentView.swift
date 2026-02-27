@@ -34,7 +34,10 @@ struct TabBarContentView: View {
                     ForEach(workspace.tabs) { tab in
                         TabItemView(
                             tab: tab,
+                            title: title(for: tab),
+                            iconSystemName: iconSystemName(for: tab),
                             isActive: tab.id == workspace.activeTabID,
+                            showsCloseButton: !(tab.isStartPage && workspace.tabs.count == 1),
                             onSelect: { workspace.switchTab(to: tab.id) },
                             onClose: { workspace.closeTab(id: tab.id) },
                             onRename: { workspace.renameTab(id: tab.id, to: $0) }
@@ -43,7 +46,7 @@ struct TabBarContentView: View {
 
                     // New tab button right after last tab
                     Button {
-                        workspace.newProject()
+                        workspace.openStartPageTab()
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 11, weight: .medium))
@@ -52,6 +55,7 @@ struct TabBarContentView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .focusable(false)
                 }
             }
 
@@ -74,16 +78,31 @@ struct TabBarContentView: View {
 
     @ViewBuilder
     private var editorArea: some View {
-        if let activeTab = workspace.activeTab,
-           let editor = workspace.editors[activeTab.id]
-        {
-            ContentView(viewModel: editor, onDocumentChange: {
-                workspace.markDirty(tabID: activeTab.id)
-            })
-            .id(activeTab.id)
+        if let activeTab = workspace.activeTab {
+            if activeTab.isStartPage {
+                WelcomeView(workspace: workspace)
+                    .id(activeTab.id)
+            } else if let editor = workspace.editors[activeTab.id] {
+                ContentView(viewModel: editor, onDocumentChange: {
+                    workspace.markDirty(tabID: activeTab.id)
+                })
+                .id(activeTab.id)
+            } else {
+                Color.clear
+            }
         } else {
-            Color.clear
+            WelcomeView(workspace: workspace)
         }
+    }
+
+    private func title(for tab: ProjectTab) -> String {
+        guard tab.isStartPage else { return tab.metadata.name }
+        return workspace.tabs.count == 1 ? "Home" : "New File"
+    }
+
+    private func iconSystemName(for tab: ProjectTab) -> String {
+        guard tab.isStartPage else { return "pencil.tip" }
+        return workspace.tabs.count == 1 ? "house" : "square.and.pencil"
     }
 }
 
@@ -91,7 +110,10 @@ struct TabBarContentView: View {
 
 private struct TabItemView: View {
     let tab: ProjectTab
+    let title: String
+    let iconSystemName: String
     let isActive: Bool
+    let showsCloseButton: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
     let onRename: (String) -> Void
@@ -140,29 +162,37 @@ private struct TabItemView: View {
                         .frame(width: 6, height: 6)
                 }
 
-                Text(tab.metadata.name)
+                Image(systemName: iconSystemName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(isActive ? .primary : .secondary)
+
+                Text(title)
                     .font(.system(size: 12))
                     .lineLimit(1)
                     .foregroundStyle(isActive ? .primary : .secondary)
 
-                Button {
-                    onClose()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 16, height: 16)
-                        .background(
-                            Circle()
-                                .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
-                        )
-                        .contentShape(Circle())
+                if showsCloseButton {
+                    Button {
+                        onClose()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 16, height: 16)
+                            .background(
+                                Circle()
+                                    .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                            )
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    .opacity(isActive || isHovering ? 1 : 0)
                 }
-                .buttonStyle(.plain)
-                .opacity(isActive || isHovering ? 1 : 0)
             }
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .onTapGesture(count: 2) {
             beginEditing()
         }
