@@ -273,6 +273,19 @@ final class EditorViewModel {
         rerender()
     }
 
+    func updateSelectedBoxBorderSide(_ side: BoxBorderSide, isVisible: Bool) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        if isVisible {
+            box.visibleBorders.insert(side)
+        } else {
+            box.visibleBorders.remove(side)
+        }
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
     func updateSelectedBoxAllowTextOnBorder(_ allow: Bool) {
         guard let shape = selectedShape,
             case .box(var box) = shape

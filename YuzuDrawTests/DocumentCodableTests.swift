@@ -28,6 +28,7 @@ struct DocumentCodableTests {
             #expect(decodedBox.strokeStyle == .double)
             #expect(decodedBox.label == "Server")
             #expect(decodedBox.hasBorder)
+            #expect(decodedBox.visibleBorders == Set(BoxBorderSide.allCases))
             #expect(decodedBox.textHorizontalAlignment == .center)
             #expect(decodedBox.textVerticalAlignment == .middle)
             #expect(decodedBox.allowTextOnBorder == false)
@@ -153,6 +154,7 @@ struct DocumentCodableTests {
         if case .box(let box) = decoded.layers[0].shapes[0] {
             #expect(box.strokeStyle == .double)
             #expect(box.hasBorder)
+            #expect(box.visibleBorders == Set(BoxBorderSide.allCases))
             #expect(box.fillMode == .transparent)
             #expect(box.fillCharacter == " ")
             #expect(box.textHorizontalAlignment == .center)
@@ -190,6 +192,28 @@ struct DocumentCodableTests {
             #expect(decodedText.text == "Hello\nWorld")
         } else {
             Issue.record("Expected text shape")
+        }
+    }
+
+    @Test func should_round_trip_box_visible_borders() throws {
+        // given
+        var doc = Document()
+        let box = BoxShape(
+            origin: GridPoint(column: 2, row: 2),
+            size: GridSize(width: 8, height: 4),
+            visibleBorders: [.top, .right]
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let data = try DocumentCodable.encode(doc)
+        let decoded = try DocumentCodable.decode(from: data)
+
+        // then
+        if case .box(let decodedBox) = decoded.layers[0].shapes[0] {
+            #expect(decodedBox.visibleBorders == [.top, .right])
+        } else {
+            Issue.record("Expected box shape")
         }
     }
 

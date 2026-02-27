@@ -88,6 +88,24 @@ struct DSLSerializerTests {
         #expect(dsl.contains("padding 1,2,0,1"))
     }
 
+    @Test func should_serialize_box_visible_borders() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(
+            origin: GridPoint(column: 1, row: 1),
+            size: GridSize(width: 8, height: 4),
+            visibleBorders: [.top, .left],
+            label: "Sides"
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains("borders top,left"))
+    }
+
     @Test func should_serialize_box_shadow_settings() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])

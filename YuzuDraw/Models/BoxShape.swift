@@ -17,6 +17,13 @@ enum BoxTextVerticalAlignment: String, Codable, CaseIterable, Sendable {
     case bottom
 }
 
+enum BoxBorderSide: String, Codable, CaseIterable, Hashable, Sendable {
+    case top
+    case bottom
+    case right
+    case left
+}
+
 enum BoxShadowStyle: String, Codable, CaseIterable, Sendable {
     case light
     case medium
@@ -69,6 +76,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
     var size: GridSize
     var strokeStyle: StrokeStyle
     var hasBorder: Bool
+    var visibleBorders: Set<BoxBorderSide>
     var fillMode: BoxFillMode
     var fillCharacter: Character
     var label: String
@@ -91,6 +99,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         size: GridSize,
         strokeStyle: StrokeStyle = .single,
         hasBorder: Bool = true,
+        visibleBorders: Set<BoxBorderSide> = Set(BoxBorderSide.allCases),
         fillMode: BoxFillMode = .transparent,
         fillCharacter: Character = " ",
         label: String = "",
@@ -112,6 +121,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         self.size = size
         self.strokeStyle = strokeStyle
         self.hasBorder = hasBorder
+        self.visibleBorders = visibleBorders
         self.fillMode = fillMode
         self.fillCharacter = fillCharacter
         self.label = label
@@ -142,10 +152,17 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         let w = size.width
         let h = size.height
 
-        let baseTextAreaStartCol = hasBorder && !allowTextOnBorder ? col + 1 : col
-        let baseTextAreaStartRow = hasBorder && !allowTextOnBorder ? row + 1 : row
-        let baseTextAreaWidth = hasBorder && !allowTextOnBorder ? w - 2 : w
-        let baseTextAreaHeight = hasBorder && !allowTextOnBorder ? h - 2 : h
+        let drawLeft = shouldDraw(.left)
+        let drawRight = shouldDraw(.right)
+        let drawTop = shouldDraw(.top)
+        let drawBottom = shouldDraw(.bottom)
+        let shouldInsetTextForBorders = hasBorder && !allowTextOnBorder
+        let baseTextAreaStartCol = shouldInsetTextForBorders ? col + (drawLeft ? 1 : 0) : col
+        let baseTextAreaStartRow = shouldInsetTextForBorders ? row + (drawTop ? 1 : 0) : row
+        let baseTextAreaWidth =
+            shouldInsetTextForBorders ? w - (drawLeft ? 1 : 0) - (drawRight ? 1 : 0) : w
+        let baseTextAreaHeight =
+            shouldInsetTextForBorders ? h - (drawTop ? 1 : 0) - (drawBottom ? 1 : 0) : h
 
         let textAreaStartCol = baseTextAreaStartCol + textPaddingLeft
         let textAreaStartRow = baseTextAreaStartRow + textPaddingTop
@@ -195,6 +212,10 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         let row = origin.row
         let w = size.width
         let h = size.height
+        let drawTop = shouldDraw(.top)
+        let drawBottom = shouldDraw(.bottom)
+        let drawLeft = shouldDraw(.left)
+        let drawRight = shouldDraw(.right)
 
         if hasShadow {
             let shadowCol = col + shadowOffsetX
@@ -212,10 +233,10 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
             }
         }
 
-        let fillAreaStartCol = hasBorder ? col + 1 : col
-        let fillAreaStartRow = hasBorder ? row + 1 : row
-        let fillAreaWidth = hasBorder ? w - 2 : w
-        let fillAreaHeight = hasBorder ? h - 2 : h
+        let fillAreaStartCol = col + (drawLeft ? 1 : 0)
+        let fillAreaStartRow = row + (drawTop ? 1 : 0)
+        let fillAreaWidth = w - (drawLeft ? 1 : 0) - (drawRight ? 1 : 0)
+        let fillAreaHeight = h - (drawTop ? 1 : 0) - (drawBottom ? 1 : 0)
 
         if fillMode == .solid, fillAreaWidth > 0, fillAreaHeight > 0 {
             for r in fillAreaStartRow..<(fillAreaStartRow + fillAreaHeight) {
@@ -226,32 +247,70 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         }
 
         if hasBorder, w >= 2, h >= 2 {
-            // Top border
-            canvas.setCharacter(style.topLeft, atColumn: col, row: row)
-            for c in (col + 1)..<(col + w - 1) {
-                canvas.setCharacter(style.horizontal, atColumn: c, row: row)
+            if drawTop {
+                for c in (col + 1)..<(col + w - 1) {
+                    canvas.setCharacter(style.horizontal, atColumn: c, row: row)
+                }
             }
-            canvas.setCharacter(style.topRight, atColumn: col + w - 1, row: row)
+            if drawBottom {
+                for c in (col + 1)..<(col + w - 1) {
+                    canvas.setCharacter(style.horizontal, atColumn: c, row: row + h - 1)
+                }
+            }
+            if drawLeft {
+                for r in (row + 1)..<(row + h - 1) {
+                    canvas.setCharacter(style.vertical, atColumn: col, row: r)
+                }
+            }
+            if drawRight {
+                for r in (row + 1)..<(row + h - 1) {
+                    canvas.setCharacter(style.vertical, atColumn: col + w - 1, row: r)
+                }
+            }
 
-            // Side borders
-            for r in (row + 1)..<(row + h - 1) {
-                canvas.setCharacter(style.vertical, atColumn: col, row: r)
-                canvas.setCharacter(style.vertical, atColumn: col + w - 1, row: r)
+            // Corners adapt to enabled adjacent sides.
+            if let topLeftCharacter = cornerCharacter(
+                horizontalEnabled: drawTop,
+                verticalEnabled: drawLeft,
+                corner: style.topLeft,
+                style: style
+            ) {
+                canvas.setCharacter(topLeftCharacter, atColumn: col, row: row)
             }
-
-            // Bottom border
-            canvas.setCharacter(style.bottomLeft, atColumn: col, row: row + h - 1)
-            for c in (col + 1)..<(col + w - 1) {
-                canvas.setCharacter(style.horizontal, atColumn: c, row: row + h - 1)
+            if let topRightCharacter = cornerCharacter(
+                horizontalEnabled: drawTop,
+                verticalEnabled: drawRight,
+                corner: style.topRight,
+                style: style
+            ) {
+                canvas.setCharacter(topRightCharacter, atColumn: col + w - 1, row: row)
             }
-            canvas.setCharacter(style.bottomRight, atColumn: col + w - 1, row: row + h - 1)
+            if let bottomLeftCharacter = cornerCharacter(
+                horizontalEnabled: drawBottom,
+                verticalEnabled: drawLeft,
+                corner: style.bottomLeft,
+                style: style
+            ) {
+                canvas.setCharacter(bottomLeftCharacter, atColumn: col, row: row + h - 1)
+            }
+            if let bottomRightCharacter = cornerCharacter(
+                horizontalEnabled: drawBottom,
+                verticalEnabled: drawRight,
+                corner: style.bottomRight,
+                style: style
+            ) {
+                canvas.setCharacter(bottomRightCharacter, atColumn: col + w - 1, row: row + h - 1)
+            }
         }
 
         // Text
-        let baseTextAreaStartCol = hasBorder && !allowTextOnBorder ? col + 1 : col
-        let baseTextAreaStartRow = hasBorder && !allowTextOnBorder ? row + 1 : row
-        let baseTextAreaWidth = hasBorder && !allowTextOnBorder ? w - 2 : w
-        let baseTextAreaHeight = hasBorder && !allowTextOnBorder ? h - 2 : h
+        let shouldInsetTextForBorders = hasBorder && !allowTextOnBorder
+        let baseTextAreaStartCol = shouldInsetTextForBorders ? col + (drawLeft ? 1 : 0) : col
+        let baseTextAreaStartRow = shouldInsetTextForBorders ? row + (drawTop ? 1 : 0) : row
+        let baseTextAreaWidth =
+            shouldInsetTextForBorders ? w - (drawLeft ? 1 : 0) - (drawRight ? 1 : 0) : w
+        let baseTextAreaHeight =
+            shouldInsetTextForBorders ? h - (drawTop ? 1 : 0) - (drawBottom ? 1 : 0) : h
 
         let textAreaStartCol = baseTextAreaStartCol + textPaddingLeft
         let textAreaStartRow = baseTextAreaStartRow + textPaddingTop
@@ -306,6 +365,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         case strokeStyle
         case borderStyle
         case hasBorder
+        case visibleBorders
         case fillMode
         case fillCharacter
         case label
@@ -337,6 +397,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
             ?? container.decodeIfPresent(StrokeStyle.self, forKey: .borderStyle)
             ?? .single
         hasBorder = try container.decodeIfPresent(Bool.self, forKey: .hasBorder) ?? true
+        visibleBorders =
+            try container.decodeIfPresent(Set<BoxBorderSide>.self, forKey: .visibleBorders)
+            ?? Set(BoxBorderSide.allCases)
         fillMode = try container.decodeIfPresent(BoxFillMode.self, forKey: .fillMode) ?? .transparent
         let fillCharacterString =
             try container.decodeIfPresent(String.self, forKey: .fillCharacter) ?? " "
@@ -387,6 +450,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         try container.encode(size, forKey: .size)
         try container.encode(strokeStyle, forKey: .strokeStyle)
         try container.encode(hasBorder, forKey: .hasBorder)
+        try container.encode(visibleBorders, forKey: .visibleBorders)
         try container.encode(fillMode, forKey: .fillMode)
         try container.encode(String(fillCharacter), forKey: .fillCharacter)
         try container.encode(label, forKey: .label)
@@ -401,5 +465,27 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         try container.encode(shadowStyle, forKey: .shadowStyle)
         try container.encode(shadowOffsetX, forKey: .shadowOffsetX)
         try container.encode(shadowOffsetY, forKey: .shadowOffsetY)
+    }
+
+    private func shouldDraw(_ side: BoxBorderSide) -> Bool {
+        hasBorder && visibleBorders.contains(side)
+    }
+
+    private func cornerCharacter(
+        horizontalEnabled: Bool,
+        verticalEnabled: Bool,
+        corner: Character,
+        style: StrokeStyle
+    ) -> Character? {
+        if horizontalEnabled && verticalEnabled {
+            return corner
+        }
+        if horizontalEnabled {
+            return style.horizontal
+        }
+        if verticalEnabled {
+            return style.vertical
+        }
+        return nil
     }
 }

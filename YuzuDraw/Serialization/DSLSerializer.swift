@@ -62,6 +62,14 @@ enum DSLSerializer {
                 result += fill
             }
             result += box.hasBorder ? " border visible" : " border hidden"
+            if box.hasBorder && box.visibleBorders != Set(BoxBorderSide.allCases) {
+                let sideOrder: [BoxBorderSide] = [.top, .bottom, .right, .left]
+                let encodedSides = sideOrder
+                    .filter { box.visibleBorders.contains($0) }
+                    .map(\.rawValue)
+                    .joined(separator: ",")
+                result += " borders \(encodedSides)"
+            }
             result +=
                 " halign \(box.textHorizontalAlignment.rawValue) valign \(box.textVerticalAlignment.rawValue)"
             result +=

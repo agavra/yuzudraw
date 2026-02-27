@@ -309,10 +309,28 @@ struct InspectorPanel: View {
             isEnabled: box.hasBorder,
             onToggle: { viewModel.updateSelectedBoxHasBorder($0) }
         ) {
-            strokeStylePicker(
-                selected: box.strokeStyle,
-                onChange: { viewModel.updateSelectedBoxStrokeStyle($0) }
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Style")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    strokeStylePicker(
+                        selected: box.strokeStyle,
+                        onChange: { viewModel.updateSelectedBoxStrokeStyle($0) }
+                    )
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sides")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    borderSidesPicker(
+                        box: box,
+                        onToggle: { side, isVisible in
+                            viewModel.updateSelectedBoxBorderSide(side, isVisible: isVisible)
+                        }
+                    )
+                }
+            }
         }
 
         Divider()
@@ -652,6 +670,98 @@ struct InspectorPanel: View {
             RoundedRectangle(cornerRadius: 7)
                 .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
         )
+    }
+
+    private func borderSidesPicker(
+        box: BoxShape,
+        onToggle: @escaping (BoxBorderSide, Bool) -> Void
+    ) -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+            GridRow {
+                borderSideCell(.top, in: box, onToggle: onToggle)
+                borderSideCell(.right, in: box, onToggle: onToggle)
+            }
+            GridRow {
+                borderSideCell(.left, in: box, onToggle: onToggle)
+                borderSideCell(.bottom, in: box, onToggle: onToggle)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+        .fixedSize()
+    }
+
+    private func borderSideCell(
+        _ side: BoxBorderSide,
+        in box: BoxShape,
+        onToggle: @escaping (BoxBorderSide, Bool) -> Void
+    ) -> some View {
+        let isVisible = box.visibleBorders.contains(side)
+        return alignmentIconButton(
+            isSelected: isVisible,
+            action: { onToggle(side, !isVisible) }
+        ) {
+            BorderSideIcon(side: side)
+                .frame(width: 14, height: 14)
+        }
+    }
+
+    private struct BorderSideIcon: View {
+        let side: BoxBorderSide
+
+        var body: some View {
+            GeometryReader { geometry in
+                let inset: CGFloat = 1.5
+                let minX = inset
+                let maxX = geometry.size.width - inset
+                let minY = inset
+                let maxY = geometry.size.height - inset
+
+                Path { path in
+                    path.move(to: CGPoint(x: minX, y: minY))
+                    path.addLine(to: CGPoint(x: maxX, y: minY))
+                }
+                .stroke(color(for: .top), style: style(for: .top))
+
+                Path { path in
+                    path.move(to: CGPoint(x: minX, y: maxY))
+                    path.addLine(to: CGPoint(x: maxX, y: maxY))
+                }
+                .stroke(color(for: .bottom), style: style(for: .bottom))
+
+                Path { path in
+                    path.move(to: CGPoint(x: minX, y: minY))
+                    path.addLine(to: CGPoint(x: minX, y: maxY))
+                }
+                .stroke(color(for: .left), style: style(for: .left))
+
+                Path { path in
+                    path.move(to: CGPoint(x: maxX, y: minY))
+                    path.addLine(to: CGPoint(x: maxX, y: maxY))
+                }
+                .stroke(color(for: .right), style: style(for: .right))
+            }
+        }
+
+        private func style(for candidate: BoxBorderSide) -> SwiftUI.StrokeStyle {
+            if candidate == side {
+                return SwiftUI.StrokeStyle(lineWidth: 1.6, lineCap: .round)
+            }
+            return SwiftUI.StrokeStyle(lineWidth: 0.85, lineCap: .round, dash: [2, 2])
+        }
+
+        private func color(for candidate: BoxBorderSide) -> Color {
+            if candidate == side {
+                return .primary
+            }
+            return .secondary.opacity(0.5)
+        }
     }
 
     private func alignmentIconButton<Content: View>(

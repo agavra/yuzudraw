@@ -128,6 +128,27 @@ struct BoxShapeTests {
         #expect(lines[2] == "╰────╯")
     }
 
+    @Test func should_render_only_selected_border_sides() {
+        // given
+        var canvas = Canvas(columns: 6, rows: 4)
+        let box = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 6, height: 4),
+            visibleBorders: [.top, .left]
+        )
+
+        // when
+        box.render(into: &canvas)
+
+        // then
+        let rendered = canvas.render()
+        let lines = rendered.split(separator: "\n", omittingEmptySubsequences: false)
+        #expect(lines[0] == "┌─────")
+        #expect(lines[1] == "│     ")
+        #expect(lines[2] == "│     ")
+        #expect(lines[3] == "│     ")
+    }
+
     @Test func should_render_solid_fill_inside_box() {
         // given
         var canvas = Canvas(columns: 7, rows: 5)

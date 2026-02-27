@@ -114,6 +114,24 @@ struct DSLParserTests {
         }
     }
 
+    @Test func should_parse_box_visible_borders() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              box "Server" at 5,3 size 20x5 style single border visible borders top,left
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .box(let box) = doc.layers[0].shapes[0] {
+            #expect(box.visibleBorders == [.top, .left])
+        } else {
+            Issue.record("Expected box shape")
+        }
+    }
+
     @Test func should_parse_text_shape() throws {
         // given
         let dsl = """

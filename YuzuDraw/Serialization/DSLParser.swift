@@ -172,6 +172,16 @@ enum DSLParser {
         if line.contains(" border hidden") {
             hasBorder = false
         }
+        var visibleBorders = Set(BoxBorderSide.allCases)
+        if let bordersRange = line.range(of: " borders ") {
+            let value = String(line[bordersRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            let parsedSides = value
+                .split(separator: ",")
+                .compactMap { BoxBorderSide(rawValue: String($0)) }
+            if !parsedSides.isEmpty {
+                visibleBorders = Set(parsedSides)
+            }
+        }
 
         var textHorizontalAlignment: BoxTextHorizontalAlignment = .center
         if let horizontalRange = line.range(of: " halign ") {
@@ -265,6 +275,7 @@ enum DSLParser {
             size: GridSize(width: width, height: height),
             strokeStyle: strokeStyle,
             hasBorder: hasBorder,
+            visibleBorders: visibleBorders,
             fillMode: fillMode,
             fillCharacter: fillCharacter,
             label: label,
