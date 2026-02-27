@@ -5,6 +5,7 @@ enum ToolType: String, CaseIterable, Sendable {
     case box
     case arrow
     case text
+    case pencil
 }
 
 enum ToolAction: Equatable, Sendable {

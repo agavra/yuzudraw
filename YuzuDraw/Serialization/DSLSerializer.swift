@@ -113,6 +113,22 @@ enum DSLSerializer {
                 result += " textColor \(textColor.hexString)"
             }
             return result
+        case .pencil(let pencil):
+            var result =
+                "pencil at \(pencil.origin.column),\(pencil.origin.row)"
+            let sortedCells = pencil.cells.sorted {
+                ($0.key.row, $0.key.column) < ($1.key.row, $1.key.column)
+            }
+            var cellParts: [String] = []
+            for (offset, cell) in sortedCells {
+                var part = "\(offset.column),\(offset.row),\"\(String(cell.character))\""
+                if let color = cell.color {
+                    part += ",\(color.hexString)"
+                }
+                cellParts.append(part)
+            }
+            result += " cells [\(cellParts.joined(separator: ";"))]"
+            return result
         }
     }
 }

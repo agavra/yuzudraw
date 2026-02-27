@@ -536,6 +536,9 @@ struct CanvasView: View {
                 } else {
                     NSCursor.arrow.set()
                 }
+            case .pencil:
+                viewModel.updateHoverGridPoint(point)
+                NSCursor.crosshair.set()
             case .box, .text:
                 viewModel.updateHoverGridPoint(nil)
                 NSCursor.arrow.set()

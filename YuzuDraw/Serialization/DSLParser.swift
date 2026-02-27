@@ -44,7 +44,7 @@ enum DSLParser {
                 groupStack.append(
                     GroupStackEntry(name: name, shapeIDs: [], children: [], indent: indentLevel))
             } else if trimmed.hasPrefix("box ") || trimmed.hasPrefix("arrow ")
-                || trimmed.hasPrefix("text ")
+                || trimmed.hasPrefix("text ") || trimmed.hasPrefix("pencil ")
             {
                 // Pop groups whose indent is >= this shape's indent
                 popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
@@ -122,6 +122,8 @@ enum DSLParser {
             return try .arrow(parseArrow(line))
         } else if line.hasPrefix("text ") {
             return try .text(parseText(line))
+        } else if line.hasPrefix("pencil ") {
+            return try .pencil(parsePencil(line))
         }
         throw DSLParserError.unexpectedToken(line)
     }
@@ -390,6 +392,58 @@ enum DSLParser {
             origin: GridPoint(column: col, row: row),
             text: unescaped,
             textColor: textColor
+        )
+    }
+
+    private static func parsePencil(_ line: String) throws -> PencilShape {
+        // pencil at col,row cells [col,row,"char";col,row,"char",#color;...]
+        guard let atRange = line.range(of: " at ") else {
+            throw DSLParserError.invalidSyntax("Expected 'at' in pencil: \(line)")
+        }
+        let afterAt = String(line[atRange.upperBound...])
+        let (col, row) = try parseCoordinate(afterAt)
+
+        var cells: [GridPoint: PencilCell] = [:]
+        if let cellsRange = line.range(of: " cells [") {
+            let afterCells = String(line[cellsRange.upperBound...])
+            if let closeBracket = afterCells.firstIndex(of: "]") {
+                let cellsString = String(afterCells[afterCells.startIndex..<closeBracket])
+                let entries = cellsString.split(separator: ";")
+                for entry in entries {
+                    let parts = String(entry)
+                    // Parse: col,row,"char"[,#color]
+                    var remaining = parts[parts.startIndex...]
+                    // Parse column
+                    let colStr = String(remaining.prefix(while: { $0 != "," }))
+                    guard let cellCol = Int(colStr) else { continue }
+                    remaining = remaining.dropFirst(colStr.count + 1)
+                    // Parse row
+                    let rowStr = String(remaining.prefix(while: { $0 != "," }))
+                    guard let cellRow = Int(rowStr) else { continue }
+                    remaining = remaining.dropFirst(rowStr.count + 1)
+                    // Parse quoted character
+                    guard remaining.first == "\"" else { continue }
+                    remaining = remaining.dropFirst()
+                    guard let closeQuote = remaining.firstIndex(of: "\"") else { continue }
+                    let charStr = String(remaining[remaining.startIndex..<closeQuote])
+                    guard let character = charStr.first else { continue }
+                    remaining = remaining[remaining.index(after: closeQuote)...]
+                    // Parse optional color
+                    var color: ShapeColor?
+                    if remaining.first == "," {
+                        remaining = remaining.dropFirst()
+                        let hexStr = String(remaining)
+                        color = ShapeColor(hex: hexStr)
+                    }
+                    cells[GridPoint(column: cellCol, row: cellRow)] = PencilCell(
+                        character: character, color: color)
+                }
+            }
+        }
+
+        return PencilShape(
+            origin: GridPoint(column: col, row: row),
+            cells: cells
         )
     }
 

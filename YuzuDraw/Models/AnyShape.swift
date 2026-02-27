@@ -4,12 +4,14 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     case box(BoxShape)
     case arrow(ArrowShape)
     case text(TextShape)
+    case pencil(PencilShape)
 
     var id: UUID {
         switch self {
         case .box(let shape): return shape.id
         case .arrow(let shape): return shape.id
         case .text(let shape): return shape.id
+        case .pencil(let shape): return shape.id
         }
     }
 
@@ -18,6 +20,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .box(let shape): return shape.boundingRect
         case .arrow(let shape): return shape.boundingRect
         case .text(let shape): return shape.boundingRect
+        case .pencil(let shape): return shape.boundingRect
         }
     }
 
@@ -26,6 +29,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .box(let shape): return shape.contains(point: point)
         case .arrow(let shape): return shape.contains(point: point)
         case .text(let shape): return shape.contains(point: point)
+        case .pencil(let shape): return shape.contains(point: point)
         }
     }
 
@@ -34,6 +38,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .box(let shape): shape.render(into: &canvas)
         case .arrow(let shape): shape.render(into: &canvas)
         case .text(let shape): shape.render(into: &canvas)
+        case .pencil(let shape): shape.render(into: &canvas)
         }
     }
 
@@ -50,6 +55,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .text(let shape):
             let firstLine = shape.text.components(separatedBy: "\n").first ?? ""
             return firstLine.isEmpty ? "Text" : String(firstLine.prefix(20))
+        case .pencil: return "Pencil"
         }
     }
 
@@ -58,6 +64,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .box: return "Box"
         case .arrow: return "Arrow"
         case .text: return "Text"
+        case .pencil: return "Pencil"
         }
     }
 
@@ -66,6 +73,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .box(let shape): return shape.name
         case .arrow(let shape): return shape.name
         case .text(let shape): return shape.name
+        case .pencil(let shape): return shape.name
         }
     }
 
@@ -82,6 +90,9 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .text(var shape):
             shape.name = normalizedName
             return .text(shape)
+        case .pencil(var shape):
+            shape.name = normalizedName
+            return .pencil(shape)
         }
     }
 
@@ -119,6 +130,8 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
                 ResizeHandlePlacement(handle: .end, point: shape.end),
             ]
         case .text:
+            return []
+        case .pencil:
             return []
         }
     }
@@ -228,6 +241,8 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
         case .text:
             return self
+        case .pencil:
+            return self
         }
     }
 
@@ -238,7 +253,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum ShapeType: String, Codable {
-        case box, arrow, text
+        case box, arrow, text, pencil
     }
 
     init(from decoder: Decoder) throws {
@@ -251,6 +266,8 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
             self = .arrow(try ArrowShape(from: decoder))
         case .text:
             self = .text(try TextShape(from: decoder))
+        case .pencil:
+            self = .pencil(try PencilShape(from: decoder))
         }
     }
 
@@ -265,6 +282,9 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
             try shape.encode(to: encoder)
         case .text(let shape):
             try container.encode(ShapeType.text, forKey: .type)
+            try shape.encode(to: encoder)
+        case .pencil(let shape):
+            try container.encode(ShapeType.pencil, forKey: .type)
             try shape.encode(to: encoder)
         }
     }

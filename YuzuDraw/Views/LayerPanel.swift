@@ -510,6 +510,7 @@ private struct ShapeRow: View {
         case .box: return "rectangle"
         case .arrow: return "arrow.right"
         case .text: return "textformat"
+        case .pencil: return "pencil"
         }
     }
 }

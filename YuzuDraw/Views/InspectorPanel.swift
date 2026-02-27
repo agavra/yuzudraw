@@ -19,6 +19,8 @@ struct InspectorPanel: View {
         case arrowStroke
         case arrowLabel
         case textColor
+        case pencilColor
+        case pencilToolColor
         case layerFill
         case layerBorder
         case layerText
@@ -37,6 +39,8 @@ struct InspectorPanel: View {
                             .padding(12)
                     } else if let shape = viewModel.selectedShape {
                         shapeProperties(shape)
+                    } else if viewModel.activeToolType == .pencil {
+                        pencilToolSettings
                     } else {
                         noSelectionView
                     }
@@ -277,6 +281,8 @@ struct InspectorPanel: View {
             arrowProperties(arrow)
         case .text(let text):
             textProperties(text)
+        case .pencil(let pencil):
+            pencilProperties(pencil)
         }
     }
 
@@ -685,6 +691,179 @@ struct InspectorPanel: View {
         }
     }
 
+    // MARK: - Pencil properties
+
+    @ViewBuilder
+    private func pencilProperties(_ pencil: PencilShape) -> some View {
+        staticSection(label: "Position", icon: "arrow.up.left.and.arrow.down.right") {
+            HStack {
+                numberField("X", value: pencil.origin.column) { newVal in
+                    viewModel.updateSelectedPencilOrigin(column: newVal, row: pencil.origin.row)
+                }
+                numberField("Y", value: pencil.origin.row) { newVal in
+                    viewModel.updateSelectedPencilOrigin(
+                        column: pencil.origin.column, row: newVal)
+                }
+            }
+        }
+
+        Divider()
+
+        staticSection(label: "Info", icon: "info.circle") {
+            let rect = pencil.boundingRect
+            HStack {
+                Text("Size")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(rect.size.width) x \(rect.size.height)")
+                    .font(.caption.monospaced())
+            }
+            HStack {
+                Text("Cells")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(pencil.cells.count)")
+                    .font(.caption.monospaced())
+            }
+        }
+
+        Divider()
+
+        staticSection(label: "Character", icon: "character.cursor.ibeam") {
+            let currentChar = pencil.cells.values.first?.character ?? Character("*")
+            let presets: [Character] = ["*", "#", ".", "~", "@", "+", "x", "o"]
+            let blockPresets: [Character] = ["\u{2588}", "\u{00B7}", "\u{2591}", "\u{2593}"]
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.fixed(32), spacing: 0), count: 4),
+                spacing: 0
+            ) {
+                ForEach(presets + blockPresets, id: \.self) { char in
+                    Button {
+                        viewModel.updateSelectedPencilCharacter(char)
+                    } label: {
+                        ZStack {
+                            Rectangle()
+                                .fill(
+                                    currentChar == char
+                                        ? Color.accentColor.opacity(0.16) : Color.clear
+                                )
+                            Text(String(char))
+                                .font(.system(size: 14, design: .monospaced))
+                        }
+                        .frame(width: 32, height: 24)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+            )
+
+            HStack {
+                Text("Custom")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                TextField("", text: Binding(
+                    get: { String(currentChar) },
+                    set: { newValue in
+                        if let first = newValue.last {
+                            viewModel.updateSelectedPencilCharacter(first)
+                        }
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 32)
+            }
+        }
+
+        Divider()
+
+        staticSection(label: "Color", icon: "paintbrush") {
+            colorSwatchRow(
+                color: pencil.cells.values.first?.color,
+                target: .pencilColor,
+                onColorSelected: { viewModel.updateSelectedPencilColor($0) }
+            )
+        }
+    }
+
+    // MARK: - Pencil tool settings
+
+    @ViewBuilder
+    private var pencilToolSettings: some View {
+        staticSection(label: "Character", icon: "character.cursor.ibeam") {
+            let presets: [Character] = ["*", "#", ".", "~", "@", "+", "x", "o"]
+            let blockPresets: [Character] = ["\u{2588}", "\u{00B7}", "\u{2591}", "\u{2593}"]
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.fixed(32), spacing: 0), count: 4),
+                spacing: 0
+            ) {
+                ForEach(presets + blockPresets, id: \.self) { char in
+                    Button {
+                        viewModel.pencilDrawCharacter = char
+                    } label: {
+                        ZStack {
+                            Rectangle()
+                                .fill(
+                                    viewModel.pencilDrawCharacter == char
+                                        ? Color.accentColor.opacity(0.16) : Color.clear
+                                )
+                            Text(String(char))
+                                .font(.system(size: 14, design: .monospaced))
+                        }
+                        .frame(width: 32, height: 24)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color(NSColor.controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+            )
+
+            HStack {
+                Text("Custom")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                TextField("", text: Binding(
+                    get: { String(viewModel.pencilDrawCharacter) },
+                    set: { newValue in
+                        if let first = newValue.last {
+                            viewModel.pencilDrawCharacter = first
+                        }
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 32)
+            }
+        }
+
+        Divider()
+
+        staticSection(label: "Color", icon: "paintbrush") {
+            colorSwatchRow(
+                color: viewModel.pencilDrawColor,
+                target: .pencilToolColor,
+                onColorSelected: { viewModel.pencilDrawColor = $0 }
+            )
+        }
+    }
+
     // MARK: - Helper views
 
     private func beginRename(_ shape: AnyShape) {
@@ -710,6 +889,7 @@ struct InspectorPanel: View {
         case .box: return "rectangle"
         case .arrow: return "arrow.right"
         case .text: return "textformat"
+        case .pencil: return "pencil"
         }
     }
 

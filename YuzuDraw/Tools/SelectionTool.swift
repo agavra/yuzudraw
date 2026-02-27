@@ -5,6 +5,10 @@ final class SelectionTool: Tool, @unchecked Sendable {
 
     let toolType: ToolType = .select
 
+    /// Set by the view model before mouseDown so the tool can do bounding-rect
+    /// hit testing on already-selected pencil shapes.
+    var selectedShapeIDs: Set<UUID> = []
+
     private enum Mode {
         case none
         case draggingShape(shapeID: UUID, offset: GridPoint)
@@ -35,6 +39,20 @@ final class SelectionTool: Tool, @unchecked Sendable {
         if let (shape, handle) = resizeHandleHit(at: point, in: document) {
             mode = .resizingShape(originalShape: shape, handle: handle)
             return .selectShape(shape.id)
+        }
+
+        // For selected pencil shapes, hit-test against the bounding rect
+        // so the user can drag from any point within it.
+        if let pencilShape = selectedPencilShapeInBounds(at: point, in: document) {
+            let rect = pencilShape.boundingRect
+            mode = .draggingShape(
+                shapeID: pencilShape.id,
+                offset: GridPoint(
+                    column: point.column - rect.origin.column,
+                    row: point.row - rect.origin.row
+                )
+            )
+            return .selectShape(pencilShape.id)
         }
 
         if let shape = document.hitTest(at: point) {
@@ -93,6 +111,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
             case .text(var text):
                 text.origin = newOrigin
                 movedShape = .text(text)
+            case .pencil(var pencil):
+                pencil.origin = newOrigin
+                movedShape = .pencil(pencil)
             }
 
             return .updateShape(movedShape)
@@ -152,6 +173,17 @@ final class SelectionTool: Tool, @unchecked Sendable {
     }
 
     func previewShape() -> AnyShape? { nil }
+
+    private func selectedPencilShapeInBounds(at point: GridPoint, in document: Document) -> AnyShape? {
+        for id in selectedShapeIDs {
+            guard let shape = document.findShape(id: id),
+                case .pencil = shape,
+                shape.boundingRect.contains(point)
+            else { continue }
+            return shape
+        }
+        return nil
+    }
 
     private func resizeHandleHit(at point: GridPoint, in document: Document) -> (AnyShape, ResizeHandle)? {
         for layer in document.layers.reversed() {

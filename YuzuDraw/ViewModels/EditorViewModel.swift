@@ -26,6 +26,7 @@ final class EditorViewModel {
     private var boxTool = BoxTool()
     private var arrowTool = ArrowTool()
     private var textTool = TextTool()
+    private var pencilTool = PencilTool()
 
     var activeTool: any Tool {
         switch activeToolType {
@@ -33,6 +34,7 @@ final class EditorViewModel {
         case .box: return boxTool
         case .arrow: return arrowTool
         case .text: return textTool
+        case .pencil: return pencilTool
         }
     }
 
@@ -42,7 +44,7 @@ final class EditorViewModel {
             return arrowTool.attachmentPreviewPoints(near: hoverGridPoint, in: document)
         case .select:
             return selectionTool.arrowAttachmentPreviewPoints
-        case .box, .text:
+        case .box, .text, .pencil:
             return []
         }
     }
@@ -86,6 +88,21 @@ final class EditorViewModel {
             commitTextEdit()
         }
         arrowTool.suppressAttachment = isOptionKeyPressed
+        selectionTool.selectedShapeIDs = selectedShapeIDs
+
+        // When pencil tool is active and a pencil shape is selected, append to it
+        if activeToolType == .pencil {
+            if let selectedID = selectedShapeIDs.first,
+                selectedShapeIDs.count == 1,
+                let shape = document.findShape(id: selectedID),
+                case .pencil = shape
+            {
+                pencilTool.targetShapeID = selectedID
+            } else {
+                pencilTool.targetShapeID = nil
+            }
+        }
+
         let action = activeTool.mouseDown(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
@@ -112,6 +129,8 @@ final class EditorViewModel {
         case .arrow(let arrow):
             editPoint = arrow.labelEditPoint
             content = arrow.label
+        case .pencil:
+            return
         }
 
         isEditingText = true
@@ -158,7 +177,11 @@ final class EditorViewModel {
         case .addShape(let shape, let layerIndex):
             document.addShape(shape, toLayerAt: layerIndex)
             selectedShapeIDs = [shape.id]
-            activeToolType = .select
+            if case .pencil = shape {
+                // Stay in pencil mode so the user can keep drawing
+            } else {
+                activeToolType = .select
+            }
             rerender()
         case .selectShape(let id):
             selectedShapeIDs = id.map { [$0] } ?? []
@@ -207,6 +230,8 @@ final class EditorViewModel {
             case .arrow(var arrow):
                 arrow.label = textEditContent
                 document.updateShape(.arrow(arrow))
+            case .pencil:
+                break
             }
         } else {
             // Creating a new TextShape via TextTool
@@ -304,7 +329,7 @@ final class EditorViewModel {
             switch shape {
             case .box(let box): return box.borderColor
             case .arrow(let arrow): return arrow.strokeColor
-            case .text: return nil
+            case .text, .pencil: return nil
             }
         }
         guard let first = colors.first else { return nil }
@@ -317,7 +342,7 @@ final class EditorViewModel {
             switch shape {
             case .box(let box): return box.borderColor
             case .arrow(let arrow): return arrow.strokeColor
-            case .text: return nil
+            case .text, .pencil: return nil
             }
         }
         guard colors.count > 1 else { return false }
@@ -331,6 +356,7 @@ final class EditorViewModel {
             case .box(let box): return box.textColor
             case .arrow(let arrow): return arrow.labelColor
             case .text(let text): return text.textColor
+            case .pencil: return nil
             }
         }
         guard let first = colors.first else { return nil }
@@ -344,6 +370,7 @@ final class EditorViewModel {
             case .box(let box): return box.textColor
             case .arrow(let arrow): return arrow.labelColor
             case .text(let text): return text.textColor
+            case .pencil: return nil
             }
         }
         guard colors.count > 1 else { return false }
@@ -371,7 +398,7 @@ final class EditorViewModel {
             case .arrow(var arrow):
                 arrow.strokeColor = color
                 document.updateShape(.arrow(arrow))
-            case .text:
+            case .text, .pencil:
                 break
             }
         }
@@ -391,6 +418,8 @@ final class EditorViewModel {
             case .text(var text):
                 text.textColor = color
                 document.updateShape(.text(text))
+            case .pencil:
+                break
             }
         }
         rerender()
@@ -683,6 +712,47 @@ final class EditorViewModel {
         rerender()
     }
 
+    // MARK: - Pencil tool properties
+
+    var pencilDrawCharacter: Character = "*" {
+        didSet { pencilTool.drawCharacter = pencilDrawCharacter }
+    }
+
+    var pencilDrawColor: ShapeColor? {
+        didSet { pencilTool.drawColor = pencilDrawColor }
+    }
+
+    func updateSelectedPencilOrigin(column: Int, row: Int) {
+        guard let shape = selectedShape,
+            case .pencil(var pencil) = shape
+        else { return }
+        pencil.origin = GridPoint(column: column, row: row)
+        document.updateShape(.pencil(pencil))
+        rerender()
+    }
+
+    func updateSelectedPencilCharacter(_ character: Character) {
+        guard let shape = selectedShape,
+            case .pencil(var pencil) = shape
+        else { return }
+        for key in pencil.cells.keys {
+            pencil.cells[key]?.character = character
+        }
+        document.updateShape(.pencil(pencil))
+        rerender()
+    }
+
+    func updateSelectedPencilColor(_ color: ShapeColor?) {
+        guard let shape = selectedShape,
+            case .pencil(var pencil) = shape
+        else { return }
+        for key in pencil.cells.keys {
+            pencil.cells[key]?.color = color
+        }
+        document.updateShape(.pencil(pencil))
+        rerender()
+    }
+
     // MARK: - Color editing
 
     func updateSelectedBoxBorderColor(_ color: ShapeColor?) {
@@ -797,6 +867,12 @@ final class EditorViewModel {
                     row: text.origin.row + dy
                 )
                 movedShape = .text(text)
+            case .pencil(var pencil):
+                pencil.origin = GridPoint(
+                    column: pencil.origin.column + dx,
+                    row: pencil.origin.row + dy
+                )
+                movedShape = .pencil(pencil)
             }
             updateShapeAndAttachments(movedShape)
         }

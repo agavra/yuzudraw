@@ -9,6 +9,7 @@ struct ToolbarView: View {
             toolButton(type: .box, icon: "rectangle", tooltip: "Box")
             toolButton(type: .arrow, icon: "arrow.right", tooltip: "Line")
             toolButton(type: .text, icon: "textformat", tooltip: "Text")
+            toolButton(type: .pencil, icon: "pencil.and.scribble", tooltip: "Pencil")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
@@ -26,8 +27,18 @@ struct ToolbarView: View {
     private func toolButton(type: ToolType, icon: String, tooltip: String) -> some View {
         Button {
             viewModel.activeToolType = type
+            if type == .pencil {
+                let hasSelectedPencil = viewModel.selectedShapes.contains {
+                    if case .pencil = $0 { return true }
+                    return false
+                }
+                if !hasSelectedPencil {
+                    viewModel.selectedShapeIDs = []
+                }
+            }
         } label: {
             Image(systemName: icon)
+                .font(.system(size: type == .pencil ? 14 : 12))
                 .frame(width: 24, height: 20)
         }
         .controlSize(.small)
