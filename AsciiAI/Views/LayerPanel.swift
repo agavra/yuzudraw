@@ -15,6 +15,7 @@ struct LayerPanel: View {
     @State private var draggedShapeID: UUID?
     @State private var layerDropTarget: (id: UUID, edge: DropEdge)?
     @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
+    @State private var explicitlySelectedLayerID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -25,13 +26,63 @@ struct LayerPanel: View {
             bottomButtons
         }
         .frame(minWidth: 160, idealWidth: 200, maxWidth: 260)
+        .onChange(of: viewModel.selectedShapeIDs) { _, newSelection in
+            guard let layerID = explicitlySelectedLayerID,
+                let layer = viewModel.document.layers.first(where: { $0.id == layerID })
+            else {
+                explicitlySelectedLayerID = nil
+                return
+            }
+
+            let layerSelection = Set(layer.shapes.map(\.id))
+            if newSelection != layerSelection {
+                explicitlySelectedLayerID = nil
+            }
+        }
     }
 
     private var header: some View {
-        Text("Layers")
-            .font(.headline)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+        HStack(spacing: 8) {
+            Text("Layers")
+                .font(.headline)
+
+            Spacer()
+
+            Button {
+                viewModel.moveSelectedShapeForward()
+            } label: {
+                Image(systemName: "arrow.up")
+            }
+            .buttonStyle(.plain)
+            .help("Move selected element up")
+            .disabled(!canMoveSelectedElementUp)
+
+            Button {
+                viewModel.moveSelectedShapeBackward()
+            } label: {
+                Image(systemName: "arrow.down")
+            }
+            .buttonStyle(.plain)
+            .help("Move selected element down")
+            .disabled(!canMoveSelectedElementDown)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+    }
+
+    private var singleSelectedShapeID: UUID? {
+        guard viewModel.selectedShapeIDs.count == 1 else { return nil }
+        return viewModel.selectedShapeIDs.first
+    }
+
+    private var canMoveSelectedElementUp: Bool {
+        guard let shapeID = singleSelectedShapeID else { return false }
+        return viewModel.canMoveShapeForward(shapeID)
+    }
+
+    private var canMoveSelectedElementDown: Bool {
+        guard let shapeID = singleSelectedShapeID else { return false }
+        return viewModel.canMoveShapeBackward(shapeID)
     }
 
     private var layerList: some View {
@@ -89,8 +140,16 @@ struct LayerPanel: View {
             }
             .padding(.vertical, 2)
             .contentShape(Rectangle())
+            .background(
+                explicitlySelectedLayerID == layer.id
+                    ? Color.accentColor.opacity(0.2)
+                    : Color.clear
+            )
+            .cornerRadius(3)
             .onTapGesture {
                 viewModel.activeLayerIndex = index
+                viewModel.selectedShapeIDs = Set(layer.shapes.map(\.id))
+                explicitlySelectedLayerID = layer.id
             }
             .onDrag {
                 draggedLayerID = layer.id
