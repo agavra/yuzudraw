@@ -133,6 +133,57 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         boundingRect.contains(point)
     }
 
+    var labelEditPoint: GridPoint {
+        let col = origin.column
+        let row = origin.row
+        let w = size.width
+        let h = size.height
+
+        let baseTextAreaStartCol = hasBorder && !allowTextOnBorder ? col + 1 : col
+        let baseTextAreaStartRow = hasBorder && !allowTextOnBorder ? row + 1 : row
+        let baseTextAreaWidth = hasBorder && !allowTextOnBorder ? w - 2 : w
+        let baseTextAreaHeight = hasBorder && !allowTextOnBorder ? h - 2 : h
+
+        let textAreaStartCol = baseTextAreaStartCol + textPaddingLeft
+        let textAreaStartRow = baseTextAreaStartRow + textPaddingTop
+        let textAreaWidth = baseTextAreaWidth - textPaddingLeft - textPaddingRight
+        let textAreaHeight = baseTextAreaHeight - textPaddingTop - textPaddingBottom
+
+        guard textAreaWidth > 0, textAreaHeight > 0 else {
+            return origin
+        }
+
+        let labelLines = label.components(separatedBy: "\n")
+        let firstLine = labelLines.first ?? label
+        let truncatedLine = String(firstLine.prefix(max(0, textAreaWidth)))
+        let lineCount = labelLines.count
+
+        let horizontalOffset: Int
+        switch textHorizontalAlignment {
+        case .left:
+            horizontalOffset = 0
+        case .center:
+            horizontalOffset = (textAreaWidth - truncatedLine.count) / 2
+        case .right:
+            horizontalOffset = textAreaWidth - truncatedLine.count
+        }
+
+        let verticalOffset: Int
+        switch textVerticalAlignment {
+        case .top:
+            verticalOffset = 0
+        case .middle:
+            verticalOffset = max(0, (textAreaHeight - lineCount) / 2)
+        case .bottom:
+            verticalOffset = max(0, textAreaHeight - lineCount)
+        }
+
+        return GridPoint(
+            column: textAreaStartCol + horizontalOffset,
+            row: textAreaStartRow + verticalOffset
+        )
+    }
+
     func render(into canvas: inout Canvas) {
         guard size.width >= 1, size.height >= 1 else { return }
 
@@ -205,34 +256,41 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         let textAreaHeight = baseTextAreaHeight - textPaddingTop - textPaddingBottom
 
         if !label.isEmpty, textAreaWidth > 0, textAreaHeight > 0 {
-            let truncatedLabel = String(label.prefix(max(0, textAreaWidth)))
-            let horizontalOffset: Int
-            switch textHorizontalAlignment {
-            case .left:
-                horizontalOffset = 0
-            case .center:
-                horizontalOffset = (textAreaWidth - truncatedLabel.count) / 2
-            case .right:
-                horizontalOffset = textAreaWidth - truncatedLabel.count
-            }
+            let labelLines = label.components(separatedBy: "\n")
+            let lineCount = labelLines.count
 
             let verticalOffset: Int
             switch textVerticalAlignment {
             case .top:
                 verticalOffset = 0
             case .middle:
-                verticalOffset = textAreaHeight / 2
+                verticalOffset = max(0, (textAreaHeight - lineCount) / 2)
             case .bottom:
-                verticalOffset = textAreaHeight - 1
+                verticalOffset = max(0, textAreaHeight - lineCount)
             }
 
-            let textRow = textAreaStartRow + verticalOffset
-            for (i, char) in truncatedLabel.enumerated() {
-                canvas.setCharacter(
-                    char,
-                    atColumn: textAreaStartCol + horizontalOffset + i,
-                    row: textRow
-                )
+            for (lineIndex, line) in labelLines.enumerated() {
+                let textRow = textAreaStartRow + verticalOffset + lineIndex
+                guard textRow < textAreaStartRow + textAreaHeight else { break }
+
+                let truncatedLine = String(line.prefix(max(0, textAreaWidth)))
+                let horizontalOffset: Int
+                switch textHorizontalAlignment {
+                case .left:
+                    horizontalOffset = 0
+                case .center:
+                    horizontalOffset = (textAreaWidth - truncatedLine.count) / 2
+                case .right:
+                    horizontalOffset = textAreaWidth - truncatedLine.count
+                }
+
+                for (i, char) in truncatedLine.enumerated() {
+                    canvas.setCharacter(
+                        char,
+                        atColumn: textAreaStartCol + horizontalOffset + i,
+                        row: textRow
+                    )
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ final class EditorViewModel {
     var isEditingText: Bool = false
     var textEditPoint: GridPoint?
     var textEditContent: String = ""
+    var textEditShapeID: UUID?
     var viewportSize: CGSize = .zero
     var hoverGridPoint: GridPoint?
 
@@ -75,9 +76,42 @@ final class EditorViewModel {
     // MARK: - Mouse events
 
     func mouseDown(at point: GridPoint) {
+        if isEditingText {
+            commitTextEdit()
+        }
         let action = activeTool.mouseDown(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
+    }
+
+    func handleDoubleClick(at point: GridPoint) {
+        guard let shape = document.hitTest(at: point) else { return }
+
+        // Don't allow editing shapes on locked layers
+        guard let layerIndex = document.layerIndex(containingShape: shape.id),
+              !document.layers[layerIndex].isLocked
+        else { return }
+
+        let editPoint: GridPoint
+        let content: String
+
+        switch shape {
+        case .text(let text):
+            editPoint = text.origin
+            content = text.text
+        case .box(let box):
+            editPoint = box.labelEditPoint
+            content = box.label
+        case .arrow(let arrow):
+            editPoint = arrow.labelEditPoint
+            content = arrow.label
+        }
+
+        isEditingText = true
+        textEditShapeID = shape.id
+        textEditPoint = editPoint
+        textEditContent = content
+        selectedShapeIDs = [shape.id]
     }
 
     func mouseDragged(to point: GridPoint) {
@@ -137,15 +171,47 @@ final class EditorViewModel {
     // MARK: - Text editing
 
     func commitTextEdit() {
-        guard let point = textEditPoint, !textEditContent.isEmpty else {
+        guard let point = textEditPoint else {
             cancelTextEdit()
             return
         }
-        let textShape = TextShape(origin: point, text: textEditContent)
-        document.addShape(.text(textShape), toLayerAt: activeLayerIndex)
-        selectedShapeIDs = [textShape.id]
+
+        if let shapeID = textEditShapeID {
+            // Editing an existing shape's text
+            guard let shape = document.findShape(id: shapeID) else {
+                cancelTextEdit()
+                return
+            }
+            switch shape {
+            case .text(var text):
+                if textEditContent.isEmpty {
+                    // Empty text → delete the shape
+                    document.removeShape(id: shapeID)
+                    selectedShapeIDs = []
+                } else {
+                    text.text = textEditContent
+                    document.updateShape(.text(text))
+                }
+            case .box(var box):
+                box.label = textEditContent
+                updateShapeAndAttachments(.box(box))
+            case .arrow(var arrow):
+                arrow.label = textEditContent
+                document.updateShape(.arrow(arrow))
+            }
+        } else {
+            // Creating a new TextShape via TextTool
+            guard !textEditContent.isEmpty else {
+                cancelTextEdit()
+                return
+            }
+            let textShape = TextShape(origin: point, text: textEditContent)
+            document.addShape(.text(textShape), toLayerAt: activeLayerIndex)
+            selectedShapeIDs = [textShape.id]
+            activeToolType = .select
+        }
+
         cancelTextEdit()
-        activeToolType = .select
         rerender()
     }
 
@@ -153,6 +219,7 @@ final class EditorViewModel {
         isEditingText = false
         textEditPoint = nil
         textEditContent = ""
+        textEditShapeID = nil
     }
 
     // MARK: - Shape property editing
@@ -355,15 +422,6 @@ final class EditorViewModel {
         else { return }
         arrow.end = GridPoint(column: column, row: row)
         arrow.endAttachment = nil
-        document.updateShape(.arrow(arrow))
-        rerender()
-    }
-
-    func updateSelectedArrowBendDirection(_ direction: ArrowBendDirection) {
-        guard let shape = selectedShape,
-            case .arrow(var arrow) = shape
-        else { return }
-        arrow.bendDirection = direction
         document.updateShape(.arrow(arrow))
         rerender()
     }

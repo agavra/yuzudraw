@@ -166,7 +166,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
 
         // Render label at midpoint of path
         if !label.isEmpty {
-            let mid = midpoint()
+            let mid = labelEditPoint
             for (i, char) in label.enumerated() {
                 canvas.setCharacter(char, atColumn: mid.column + i, row: mid.row)
             }
@@ -184,7 +184,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         )?.segments ?? []
     }
 
-    private func midpoint() -> GridPoint {
+    var labelEditPoint: GridPoint {
         let segments = pathSegments()
         guard !segments.isEmpty else { return start }
 

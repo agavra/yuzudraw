@@ -98,11 +98,6 @@ struct InspectorPanel: View {
             Divider()
 
             sectionHeader("Text")
-            TextField("Text", text: Binding(
-                get: { box.label },
-                set: { viewModel.updateSelectedBoxLabel($0) }
-            ))
-            .textFieldStyle(.roundedBorder)
 
             Picker("Horizontal", selection: Binding(
                 get: { box.textHorizontalAlignment },
@@ -250,16 +245,6 @@ struct InspectorPanel: View {
             }
             .pickerStyle(.menu)
 
-            Picker("Bend", selection: Binding(
-                get: { arrow.bendDirection },
-                set: { viewModel.updateSelectedArrowBendDirection($0) }
-            )) {
-                ForEach(ArrowBendDirection.allCases, id: \.self) { dir in
-                    Text(dir.rawValue).tag(dir)
-                }
-            }
-            .pickerStyle(.menu)
-
             HStack {
                 Picker("Start", selection: Binding(
                     get: { arrow.startHeadStyle },
@@ -281,14 +266,6 @@ struct InspectorPanel: View {
                 }
                 .pickerStyle(.menu)
             }
-            Divider()
-
-            sectionHeader("Label")
-            TextField("Label", text: Binding(
-                get: { arrow.label },
-                set: { viewModel.updateSelectedArrowLabel($0) }
-            ))
-            .textFieldStyle(.roundedBorder)
 
             if arrow.startAttachment != nil || arrow.endAttachment != nil {
                 Divider()
@@ -339,14 +316,6 @@ struct InspectorPanel: View {
                     viewModel.updateSelectedTextOrigin(column: text.origin.column, row: newVal)
                 }
             }
-            Divider()
-
-            sectionHeader("Content")
-            TextField("Text", text: Binding(
-                get: { text.text },
-                set: { viewModel.updateSelectedTextContent($0) }
-            ))
-            .textFieldStyle(.roundedBorder)
         }
     }
 

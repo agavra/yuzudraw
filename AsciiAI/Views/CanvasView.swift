@@ -10,6 +10,8 @@ struct CanvasView: View {
     }()
 
     @State private var didMouseDown = false
+    @State private var lastMouseDownTime: Date?
+    @State private var lastMouseDownPoint: GridPoint?
     private let rulerGutterLeft: CGFloat = 30
     private let rulerGutterTop: CGFloat = 16
     private static let diagonalNWSECursor = NSCursor(
@@ -56,9 +58,6 @@ struct CanvasView: View {
 
                     arrowAttachmentOverlay
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)
-
-                    textEditOverlay
-                        .offset(x: rulerGutterLeft, y: rulerGutterTop)
                 }
                 .frame(
                     width: rulerGutterLeft + contentWidth,
@@ -68,6 +67,10 @@ struct CanvasView: View {
                 .gesture(dragGesture)
                 .onContinuousHover(coordinateSpace: .local) { phase in
                     handleCanvasHover(phase)
+                }
+                .overlay(alignment: .topLeading) {
+                    textEditOverlay
+                        .offset(x: rulerGutterLeft, y: rulerGutterTop)
                 }
             }
             .background(Color(nsColor: .textBackgroundColor))
@@ -369,26 +372,38 @@ struct CanvasView: View {
 
     // MARK: - Text edit overlay
 
+    private var textEditFieldSize: CGSize {
+        let text = viewModel.textEditContent
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let minChars = 6
+        let padding: CGFloat = 8
+        let maxLineLength = lines.map(\.count).max() ?? 0
+        let charCount = max(minChars, maxLineLength + 1)
+        let width = CGFloat(charCount) * charSize.width + padding
+        let lineCount = max(1, lines.count)
+        let height = CGFloat(lineCount) * charSize.height + 4
+        return CGSize(width: width, height: height)
+    }
+
     @ViewBuilder
     private var textEditOverlay: some View {
         if viewModel.isEditingText, let point = viewModel.textEditPoint {
-            TextField("Type text...", text: $viewModel.textEditContent)
-                .textFieldStyle(.plain)
-                .font(.system(size: canvasFontSize, design: .monospaced))
-                .frame(width: 200)
-                .padding(2)
-                .background(Color(nsColor: .textBackgroundColor))
-                .border(Color.accentColor)
-                .offset(
-                    x: CGFloat(point.column) * charSize.width,
-                    y: CGFloat(point.row) * charSize.height
-                )
-                .onSubmit {
-                    viewModel.commitTextEdit()
-                }
-                .onExitCommand {
-                    viewModel.cancelTextEdit()
-                }
+            let size = textEditFieldSize
+            InlineTextEditor(
+                text: $viewModel.textEditContent,
+                font: NSFont.monospacedSystemFont(ofSize: canvasFontSize, weight: .regular),
+                onCommit: { viewModel.commitTextEdit() },
+                onCancel: { viewModel.cancelTextEdit() }
+            )
+            .frame(width: size.width, height: size.height)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(Color(nsColor: .textBackgroundColor))
+            .border(Color.accentColor)
+            .offset(
+                x: CGFloat(point.column) * charSize.width - 4,
+                y: CGFloat(point.row) * charSize.height
+            )
         }
     }
 
@@ -404,7 +419,21 @@ struct CanvasView: View {
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
                 if !didMouseDown {
                     didMouseDown = true
-                    viewModel.mouseDown(at: point)
+                    let now = Date()
+                    if let lastTime = lastMouseDownTime,
+                       let lastPoint = lastMouseDownPoint,
+                       now.timeIntervalSince(lastTime) < 0.3,
+                       abs(point.column - lastPoint.column) <= 1,
+                       abs(point.row - lastPoint.row) <= 1
+                    {
+                        lastMouseDownTime = nil
+                        lastMouseDownPoint = nil
+                        viewModel.handleDoubleClick(at: point)
+                    } else {
+                        lastMouseDownTime = now
+                        lastMouseDownPoint = point
+                        viewModel.mouseDown(at: point)
+                    }
                 } else {
                     viewModel.mouseDragged(to: point)
                 }
@@ -485,6 +514,82 @@ struct CanvasView: View {
         return nil
     }
 
+}
+
+// MARK: - Inline Text Editor
+
+struct InlineTextEditor: NSViewRepresentable {
+    @Binding var text: String
+    var font: NSFont
+    var onCommit: () -> Void
+    var onCancel: () -> Void
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+
+        let textView = scrollView.documentView as! NSTextView
+        textView.delegate = context.coordinator
+        textView.font = font
+        textView.string = text
+        textView.isRichText = false
+        textView.drawsBackground = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.textContainerInset = .zero
+        textView.textContainer?.lineFragmentPadding = 0
+
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+            textView.selectAll(nil)
+        }
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        let textView = scrollView.documentView as! NSTextView
+        if textView.string != text {
+            textView.string = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: InlineTextEditor
+
+        init(_ parent: InlineTextEditor) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+        }
+
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                if let event = NSApp.currentEvent, event.modifierFlags.contains(.shift) {
+                    textView.insertNewlineIgnoringFieldEditor(nil)
+                    return true
+                }
+                parent.onCommit()
+                return true
+            }
+            if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+                parent.onCancel()
+                return true
+            }
+            return false
+        }
+    }
 }
 
 #Preview {
