@@ -47,6 +47,21 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
             children[index].removeShapesRecursively(ids: ids)
         }
     }
+
+    mutating func renameGroupRecursively(id groupID: UUID, to newName: String) -> Bool {
+        if id == groupID {
+            name = newName
+            return true
+        }
+
+        for index in children.indices {
+            if children[index].renameGroupRecursively(id: groupID, to: newName) {
+                return true
+            }
+        }
+
+        return false
+    }
 }
 
 struct Layer: Codable, Equatable, Identifiable, Sendable {
@@ -105,5 +120,14 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         for index in groups.indices {
             groups[index].removeShapesRecursively(ids: ids)
         }
+    }
+
+    mutating func renameGroup(id groupID: UUID, to newName: String) -> Bool {
+        for index in groups.indices {
+            if groups[index].renameGroupRecursively(id: groupID, to: newName) {
+                return true
+            }
+        }
+        return false
     }
 }

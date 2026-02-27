@@ -702,6 +702,28 @@ final class EditorViewModel {
         }
     }
 
+    func renameShapeFromPanel(_ shapeID: UUID, to newName: String) {
+        for layerIndex in document.layers.indices {
+            guard let shapeIndex = document.layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }) else {
+                continue
+            }
+            document.layers[layerIndex].shapes[shapeIndex] = document.layers[layerIndex].shapes[shapeIndex]
+                .renamedForPanel(newName)
+            return
+        }
+    }
+
+    func renameGroupFromPanel(_ groupID: UUID, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        for layerIndex in document.layers.indices {
+            if document.layers[layerIndex].renameGroup(id: groupID, to: trimmed) {
+                return
+            }
+        }
+    }
+
     private func nextGroupName(in layer: Layer) -> String {
         let existingNames = Set(layer.groups.map(\.name))
         var index = 1

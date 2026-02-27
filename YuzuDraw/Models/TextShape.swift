@@ -2,15 +2,18 @@ import Foundation
 
 struct TextShape: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
+    var name: String?
     var origin: GridPoint
     var text: String
 
     init(
         id: UUID = UUID(),
+        name: String? = nil,
         origin: GridPoint,
         text: String = ""
     ) {
         self.id = id
+        self.name = name
         self.origin = origin
         self.text = text
     }

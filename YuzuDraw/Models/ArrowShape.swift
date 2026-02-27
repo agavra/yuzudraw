@@ -79,6 +79,7 @@ struct ArrowAttachment: Codable, Equatable, Sendable {
 
 struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
+    var name: String?
     var start: GridPoint
     var end: GridPoint
     var label: String
@@ -91,6 +92,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
 
     init(
         id: UUID = UUID(),
+        name: String? = nil,
         start: GridPoint,
         end: GridPoint,
         label: String = "",
@@ -102,6 +104,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         endHeadStyle: ArrowHeadStyle = .filled
     ) {
         self.id = id
+        self.name = name
         self.start = start
         self.end = end
         self.label = label
@@ -362,6 +365,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case id
+        case name
         case start
         case end
         case label
@@ -376,6 +380,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
         start = try container.decode(GridPoint.self, forKey: .start)
         end = try container.decode(GridPoint.self, forKey: .end)
         label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""

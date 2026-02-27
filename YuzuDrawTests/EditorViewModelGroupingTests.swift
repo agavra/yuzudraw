@@ -63,4 +63,67 @@ struct EditorViewModelGroupingTests {
         #expect(viewModel.document.layers[0].groups[0].shapeIDs == [box1.id])
         #expect(viewModel.document.layers[0].groups[1].shapeIDs == [box2.id, box3.id])
     }
+
+    @Test func should_rename_shape_without_changing_label() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 6, height: 4),
+            label: "Rendered"
+        )
+        document.addShape(.box(box), toLayerAt: 0)
+        let viewModel = EditorViewModel(document: document)
+
+        // when
+        viewModel.renameShapeFromPanel(box.id, to: "Node A")
+
+        // then
+        guard case .box(let renamedBox) = viewModel.document.layers[0].shapes[0] else {
+            Issue.record("Expected box shape")
+            return
+        }
+        #expect(renamedBox.name == "Node A")
+        #expect(renamedBox.label == "Rendered")
+        #expect(viewModel.document.layers[0].shapes[0].displayName == "Node A")
+    }
+
+    @Test func should_clear_custom_shape_name_when_empty_string_is_submitted() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let arrow = ArrowShape(
+            name: "Flow",
+            start: GridPoint(column: 0, row: 0),
+            end: GridPoint(column: 5, row: 0),
+            label: ""
+        )
+        document.addShape(.arrow(arrow), toLayerAt: 0)
+        let viewModel = EditorViewModel(document: document)
+
+        // when
+        viewModel.renameShapeFromPanel(arrow.id, to: "   ")
+
+        // then
+        guard case .arrow(let renamedArrow) = viewModel.document.layers[0].shapes[0] else {
+            Issue.record("Expected arrow shape")
+            return
+        }
+        #expect(renamedArrow.name == nil)
+        #expect(viewModel.document.layers[0].shapes[0].displayName == "Arrow")
+    }
+
+    @Test func should_rename_nested_group_from_panel() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let nestedGroup = ShapeGroup(name: "Inner", shapeIDs: [])
+        let parentGroup = ShapeGroup(name: "Outer", shapeIDs: [], children: [nestedGroup])
+        document.layers[0].groups = [parentGroup]
+        let viewModel = EditorViewModel(document: document)
+
+        // when
+        viewModel.renameGroupFromPanel(nestedGroup.id, to: "Database")
+
+        // then
+        #expect(viewModel.document.layers[0].groups[0].children[0].name == "Database")
+    }
 }

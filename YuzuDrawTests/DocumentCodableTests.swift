@@ -193,6 +193,31 @@ struct DocumentCodableTests {
         }
     }
 
+    @Test func should_round_trip_shape_panel_names() throws {
+        // given
+        var doc = Document()
+        let box = BoxShape(
+            name: "Gateway",
+            origin: GridPoint(column: 2, row: 2),
+            size: GridSize(width: 6, height: 4),
+            label: ""
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let data = try DocumentCodable.encode(doc)
+        let decoded = try DocumentCodable.decode(from: data)
+
+        // then
+        if case .box(let decodedBox) = decoded.layers[0].shapes[0] {
+            #expect(decodedBox.name == "Gateway")
+            #expect(decoded.layers[0].shapes[0].displayName == "Gateway")
+            #expect(decodedBox.label == "")
+        } else {
+            Issue.record("Expected box shape")
+        }
+    }
+
     @Test func should_round_trip_multi_layer_document() throws {
         // given
         var doc = Document(layers: [

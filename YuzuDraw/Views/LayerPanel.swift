@@ -94,9 +94,18 @@ struct LayerPanel: View {
                     layerSection(layer: layer, index: index)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                dismissInlineRenameFocus()
+            }
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
         }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                dismissInlineRenameFocus()
+            }
+        )
     }
 
     private func layerSection(layer: Layer, index: Int) -> some View {
@@ -152,6 +161,7 @@ struct LayerPanel: View {
             )
             .cornerRadius(3)
             .onTapGesture {
+                dismissInlineRenameFocus()
                 guard !ignoreNextRowTap else {
                     ignoreNextRowTap = false
                     return
@@ -247,6 +257,10 @@ struct LayerPanel: View {
         }
         .padding(8)
     }
+
+    private func dismissInlineRenameFocus() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+    }
 }
 
 private struct GroupRow: View {
@@ -257,6 +271,9 @@ private struct GroupRow: View {
     @Binding var draggedShapeID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
+    @State private var isEditingName = false
+    @State private var draftName = ""
+    @FocusState private var nameFieldFocused: Bool
 
     private var orderedGroupShapeIDs: [UUID] {
         let memberIDs = Set(group.shapeIDs)
@@ -281,9 +298,35 @@ private struct GroupRow: View {
                 Image(systemName: "folder")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Text(group.name)
-                    .font(.caption)
-                    .lineLimit(1)
+                if isEditingName {
+                    TextField("Group name", text: $draftName)
+                        .textFieldStyle(.plain)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.accentColor, lineWidth: 1)
+                        )
+                        .focused($nameFieldFocused)
+                        .onSubmit {
+                            commitRename()
+                        }
+                        .onChange(of: nameFieldFocused) { _, isFocused in
+                            if !isFocused, isEditingName {
+                                commitRename()
+                            }
+                        }
+                        .onExitCommand {
+                            cancelRename()
+                        }
+                } else {
+                    Text(group.name)
+                        .font(.caption)
+                        .lineLimit(1)
+                }
                 Spacer(minLength: 0)
             }
             .padding(.leading, CGFloat(depth) * indentStep)
@@ -297,6 +340,10 @@ private struct GroupRow: View {
             )
             .cornerRadius(3)
             .onTapGesture {
+                if isEditingName {
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                    return
+                }
                 guard !ignoreNextRowTap else {
                     ignoreNextRowTap = false
                     return
@@ -305,6 +352,9 @@ private struct GroupRow: View {
                 if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layer.id }) {
                     viewModel.activeLayerIndex = layerIndex
                 }
+            }
+            .onTapGesture(count: 2) {
+                beginRename()
             }
 
             if viewModel.expandedItemIDs.contains(group.id) {
@@ -335,6 +385,24 @@ private struct GroupRow: View {
         }
     }
 
+    private func beginRename() {
+        draftName = group.name
+        isEditingName = true
+        DispatchQueue.main.async {
+            nameFieldFocused = true
+        }
+    }
+
+    private func commitRename() {
+        viewModel.renameGroupFromPanel(group.id, to: draftName)
+        isEditingName = false
+    }
+
+    private func cancelRename() {
+        isEditingName = false
+        draftName = group.name
+    }
+
     private func chevron(isExpanded: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: "chevron.right")
@@ -354,6 +422,9 @@ private struct ShapeRow: View {
     @Binding var draggedShapeID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
+    @State private var isEditingName = false
+    @State private var draftName = ""
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         HStack(spacing: 3) {
@@ -361,9 +432,35 @@ private struct ShapeRow: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .frame(width: 12)
-            Text(shape.displayName)
-                .font(.caption)
-                .lineLimit(1)
+            if isEditingName {
+                TextField("Item name", text: $draftName)
+                    .textFieldStyle(.plain)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.accentColor, lineWidth: 1)
+                    )
+                    .focused($nameFieldFocused)
+                    .onSubmit {
+                        commitRename()
+                    }
+                    .onChange(of: nameFieldFocused) { _, isFocused in
+                        if !isFocused, isEditingName {
+                            commitRename()
+                        }
+                    }
+                    .onExitCommand {
+                        cancelRename()
+                    }
+            } else {
+                Text(shape.displayName)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
             Spacer()
         }
         .padding(.leading, CGFloat(depth) * indentStep + 12)
@@ -376,7 +473,14 @@ private struct ShapeRow: View {
         )
         .cornerRadius(3)
         .onTapGesture {
+            if isEditingName {
+                NSApp.keyWindow?.makeFirstResponder(nil)
+                return
+            }
             viewModel.selectShapeFromPanel(shape.id)
+        }
+        .onTapGesture(count: 2) {
+            beginRename()
         }
         .onDrag {
             draggedShapeID = shape.id
@@ -406,6 +510,24 @@ private struct ShapeRow: View {
                     .frame(height: 2)
             }
         }
+    }
+
+    private func beginRename() {
+        draftName = shape.displayName
+        isEditingName = true
+        DispatchQueue.main.async {
+            nameFieldFocused = true
+        }
+    }
+
+    private func commitRename() {
+        viewModel.renameShapeFromPanel(shape.id, to: draftName)
+        isEditingName = false
+    }
+
+    private func cancelRename() {
+        isEditingName = false
+        draftName = shape.displayName
     }
 
     private var shapeTypeIcon: String {

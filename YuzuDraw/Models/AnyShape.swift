@@ -38,6 +38,12 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     var displayName: String {
+        if let customName = customName?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !customName.isEmpty
+        {
+            return customName
+        }
+
         switch self {
         case .box(let shape): return shape.label.isEmpty ? "Box" : shape.label
         case .arrow(let shape): return shape.label.isEmpty ? "Arrow" : shape.label
@@ -52,6 +58,30 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         case .box: return "Box"
         case .arrow: return "Arrow"
         case .text: return "Text"
+        }
+    }
+
+    var customName: String? {
+        switch self {
+        case .box(let shape): return shape.name
+        case .arrow(let shape): return shape.name
+        case .text(let shape): return shape.name
+        }
+    }
+
+    func renamedForPanel(_ name: String) -> AnyShape {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedName = trimmed.isEmpty ? nil : trimmed
+        switch self {
+        case .box(var shape):
+            shape.name = normalizedName
+            return .box(shape)
+        case .arrow(var shape):
+            shape.name = normalizedName
+            return .arrow(shape)
+        case .text(var shape):
+            shape.name = normalizedName
+            return .text(shape)
         }
     }
 
