@@ -3,6 +3,11 @@ import SwiftUI
 struct InspectorPanel: View {
     @Bindable var viewModel: EditorViewModel
 
+    // MARK: - Inline rename state
+    @State private var isEditingName = false
+    @State private var draftName = ""
+    @FocusState private var nameFieldFocused: Bool
+
     // MARK: - Section expansion state
 
 
@@ -45,9 +50,38 @@ struct InspectorPanel: View {
                 Image(systemName: shapeIcon(for: shape))
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(shape.displayName)
-                        .font(.headline)
-                        .lineLimit(1)
+                    if isEditingName {
+                        TextField("Name", text: $draftName)
+                            .textFieldStyle(.plain)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color(nsColor: .textBackgroundColor))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.accentColor, lineWidth: 1)
+                            )
+                            .focused($nameFieldFocused)
+                            .onSubmit {
+                                commitRename(shape)
+                            }
+                            .onChange(of: nameFieldFocused) { _, isFocused in
+                                if !isFocused, isEditingName {
+                                    commitRename(shape)
+                                }
+                            }
+                            .onExitCommand {
+                                cancelRename(shape)
+                            }
+                    } else {
+                        Text(shape.displayName)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .onTapGesture(count: 2) {
+                                beginRename(shape)
+                            }
+                    }
                     Text(shape.typeName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -454,6 +488,24 @@ struct InspectorPanel: View {
 
     // MARK: - Helper views
 
+    private func beginRename(_ shape: AnyShape) {
+        draftName = shape.displayName
+        isEditingName = true
+        DispatchQueue.main.async {
+            nameFieldFocused = true
+        }
+    }
+
+    private func commitRename(_ shape: AnyShape) {
+        viewModel.renameShapeFromPanel(shape.id, to: draftName)
+        isEditingName = false
+    }
+
+    private func cancelRename(_ shape: AnyShape) {
+        isEditingName = false
+        draftName = shape.displayName
+    }
+
     private func shapeIcon(for shape: AnyShape) -> String {
         switch shape {
         case .box: return "rectangle"
@@ -508,7 +560,7 @@ struct InspectorPanel: View {
             content()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
     }
 
     private func toggleSection<Content: View>(
@@ -540,7 +592,7 @@ struct InspectorPanel: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
     }
 
     private func shadowStylePicker(
