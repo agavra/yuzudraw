@@ -286,6 +286,33 @@ final class EditorViewModel {
         rerender()
     }
 
+    func updateSelectedBoxBorderLineStyle(_ lineStyle: BoxBorderLineStyle) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.borderLineStyle = lineStyle
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxBorderDashLength(_ value: Int) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.borderDashLength = max(1, value)
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
+    func updateSelectedBoxBorderGapLength(_ value: Int) {
+        guard let shape = selectedShape,
+            case .box(var box) = shape
+        else { return }
+        box.borderGapLength = max(0, value)
+        updateShapeAndAttachments(.box(box))
+        rerender()
+    }
+
     func updateSelectedBoxAllowTextOnBorder(_ allow: Bool) {
         guard let shape = selectedShape,
             case .box(var box) = shape

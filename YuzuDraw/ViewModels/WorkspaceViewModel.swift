@@ -8,7 +8,6 @@ final class WorkspaceViewModel {
     var recentProjects: [RecentProject] = []
 
     private(set) var editors: [UUID: EditorViewModel] = [:]
-    @ObservationIgnored private var autoSaveTask: Task<Void, Never>?
 
     private static let recentProjectsKey = "recentProjects"
 
@@ -35,10 +34,6 @@ final class WorkspaceViewModel {
         self.tabs = tabs
         self.editors = editors
         self.activeTabID = activeTabID
-    }
-
-    deinit {
-        autoSaveTask?.cancel()
     }
 
     // MARK: - Tab lifecycle
@@ -192,11 +187,12 @@ final class WorkspaceViewModel {
     // MARK: - Auto-save
 
     private func startAutoSave() {
-        autoSaveTask = Task { [weak self] in
+        Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
                 guard !Task.isCancelled else { break }
-                self?.autoSaveDirtyTabs()
+                guard let self else { break }
+                self.autoSaveDirtyTabs()
             }
         }
     }

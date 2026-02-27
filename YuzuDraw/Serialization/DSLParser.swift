@@ -182,6 +182,26 @@ enum DSLParser {
                 visibleBorders = Set(parsedSides)
             }
         }
+        var borderLineStyle: BoxBorderLineStyle = .solid
+        var borderDashLength = 1
+        var borderGapLength = 1
+        if let lineStyleRange = line.range(of: " line ") {
+            let value = String(
+                line[lineStyleRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+            if let parsed = BoxBorderLineStyle(rawValue: value) {
+                borderLineStyle = parsed
+            }
+            if let dashRange = line.range(of: " dash ") {
+                let value = String(
+                    line[dashRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+                borderDashLength = max(1, Int(value) ?? 1)
+            }
+            if let gapRange = line.range(of: " gap ") {
+                let value = String(
+                    line[gapRange.upperBound...].prefix(while: { !$0.isWhitespace }))
+                borderGapLength = max(0, Int(value) ?? 1)
+            }
+        }
 
         var textHorizontalAlignment: BoxTextHorizontalAlignment = .center
         if let horizontalRange = line.range(of: " halign ") {
@@ -276,6 +296,9 @@ enum DSLParser {
             strokeStyle: strokeStyle,
             hasBorder: hasBorder,
             visibleBorders: visibleBorders,
+            borderLineStyle: borderLineStyle,
+            borderDashLength: borderDashLength,
+            borderGapLength: borderGapLength,
             fillMode: fillMode,
             fillCharacter: fillCharacter,
             label: label,

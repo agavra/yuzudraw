@@ -29,6 +29,9 @@ struct DocumentCodableTests {
             #expect(decodedBox.label == "Server")
             #expect(decodedBox.hasBorder)
             #expect(decodedBox.visibleBorders == Set(BoxBorderSide.allCases))
+            #expect(decodedBox.borderLineStyle == .solid)
+            #expect(decodedBox.borderDashLength == 1)
+            #expect(decodedBox.borderGapLength == 1)
             #expect(decodedBox.textHorizontalAlignment == .center)
             #expect(decodedBox.textVerticalAlignment == .middle)
             #expect(decodedBox.allowTextOnBorder == false)
@@ -155,6 +158,9 @@ struct DocumentCodableTests {
             #expect(box.strokeStyle == .double)
             #expect(box.hasBorder)
             #expect(box.visibleBorders == Set(BoxBorderSide.allCases))
+            #expect(box.borderLineStyle == .solid)
+            #expect(box.borderDashLength == 1)
+            #expect(box.borderGapLength == 1)
             #expect(box.fillMode == .transparent)
             #expect(box.fillCharacter == " ")
             #expect(box.textHorizontalAlignment == .center)
@@ -212,6 +218,32 @@ struct DocumentCodableTests {
         // then
         if case .box(let decodedBox) = decoded.layers[0].shapes[0] {
             #expect(decodedBox.visibleBorders == [.top, .right])
+        } else {
+            Issue.record("Expected box shape")
+        }
+    }
+
+    @Test func should_round_trip_box_dashed_border_settings() throws {
+        // given
+        var doc = Document()
+        let box = BoxShape(
+            origin: GridPoint(column: 3, row: 3),
+            size: GridSize(width: 10, height: 5),
+            borderLineStyle: .dashed,
+            borderDashLength: 3,
+            borderGapLength: 2
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let data = try DocumentCodable.encode(doc)
+        let decoded = try DocumentCodable.decode(from: data)
+
+        // then
+        if case .box(let decodedBox) = decoded.layers[0].shapes[0] {
+            #expect(decodedBox.borderLineStyle == .dashed)
+            #expect(decodedBox.borderDashLength == 3)
+            #expect(decodedBox.borderGapLength == 2)
         } else {
             Issue.record("Expected box shape")
         }

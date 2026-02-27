@@ -149,6 +149,28 @@ struct BoxShapeTests {
         #expect(lines[3] == "│     ")
     }
 
+    @Test func should_render_dashed_box_border_with_configured_pattern() {
+        // given
+        var canvas = Canvas(columns: 8, rows: 4)
+        let box = BoxShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 8, height: 4),
+            borderLineStyle: .dashed,
+            borderDashLength: 1,
+            borderGapLength: 1
+        )
+
+        // when
+        box.render(into: &canvas)
+
+        // then
+        let rendered = canvas.render()
+        let lines = rendered.split(separator: "\n", omittingEmptySubsequences: false)
+        #expect(lines[0] == "┌─ ─ ─ ┐")
+        #expect(lines[1] == "│      │")
+        #expect(lines[3] == "└─ ─ ─ ┘")
+    }
+
     @Test func should_render_solid_fill_inside_box() {
         // given
         var canvas = Canvas(columns: 7, rows: 5)

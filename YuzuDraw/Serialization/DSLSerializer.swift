@@ -70,6 +70,9 @@ enum DSLSerializer {
                     .joined(separator: ",")
                 result += " borders \(encodedSides)"
             }
+            if box.borderLineStyle == .dashed {
+                result += " line dashed dash \(box.borderDashLength) gap \(box.borderGapLength)"
+            }
             result +=
                 " halign \(box.textHorizontalAlignment.rawValue) valign \(box.textVerticalAlignment.rawValue)"
             result +=

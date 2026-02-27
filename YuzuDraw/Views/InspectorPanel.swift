@@ -330,6 +330,25 @@ struct InspectorPanel: View {
                         }
                     )
                 }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Line")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    borderLineStylePicker(
+                        selected: box.borderLineStyle,
+                        onChange: { viewModel.updateSelectedBoxBorderLineStyle($0) }
+                    )
+                }
+                if box.borderLineStyle == .dashed {
+                    HStack {
+                        numberField("Dash", value: box.borderDashLength) { newVal in
+                            viewModel.updateSelectedBoxBorderDashLength(newVal)
+                        }
+                        numberField("Gap", value: box.borderGapLength) { newVal in
+                            viewModel.updateSelectedBoxBorderGapLength(newVal)
+                        }
+                    }
+                }
             }
         }
 
@@ -661,6 +680,47 @@ struct InspectorPanel: View {
                         .offset(x: 1, y: offset)
                 }
             }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func borderLineStylePicker(
+        selected: BoxBorderLineStyle,
+        onChange: @escaping (BoxBorderLineStyle) -> Void
+    ) -> some View {
+        let cellWidth: CGFloat = 56
+        return HStack(spacing: 0) {
+            Button(action: { onChange(.solid) }) {
+                ZStack {
+                    Rectangle()
+                        .fill(selected == .solid ? Color.accentColor.opacity(0.16) : Color.clear)
+                    Text("Solid")
+                        .font(.caption)
+                }
+                .frame(width: cellWidth, height: 24)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Divider()
+                .frame(height: 16)
+            Button(action: { onChange(.dashed) }) {
+                ZStack {
+                    Rectangle()
+                        .fill(selected == .dashed ? Color.accentColor.opacity(0.16) : Color.clear)
+                    Text("Dashed")
+                        .font(.caption)
+                }
+                .frame(width: cellWidth, height: 24)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .background(
             RoundedRectangle(cornerRadius: 7)

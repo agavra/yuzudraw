@@ -132,6 +132,26 @@ struct DSLParserTests {
         }
     }
 
+    @Test func should_parse_box_dashed_border_settings() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              box "Server" at 5,3 size 20x5 style single border visible line dashed dash 3 gap 2
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .box(let box) = doc.layers[0].shapes[0] {
+            #expect(box.borderLineStyle == .dashed)
+            #expect(box.borderDashLength == 3)
+            #expect(box.borderGapLength == 2)
+        } else {
+            Issue.record("Expected box shape")
+        }
+    }
+
     @Test func should_parse_text_shape() throws {
         // given
         let dsl = """

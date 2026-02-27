@@ -24,6 +24,11 @@ enum BoxBorderSide: String, Codable, CaseIterable, Hashable, Sendable {
     case left
 }
 
+enum BoxBorderLineStyle: String, Codable, CaseIterable, Sendable {
+    case solid
+    case dashed
+}
+
 enum BoxShadowStyle: String, Codable, CaseIterable, Sendable {
     case light
     case medium
@@ -77,6 +82,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
     var strokeStyle: StrokeStyle
     var hasBorder: Bool
     var visibleBorders: Set<BoxBorderSide>
+    var borderLineStyle: BoxBorderLineStyle
+    var borderDashLength: Int
+    var borderGapLength: Int
     var fillMode: BoxFillMode
     var fillCharacter: Character
     var label: String
@@ -100,6 +108,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         strokeStyle: StrokeStyle = .single,
         hasBorder: Bool = true,
         visibleBorders: Set<BoxBorderSide> = Set(BoxBorderSide.allCases),
+        borderLineStyle: BoxBorderLineStyle = .solid,
+        borderDashLength: Int = 1,
+        borderGapLength: Int = 1,
         fillMode: BoxFillMode = .transparent,
         fillCharacter: Character = " ",
         label: String = "",
@@ -122,6 +133,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         self.strokeStyle = strokeStyle
         self.hasBorder = hasBorder
         self.visibleBorders = visibleBorders
+        self.borderLineStyle = borderLineStyle
+        self.borderDashLength = max(1, borderDashLength)
+        self.borderGapLength = max(0, borderGapLength)
         self.fillMode = fillMode
         self.fillCharacter = fillCharacter
         self.label = label
@@ -248,22 +262,26 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
 
         if hasBorder, w >= 2, h >= 2 {
             if drawTop {
-                for c in (col + 1)..<(col + w - 1) {
+                for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
+                    guard shouldDrawBorderSegment(at: index) else { continue }
                     canvas.setCharacter(style.horizontal, atColumn: c, row: row)
                 }
             }
             if drawBottom {
-                for c in (col + 1)..<(col + w - 1) {
+                for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
+                    guard shouldDrawBorderSegment(at: index) else { continue }
                     canvas.setCharacter(style.horizontal, atColumn: c, row: row + h - 1)
                 }
             }
             if drawLeft {
-                for r in (row + 1)..<(row + h - 1) {
+                for (index, r) in ((row + 1)..<(row + h - 1)).enumerated() {
+                    guard shouldDrawBorderSegment(at: index) else { continue }
                     canvas.setCharacter(style.vertical, atColumn: col, row: r)
                 }
             }
             if drawRight {
-                for r in (row + 1)..<(row + h - 1) {
+                for (index, r) in ((row + 1)..<(row + h - 1)).enumerated() {
+                    guard shouldDrawBorderSegment(at: index) else { continue }
                     canvas.setCharacter(style.vertical, atColumn: col + w - 1, row: r)
                 }
             }
@@ -366,6 +384,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         case borderStyle
         case hasBorder
         case visibleBorders
+        case borderLineStyle
+        case borderDashLength
+        case borderGapLength
         case fillMode
         case fillCharacter
         case label
@@ -400,6 +421,17 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         visibleBorders =
             try container.decodeIfPresent(Set<BoxBorderSide>.self, forKey: .visibleBorders)
             ?? Set(BoxBorderSide.allCases)
+        borderLineStyle =
+            try container.decodeIfPresent(BoxBorderLineStyle.self, forKey: .borderLineStyle)
+            ?? .solid
+        borderDashLength = max(
+            1,
+            try container.decodeIfPresent(Int.self, forKey: .borderDashLength) ?? 1
+        )
+        borderGapLength = max(
+            0,
+            try container.decodeIfPresent(Int.self, forKey: .borderGapLength) ?? 1
+        )
         fillMode = try container.decodeIfPresent(BoxFillMode.self, forKey: .fillMode) ?? .transparent
         let fillCharacterString =
             try container.decodeIfPresent(String.self, forKey: .fillCharacter) ?? " "
@@ -451,6 +483,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         try container.encode(strokeStyle, forKey: .strokeStyle)
         try container.encode(hasBorder, forKey: .hasBorder)
         try container.encode(visibleBorders, forKey: .visibleBorders)
+        try container.encode(borderLineStyle, forKey: .borderLineStyle)
+        try container.encode(borderDashLength, forKey: .borderDashLength)
+        try container.encode(borderGapLength, forKey: .borderGapLength)
         try container.encode(fillMode, forKey: .fillMode)
         try container.encode(String(fillCharacter), forKey: .fillCharacter)
         try container.encode(label, forKey: .label)
@@ -469,6 +504,12 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
 
     private func shouldDraw(_ side: BoxBorderSide) -> Bool {
         hasBorder && visibleBorders.contains(side)
+    }
+
+    private func shouldDrawBorderSegment(at index: Int) -> Bool {
+        guard borderLineStyle == .dashed else { return true }
+        let cycleLength = max(1, borderDashLength + borderGapLength)
+        return (index % cycleLength) < borderDashLength
     }
 
     private func cornerCharacter(

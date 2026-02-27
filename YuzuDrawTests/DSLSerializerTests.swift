@@ -106,6 +106,28 @@ struct DSLSerializerTests {
         #expect(dsl.contains("borders top,left"))
     }
 
+    @Test func should_serialize_box_dashed_border_settings() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let box = BoxShape(
+            origin: GridPoint(column: 2, row: 2),
+            size: GridSize(width: 8, height: 4),
+            borderLineStyle: .dashed,
+            borderDashLength: 3,
+            borderGapLength: 2,
+            label: "Dash"
+        )
+        doc.addShape(.box(box), toLayerAt: 0)
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains("line dashed"))
+        #expect(dsl.contains("dash 3"))
+        #expect(dsl.contains("gap 2"))
+    }
+
     @Test func should_serialize_box_shadow_settings() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
