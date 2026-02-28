@@ -11,6 +11,20 @@ struct YuzuDrawApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 700)
         .commands {
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") {
+                    workspace.activeEditor?.undo()
+                }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(workspace.activeEditor?.canUndo != true)
+
+                Button("Redo") {
+                    workspace.activeEditor?.redo()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(workspace.activeEditor?.canRedo != true)
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("New Project") {
                     workspace.newProject()

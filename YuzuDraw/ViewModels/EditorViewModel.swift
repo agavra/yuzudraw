@@ -37,6 +37,39 @@ final class EditorViewModel {
     var hoverGridPoint: GridPoint?
     var isOptionKeyPressed: Bool = false
 
+    // MARK: - Undo/Redo
+    private var undoStack: [Document] = []
+    private var redoStack: [Document] = []
+    private var isInDragOperation = false
+    private static let maxUndoLevels = 50
+
+    func recordSnapshot() {
+        guard !isInDragOperation else { return }
+        if undoStack.last == document { return }
+        undoStack.append(document)
+        if undoStack.count > Self.maxUndoLevels { undoStack.removeFirst() }
+        redoStack.removeAll()
+    }
+
+    func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(document)
+        document = previous
+        selectedShapeIDs = []
+        rerender()
+    }
+
+    func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(document)
+        document = next
+        selectedShapeIDs = []
+        rerender()
+    }
+
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+
     // MARK: - Color picker state
     var activeColorTarget: ColorTarget?
     var colorPickerCurrentColor: ShapeColor?
@@ -150,6 +183,9 @@ final class EditorViewModel {
             }
         }
 
+        recordSnapshot()
+        isInDragOperation = true
+
         let action = activeTool.mouseDown(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
@@ -200,6 +236,12 @@ final class EditorViewModel {
         let action = activeTool.mouseUp(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
+
+        isInDragOperation = false
+        // Pop the undo snapshot if the drag didn't actually change the document
+        if undoStack.last == document {
+            undoStack.removeLast()
+        }
     }
 
     func updateHoverGridPoint(_ point: GridPoint?) {
@@ -250,6 +292,7 @@ final class EditorViewModel {
     // MARK: - Text editing
 
     func commitTextEdit() {
+        recordSnapshot()
         guard let point = textEditPoint else {
             cancelTextEdit()
             return
@@ -444,6 +487,7 @@ final class EditorViewModel {
     }
 
     func updateLayerFillColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
             if case .box(var box) = shape {
@@ -455,6 +499,7 @@ final class EditorViewModel {
     }
 
     func updateLayerBorderColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
             switch shape {
@@ -472,6 +517,7 @@ final class EditorViewModel {
     }
 
     func updateLayerTextColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
             switch shape {
@@ -492,6 +538,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxLabel(_ label: String) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -501,6 +548,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxTextHorizontalAlignment(_ alignment: BoxTextHorizontalAlignment) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -510,6 +558,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxTextVerticalAlignment(_ alignment: BoxTextVerticalAlignment) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -519,6 +568,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxHasBorder(_ hasBorder: Bool) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -528,6 +578,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxBorderSide(_ side: BoxBorderSide, isVisible: Bool) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -541,6 +592,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxBorderLineStyle(_ lineStyle: BoxBorderLineStyle) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -550,6 +602,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxBorderDashLength(_ value: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -559,6 +612,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxBorderGapLength(_ value: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -568,6 +622,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxAllowTextOnBorder(_ allow: Bool) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -577,6 +632,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxHasShadow(_ hasShadow: Bool) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -586,6 +642,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxShadowStyle(_ style: BoxShadowStyle) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -595,6 +652,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxShadowOffsetX(_ value: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -604,6 +662,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxShadowOffsetY(_ value: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -618,6 +677,7 @@ final class EditorViewModel {
         top: Int? = nil,
         bottom: Int? = nil
     ) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -638,6 +698,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxStrokeStyle(_ style: StrokeStyle) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -647,6 +708,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxFillMode(_ fillMode: BoxFillMode) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -660,6 +722,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxFillCharacter(_ fillCharacter: Character) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -669,6 +732,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxOrigin(column: Int, row: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -678,6 +742,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxSize(width: Int, height: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -687,6 +752,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowLabel(_ label: String) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -696,6 +762,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowStrokeStyle(_ style: StrokeStyle) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -705,6 +772,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowStart(column: Int, row: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -715,6 +783,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowEnd(column: Int, row: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -725,6 +794,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowStartHeadStyle(_ style: ArrowHeadStyle) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -734,6 +804,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowEndHeadStyle(_ style: ArrowHeadStyle) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -743,6 +814,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowDetachStart() {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -752,6 +824,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowDetachEnd() {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -761,6 +834,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedTextOrigin(column: Int, row: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .text(var text) = shape
         else { return }
@@ -770,6 +844,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedTextContent(_ content: String) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .text(var text) = shape
         else { return }
@@ -789,6 +864,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedPencilOrigin(column: Int, row: Int) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .pencil(var pencil) = shape
         else { return }
@@ -798,6 +874,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedPencilCharacter(_ character: Character) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .pencil(var pencil) = shape
         else { return }
@@ -809,6 +886,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedPencilColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .pencil(var pencil) = shape
         else { return }
@@ -822,6 +900,7 @@ final class EditorViewModel {
     // MARK: - Color editing
 
     func updateSelectedBoxBorderColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -831,6 +910,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxFillColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -840,6 +920,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedBoxTextColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .box(var box) = shape
         else { return }
@@ -849,6 +930,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowStrokeColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -858,6 +940,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedArrowLabelColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .arrow(var arrow) = shape
         else { return }
@@ -867,6 +950,7 @@ final class EditorViewModel {
     }
 
     func updateSelectedTextShapeColor(_ color: ShapeColor?) {
+        recordSnapshot()
         guard let shape = selectedShape,
             case .text(var text) = shape
         else { return }
@@ -878,16 +962,19 @@ final class EditorViewModel {
     // MARK: - Palette editing
 
     func addPaletteColor(name: String, color: ShapeColor) {
+        recordSnapshot()
         document.palette.entries.append(ColorPaletteEntry(name: name, color: color))
     }
 
     func updatePaletteColor(id: UUID, name: String? = nil, color: ShapeColor? = nil) {
+        recordSnapshot()
         guard let index = document.palette.entries.firstIndex(where: { $0.id == id }) else { return }
         if let name { document.palette.entries[index].name = name }
         if let color { document.palette.entries[index].color = color }
     }
 
     func removePaletteColor(id: UUID) {
+        recordSnapshot()
         document.palette.entries.removeAll { $0.id == id }
     }
 
@@ -1029,6 +1116,7 @@ final class EditorViewModel {
     }
 
     func deleteSelectedShapes() {
+        recordSnapshot()
         for id in selectedShapeIDs {
             detachArrows(referencing: id)
             document.removeShape(id: id)
@@ -1038,6 +1126,7 @@ final class EditorViewModel {
     }
 
     func moveSelectedShapes(dx: Int, dy: Int) {
+        recordSnapshot()
         for id in selectedShapeIDs {
             guard let layerIndex = document.layerIndex(containingShape: id),
                 !document.layers[layerIndex].isLocked,
@@ -1085,6 +1174,7 @@ final class EditorViewModel {
     // MARK: - Layer management
 
     func addLayer() {
+        recordSnapshot()
         let name = "Layer \(document.layers.count + 1)"
         document.addLayer(name: name)
         activeLayerIndex = document.layers.count - 1
@@ -1092,6 +1182,7 @@ final class EditorViewModel {
     }
 
     func removeLayer(at index: Int) {
+        recordSnapshot()
         document.removeLayer(at: index)
         if activeLayerIndex >= document.layers.count {
             activeLayerIndex = document.layers.count - 1
@@ -1100,23 +1191,27 @@ final class EditorViewModel {
     }
 
     func toggleLayerVisibility(at index: Int) {
+        recordSnapshot()
         guard document.layers.indices.contains(index) else { return }
         document.layers[index].isVisible.toggle()
         rerender()
     }
 
     func toggleLayerLock(at index: Int) {
+        recordSnapshot()
         guard document.layers.indices.contains(index) else { return }
         document.layers[index].isLocked.toggle()
     }
 
     func moveActiveLayerUp() {
+        recordSnapshot()
         guard document.moveLayerUp(at: activeLayerIndex) else { return }
         activeLayerIndex += 1
         rerender()
     }
 
     func moveActiveLayerDown() {
+        recordSnapshot()
         guard document.moveLayerDown(at: activeLayerIndex) else { return }
         activeLayerIndex -= 1
         rerender()
@@ -1131,45 +1226,53 @@ final class EditorViewModel {
     }
 
     func moveSelectedShapeForward() {
+        recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
         guard document.moveShapeForward(id: shapeID) else { return }
         rerender()
     }
 
     func moveSelectedShapeBackward() {
+        recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
         guard document.moveShapeBackward(id: shapeID) else { return }
         rerender()
     }
 
     func moveSelectedShapeToFront() {
+        recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
         guard document.moveShapeToFront(id: shapeID) else { return }
         rerender()
     }
 
     func moveSelectedShapeToBack() {
+        recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
         guard document.moveShapeToBack(id: shapeID) else { return }
         rerender()
     }
 
     func moveShapeForward(_ shapeID: UUID) {
+        recordSnapshot()
         guard document.moveShapeForward(id: shapeID) else { return }
         rerender()
     }
 
     func moveShapeBackward(_ shapeID: UUID) {
+        recordSnapshot()
         guard document.moveShapeBackward(id: shapeID) else { return }
         rerender()
     }
 
     func moveShapeToFront(_ shapeID: UUID) {
+        recordSnapshot()
         guard document.moveShapeToFront(id: shapeID) else { return }
         rerender()
     }
 
     func moveShapeToBack(_ shapeID: UUID) {
+        recordSnapshot()
         guard document.moveShapeToBack(id: shapeID) else { return }
         rerender()
     }
@@ -1212,6 +1315,7 @@ final class EditorViewModel {
     }
 
     func groupSelectedShapes() {
+        recordSnapshot()
         guard canGroupSelectedShapes(),
             let firstSelectedShapeID = selectedShapeIDs.first,
             let layerIndex = document.layerIndex(containingShape: firstSelectedShapeID)
@@ -1235,6 +1339,7 @@ final class EditorViewModel {
     }
 
     func moveLayer(draggedLayerID: UUID, before targetLayerID: UUID) {
+        recordSnapshot()
         let activeLayerID =
             document.layers.indices.contains(activeLayerIndex)
             ? document.layers[activeLayerIndex].id
@@ -1249,6 +1354,7 @@ final class EditorViewModel {
     }
 
     func moveLayer(draggedLayerID: UUID, after targetLayerID: UUID) {
+        recordSnapshot()
         let activeLayerID =
             document.layers.indices.contains(activeLayerIndex)
             ? document.layers[activeLayerIndex].id
@@ -1263,16 +1369,19 @@ final class EditorViewModel {
     }
 
     func moveShape(draggedShapeID: UUID, before targetShapeID: UUID, in layerID: UUID) {
+        recordSnapshot()
         guard document.moveShape(id: draggedShapeID, before: targetShapeID, in: layerID) else { return }
         rerender()
     }
 
     func moveShape(draggedShapeID: UUID, after targetShapeID: UUID, in layerID: UUID) {
+        recordSnapshot()
         guard document.moveShape(id: draggedShapeID, after: targetShapeID, in: layerID) else { return }
         rerender()
     }
 
     func moveShape(draggedShapeID: UUID, toLayer targetLayerID: UUID) {
+        recordSnapshot()
         guard document.moveShape(id: draggedShapeID, toLayer: targetLayerID) else { return }
         if let newLayerIndex = document.layerIndex(containingShape: draggedShapeID) {
             activeLayerIndex = newLayerIndex
@@ -1299,6 +1408,7 @@ final class EditorViewModel {
     }
 
     func renameShapeFromPanel(_ shapeID: UUID, to newName: String) {
+        recordSnapshot()
         for layerIndex in document.layers.indices {
             guard let shapeIndex = document.layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }) else {
                 continue
@@ -1310,6 +1420,7 @@ final class EditorViewModel {
     }
 
     func renameGroupFromPanel(_ groupID: UUID, to newName: String) {
+        recordSnapshot()
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
