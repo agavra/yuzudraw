@@ -3,10 +3,18 @@ import SwiftUI
 @main
 struct YuzuDrawApp: App {
     @State private var workspace = WorkspaceViewModel()
+    @State private var mcpServer: MCPServer?
 
     var body: some Scene {
         WindowGroup {
             RootView(workspace: workspace)
+                .onAppear {
+                    if mcpServer == nil {
+                        let server = MCPServer(workspace: workspace)
+                        server.start()
+                        mcpServer = server
+                    }
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 700)

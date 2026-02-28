@@ -30,8 +30,6 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_ENTITLEMENTS: YuzuDraw/Resources/YuzuDraw.entitlements
         SWIFT_STRICT_CONCURRENCY: complete
-    entitlements:
-      path: YuzuDraw/Resources/YuzuDraw.entitlements
 
   YuzuDrawTests:
     type: bundle.unit-test

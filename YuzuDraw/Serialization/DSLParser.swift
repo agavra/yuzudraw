@@ -43,8 +43,18 @@ enum DSLParser {
                 let name = try parseQuotedString(from: trimmed, after: "group ")
                 groupStack.append(
                     GroupStackEntry(name: name, shapeIDs: [], children: [], indent: indentLevel))
-            } else if trimmed.hasPrefix("box ") || trimmed.hasPrefix("arrow ")
-                || trimmed.hasPrefix("text ") || trimmed.hasPrefix("pencil ")
+            } else if trimmed.hasPrefix("arrow ") {
+                // Pop groups whose indent is >= this shape's indent
+                popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
+
+                let arrow = try parseArrow(trimmed, layers: layers, currentLayer: currentLayer)
+                let shape = AnyShape.arrow(arrow)
+                if !groupStack.isEmpty {
+                    groupStack[groupStack.count - 1].shapeIDs.append(shape.id)
+                }
+                currentLayer?.addShape(shape)
+            } else if trimmed.hasPrefix("box ") || trimmed.hasPrefix("text ")
+                || trimmed.hasPrefix("pencil ")
             {
                 // Pop groups whose indent is >= this shape's indent
                 popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
@@ -118,8 +128,6 @@ enum DSLParser {
     private static func parseShape(_ line: String) throws -> AnyShape {
         if line.hasPrefix("box ") {
             return try .box(parseBox(line))
-        } else if line.hasPrefix("arrow ") {
-            return try .arrow(parseArrow(line))
         } else if line.hasPrefix("text ") {
             return try .text(parseText(line))
         } else if line.hasPrefix("pencil ") {
@@ -327,20 +335,63 @@ enum DSLParser {
         )
     }
 
-    private static func parseArrow(_ line: String) throws -> ArrowShape {
-        // arrow from col,row to col,row [style|stroke styleName] [label "text"]
+    // MARK: - Arrow parsing
+
+    private struct NamedEndpoint {
+        let label: String
+        let side: ArrowAttachmentSide
+    }
+
+    private static func parseArrow(
+        _ line: String, layers: [Layer], currentLayer: Layer?
+    ) throws -> ArrowShape {
+        // Supports two endpoint formats:
+        //   arrow from col,row to col,row ...
+        //   arrow from "BoxLabel".side to "BoxLabel".side ...
         guard let fromRange = line.range(of: "from ") else {
             throw DSLParserError.invalidSyntax("Expected 'from' in arrow: \(line)")
         }
         let afterFrom = String(line[fromRange.upperBound...])
-        let (startCol, startRow) = try parseCoordinate(afterFrom)
 
         guard let toRange = line.range(of: " to ") else {
             throw DSLParserError.invalidSyntax("Expected 'to' in arrow: \(line)")
         }
         let afterTo = String(line[toRange.upperBound...])
-        let (endCol, endRow) = try parseCoordinate(afterTo)
 
+        let allShapes = (layers + (currentLayer.map { [$0] } ?? []))
+            .flatMap(\.shapes)
+
+        // Parse start endpoint
+        var startPoint: GridPoint
+        var startAttachment: ArrowAttachment?
+        if let ref = parseNamedEndpoint(afterFrom) {
+            guard let box = findBoxByLabel(ref.label, in: allShapes) else {
+                throw DSLParserError.invalidSyntax(
+                    "Box '\(ref.label)' not found for arrow attachment")
+            }
+            startPoint = box.attachmentPoint(for: ref.side)
+            startAttachment = ArrowAttachment(shapeID: box.id, side: ref.side)
+        } else {
+            let (col, row) = try parseCoordinate(afterFrom)
+            startPoint = GridPoint(column: col, row: row)
+        }
+
+        // Parse end endpoint
+        var endPoint: GridPoint
+        var endAttachment: ArrowAttachment?
+        if let ref = parseNamedEndpoint(afterTo) {
+            guard let box = findBoxByLabel(ref.label, in: allShapes) else {
+                throw DSLParserError.invalidSyntax(
+                    "Box '\(ref.label)' not found for arrow attachment")
+            }
+            endPoint = box.attachmentPoint(for: ref.side)
+            endAttachment = ArrowAttachment(shapeID: box.id, side: ref.side)
+        } else {
+            let (col, row) = try parseCoordinate(afterTo)
+            endPoint = GridPoint(column: col, row: row)
+        }
+
+        // Parse remaining properties (style, label, colors)
         var label = ""
         if line.contains(" label ") {
             label = (try? parseQuotedString(from: line, after: "label ")) ?? ""
@@ -365,13 +416,44 @@ enum DSLParser {
         let labelColor = parseColorKeyword("labelColor", in: line)
 
         return ArrowShape(
-            start: GridPoint(column: startCol, row: startRow),
-            end: GridPoint(column: endCol, row: endRow),
+            start: startPoint,
+            end: endPoint,
             label: label,
             strokeStyle: strokeStyle,
+            startAttachment: startAttachment,
+            endAttachment: endAttachment,
             strokeColor: strokeColor,
             labelColor: labelColor
         )
+    }
+
+    /// Parse a named endpoint like `"BoxLabel".right`
+    private static func parseNamedEndpoint(_ text: String) -> NamedEndpoint? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard trimmed.first == "\"" else { return nil }
+
+        let afterOpen = trimmed.index(after: trimmed.startIndex)
+        guard let closeQuote = trimmed[afterOpen...].firstIndex(of: "\"") else { return nil }
+        let label = String(trimmed[afterOpen..<closeQuote])
+
+        let afterClose = trimmed.index(after: closeQuote)
+        guard afterClose < trimmed.endIndex, trimmed[afterClose] == "." else { return nil }
+
+        let sideStart = trimmed.index(after: afterClose)
+        let sideStr = String(trimmed[sideStart...].prefix(while: { !$0.isWhitespace }))
+        guard let side = ArrowAttachmentSide(rawValue: sideStr) else { return nil }
+
+        return NamedEndpoint(label: label, side: side)
+    }
+
+    /// Find the first box with a matching label across all shapes.
+    private static func findBoxByLabel(_ label: String, in shapes: [AnyShape]) -> BoxShape? {
+        for shape in shapes {
+            if case .box(let box) = shape, box.label == label {
+                return box
+            }
+        }
+        return nil
     }
 
     private static func parseText(_ line: String) throws -> TextShape {

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "yuzudraw": {
+      "type": "http",
+      "url": "http://localhost:7842/mcp"
+    }
+  }
+}
