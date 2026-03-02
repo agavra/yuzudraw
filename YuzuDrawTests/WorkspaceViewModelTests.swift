@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import YuzuDraw
@@ -61,5 +62,65 @@ struct WorkspaceViewModelTests {
         #expect(workspace.tabs.count == 1)
         #expect(workspace.activeTab?.isStartPage == true)
         #expect(workspace.activeEditor == nil)
+    }
+
+    @Test func should_delete_recent_project_from_disk_and_close_open_tabs() throws {
+        // given
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let fileURL = tempDirectory
+            .appendingPathComponent("Delete Me")
+            .appendingPathExtension(ProjectFileManager.fileExtension)
+        try Data("{}".utf8).write(to: fileURL)
+
+        let metadata = ProjectMetadata(name: "Delete Me", fileURL: fileURL)
+        let tab = ProjectTab(metadata: metadata)
+        let workspace = WorkspaceViewModel(
+            tabs: [tab],
+            editors: [tab.id: EditorViewModel()],
+            activeTabID: tab.id
+        )
+        workspace.recentProjects = [RecentProject(name: "Delete Me", fileURL: fileURL)]
+
+        // when
+        workspace.deleteRecentProjectFromDisk(workspace.recentProjects[0])
+
+        // then
+        #expect(FileManager.default.fileExists(atPath: fileURL.path) == false)
+        #expect(workspace.recentProjects.isEmpty)
+        #expect(workspace.tabs.count == 1)
+        #expect(workspace.tabs[0].isStartPage)
+    }
+
+    @Test func should_recover_recent_projects_from_disk_when_defaults_are_empty() throws {
+        // given
+        let defaultsKey = "recentProjects"
+        let originalData = UserDefaults.standard.data(forKey: defaultsKey)
+        defer {
+            if let originalData {
+                UserDefaults.standard.set(originalData, forKey: defaultsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: defaultsKey)
+            }
+        }
+
+        let emptyRecentData = try JSONEncoder().encode([RecentProject]())
+        UserDefaults.standard.set(emptyRecentData, forKey: defaultsKey)
+
+        try ProjectFileManager.ensureProjectsDirectoryExists()
+        let fileURL = ProjectFileManager.projectsDirectory
+            .appendingPathComponent("Recovery Test \(UUID().uuidString)")
+            .appendingPathExtension(ProjectFileManager.fileExtension)
+        try Data("{}".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        // when
+        let workspace = WorkspaceViewModel()
+
+        // then
+        #expect(workspace.recentProjects.contains { $0.fileURL == fileURL })
     }
 }

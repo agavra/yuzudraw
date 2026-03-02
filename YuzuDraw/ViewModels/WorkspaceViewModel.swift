@@ -253,11 +253,19 @@ final class WorkspaceViewModel {
     // MARK: - Recent projects
 
     private func loadRecentProjects() {
-        guard let data = UserDefaults.standard.data(forKey: Self.recentProjectsKey),
-              let projects = try? JSONDecoder().decode([RecentProject].self, from: data)
-        else { return }
+        if let data = UserDefaults.standard.data(forKey: Self.recentProjectsKey),
+           let projects = try? JSONDecoder().decode([RecentProject].self, from: data)
+        {
+            recentProjects = projects.filter { ProjectFileManager.fileExists(at: $0.fileURL) }
+        }
 
-        recentProjects = projects.filter { ProjectFileManager.fileExists(at: $0.fileURL) }
+        // Recover recents from on-disk projects if defaults are empty or stale.
+        if recentProjects.isEmpty {
+            recentProjects = discoverRecentProjectsOnDisk()
+            if !recentProjects.isEmpty {
+                persistRecentProjects()
+            }
+        }
     }
 
     private func persistRecentProjects() {
@@ -280,9 +288,51 @@ final class WorkspaceViewModel {
         persistRecentProjects()
     }
 
+    private func discoverRecentProjectsOnDisk() -> [RecentProject] {
+        guard let files = try? ProjectFileManager.listProjectFiles() else { return [] }
+
+        let projects = files.map { fileURL in
+            let resourceValues = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey])
+            let modifiedDate = resourceValues?.contentModificationDate ?? Date.distantPast
+            return RecentProject(
+                name: fileURL.deletingPathExtension().lastPathComponent,
+                fileURL: fileURL,
+                lastOpened: modifiedDate
+            )
+        }
+
+        return projects
+            .sorted(by: { $0.lastOpened > $1.lastOpened })
+            .prefix(20)
+            .map { $0 }
+    }
+
     func removeFromRecentProjects(_ project: RecentProject) {
         recentProjects.removeAll { $0.id == project.id }
         persistRecentProjects()
+    }
+
+    func deleteRecentProjectFromDisk(_ project: RecentProject) {
+        let projectURL = project.fileURL
+
+        // Close all tabs pointing at this file before deletion.
+        let tabIDsToClose = tabs
+            .filter { $0.metadata.fileURL == projectURL }
+            .map(\.id)
+        for tabID in tabIDsToClose {
+            closeTab(id: tabID)
+        }
+
+        do {
+            if ProjectFileManager.fileExists(at: projectURL) {
+                try ProjectFileManager.delete(at: projectURL)
+            }
+
+            recentProjects.removeAll { $0.fileURL == projectURL }
+            persistRecentProjects()
+        } catch {
+            print("Failed to delete project: \(error)")
+        }
     }
 
     // MARK: - Rename

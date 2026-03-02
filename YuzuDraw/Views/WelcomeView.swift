@@ -60,6 +60,8 @@ struct WelcomeView: View {
                         ForEach(workspace.recentProjects) { project in
                             RecentProjectCard(project: project) {
                                 workspace.openProject(from: project.fileURL)
+                            } onDeleteFromDisk: {
+                                workspace.deleteRecentProjectFromDisk(project)
                             } onRemove: {
                                 workspace.removeFromRecentProjects(project)
                             }
@@ -107,6 +109,7 @@ extension WorkspaceViewModel {
 private struct RecentProjectCard: View {
     let project: RecentProject
     let onOpen: () -> Void
+    let onDeleteFromDisk: () -> Void
     let onRemove: () -> Void
 
     @State private var isHovering = false
@@ -149,5 +152,11 @@ private struct RecentProjectCard: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+        .contextMenu {
+            Button("Open", action: onOpen)
+            Divider()
+            Button("Delete from Disk", role: .destructive, action: onDeleteFromDisk)
+            Button("Remove from Recents", action: onRemove)
+        }
     }
 }
