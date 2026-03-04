@@ -18,6 +18,13 @@ enum ColorTarget: Hashable {
 @MainActor
 @Observable
 final class EditorViewModel {
+    private struct ShapeClipboardPayload: Codable, Sendable {
+        var shapes: [AnyShape]
+    }
+
+    private static let shapeClipboardType = NSPasteboard.PasteboardType("com.yuzudraw.shapes+json")
+    private static let pasteOffset = GridPoint(column: 2, row: 1)
+
     var document: Document
     var canvas: Canvas
     var selectedShapeIDs: Set<UUID> = [] {
@@ -104,6 +111,8 @@ final class EditorViewModel {
     private var arrowTool = ArrowTool()
     private var textTool = TextTool()
     private var pencilTool = PencilTool()
+    private var lastPastedPayloadData: Data?
+    private var consecutivePasteCount = 0
 
     var activeTool: any Tool {
         switch activeToolType {
@@ -985,6 +994,103 @@ final class EditorViewModel {
 
     // MARK: - Layer export
 
+    func canCopySelectedShapes() -> Bool {
+        !isEditingText && !selectedShapesInDocumentOrder().isEmpty
+    }
+
+    func canCopySelectionAsPlainText() -> Bool {
+        !isEditingText && (document.hasContent || !selectedShapesInDocumentOrder().isEmpty)
+    }
+
+    func canPasteShapesFromClipboard() -> Bool {
+        guard !isEditingText,
+            document.layers.indices.contains(activeLayerIndex),
+            !document.layers[activeLayerIndex].isLocked,
+            let payloadData = clipboardPayloadData(from: NSPasteboard.general)
+        else { return false }
+        return decodeShapeClipboardPayload(from: payloadData) != nil
+    }
+
+    func copySelectedShapesToClipboard() {
+        guard let payloadData = selectedShapesClipboardPayloadData() else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(payloadData, forType: Self.shapeClipboardType)
+        if let payloadString = String(data: payloadData, encoding: .utf8) {
+            pasteboard.setString(payloadString, forType: .string)
+        }
+        lastPastedPayloadData = nil
+        consecutivePasteCount = 0
+    }
+
+    @discardableResult
+    func pasteShapesFromClipboard() -> Bool {
+        guard let payloadData = clipboardPayloadData(from: NSPasteboard.general) else { return false }
+        return pasteShapes(fromClipboardPayloadData: payloadData)
+    }
+
+    @discardableResult
+    func pasteShapes(fromClipboardPayloadData payloadData: Data) -> Bool {
+        guard !isEditingText,
+            document.layers.indices.contains(activeLayerIndex),
+            !document.layers[activeLayerIndex].isLocked,
+            let payload = decodeShapeClipboardPayload(from: payloadData),
+            !payload.shapes.isEmpty
+        else { return false }
+
+        if lastPastedPayloadData == payloadData {
+            consecutivePasteCount += 1
+        } else {
+            lastPastedPayloadData = payloadData
+            consecutivePasteCount = 1
+        }
+
+        let dx = Self.pasteOffset.column * consecutivePasteCount
+        let dy = Self.pasteOffset.row * consecutivePasteCount
+
+        recordSnapshot()
+
+        let idMap = Dictionary(uniqueKeysWithValues: payload.shapes.map { ($0.id, UUID()) })
+        var pastedShapeIDs: Set<UUID> = []
+
+        for shape in payload.shapes {
+            guard let newID = idMap[shape.id] else { continue }
+            let remappedShape = remappedShapeForClipboardPaste(shape, newID: newID, idMap: idMap)
+            let translated = translatedShape(remappedShape, dx: dx, dy: dy)
+            document.addShape(translated, toLayerAt: activeLayerIndex)
+            pastedShapeIDs.insert(translated.id)
+        }
+
+        selectedShapeIDs = pastedShapeIDs
+        activeToolType = .select
+        rerender()
+        return true
+    }
+
+    func selectedShapesClipboardPayloadData() -> Data? {
+        let shapes = selectedShapesInDocumentOrder()
+        guard !shapes.isEmpty else { return nil }
+        let payload = ShapeClipboardPayload(shapes: shapes)
+        let encoder = JSONEncoder()
+        return try? encoder.encode(payload)
+    }
+
+    func copySelectionAsPlainTextToClipboard() {
+        guard let text = selectionOrCanvasPlainText() else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
+    func selectionOrCanvasPlainText() -> String? {
+        let selectedShapes = selectedShapesInDocumentOrder()
+        if !selectedShapes.isEmpty {
+            return plainText(for: selectedShapes)
+        }
+        guard document.hasContent else { return nil }
+        return canvas.render()
+    }
+
     func copySelectedLayerAsTextToClipboard() {
         guard let text = selectedLayerPlainText() else { return }
         let pasteboard = NSPasteboard.general
@@ -995,6 +1101,151 @@ final class EditorViewModel {
     func selectedLayerPlainText() -> String? {
         guard let canvas = selectedLayerExportCanvas() else { return nil }
         return canvas.render()
+    }
+
+    private func selectedShapesInDocumentOrder() -> [AnyShape] {
+        var ordered: [AnyShape] = []
+        for layer in document.layers {
+            for shape in layer.shapes where selectedShapeIDs.contains(shape.id) {
+                ordered.append(shape)
+            }
+        }
+        return ordered
+    }
+
+    private func clipboardPayloadData(from pasteboard: NSPasteboard) -> Data? {
+        if let data = pasteboard.data(forType: Self.shapeClipboardType) {
+            return data
+        }
+        if let string = pasteboard.string(forType: .string) {
+            return string.data(using: .utf8)
+        }
+        return nil
+    }
+
+    private func decodeShapeClipboardPayload(from data: Data) -> ShapeClipboardPayload? {
+        try? JSONDecoder().decode(ShapeClipboardPayload.self, from: data)
+    }
+
+    private func remappedShapeForClipboardPaste(
+        _ shape: AnyShape,
+        newID: UUID,
+        idMap: [UUID: UUID]
+    ) -> AnyShape {
+        switch shape {
+        case .box(let box):
+            return .box(
+                BoxShape(
+                    id: newID,
+                    name: box.name,
+                    origin: box.origin,
+                    size: box.size,
+                    strokeStyle: box.strokeStyle,
+                    hasBorder: box.hasBorder,
+                    visibleBorders: box.visibleBorders,
+                    borderLineStyle: box.borderLineStyle,
+                    borderDashLength: box.borderDashLength,
+                    borderGapLength: box.borderGapLength,
+                    fillMode: box.fillMode,
+                    fillCharacter: box.fillCharacter,
+                    label: box.label,
+                    textHorizontalAlignment: box.textHorizontalAlignment,
+                    textVerticalAlignment: box.textVerticalAlignment,
+                    allowTextOnBorder: box.allowTextOnBorder,
+                    textPaddingLeft: box.textPaddingLeft,
+                    textPaddingRight: box.textPaddingRight,
+                    textPaddingTop: box.textPaddingTop,
+                    textPaddingBottom: box.textPaddingBottom,
+                    hasShadow: box.hasShadow,
+                    shadowStyle: box.shadowStyle,
+                    shadowOffsetX: box.shadowOffsetX,
+                    shadowOffsetY: box.shadowOffsetY,
+                    borderColor: box.borderColor,
+                    fillColor: box.fillColor,
+                    textColor: box.textColor
+                )
+            )
+        case .arrow(let arrow):
+            var startAttachment = arrow.startAttachment
+            var endAttachment = arrow.endAttachment
+
+            if let attachment = startAttachment {
+                if let remappedShapeID = idMap[attachment.shapeID] {
+                    startAttachment = ArrowAttachment(shapeID: remappedShapeID, side: attachment.side)
+                } else {
+                    startAttachment = nil
+                }
+            }
+
+            if let attachment = endAttachment {
+                if let remappedShapeID = idMap[attachment.shapeID] {
+                    endAttachment = ArrowAttachment(shapeID: remappedShapeID, side: attachment.side)
+                } else {
+                    endAttachment = nil
+                }
+            }
+
+            return .arrow(
+                ArrowShape(
+                    id: newID,
+                    name: arrow.name,
+                    start: arrow.start,
+                    end: arrow.end,
+                    label: arrow.label,
+                    strokeStyle: arrow.strokeStyle,
+                    bendDirection: arrow.bendDirection,
+                    startAttachment: startAttachment,
+                    endAttachment: endAttachment,
+                    startHeadStyle: arrow.startHeadStyle,
+                    endHeadStyle: arrow.endHeadStyle,
+                    strokeColor: arrow.strokeColor,
+                    labelColor: arrow.labelColor
+                )
+            )
+        case .text(let text):
+            return .text(
+                TextShape(
+                    id: newID,
+                    name: text.name,
+                    origin: text.origin,
+                    text: text.text,
+                    textColor: text.textColor
+                )
+            )
+        case .pencil(let pencil):
+            return .pencil(
+                PencilShape(
+                    id: newID,
+                    name: pencil.name,
+                    origin: pencil.origin,
+                    cells: pencil.cells
+                )
+            )
+        }
+    }
+
+    private func plainText(for shapes: [AnyShape]) -> String? {
+        guard !shapes.isEmpty else { return nil }
+
+        let first = shapes[0].boundingRect
+        let bounds = shapes.dropFirst().reduce(first) { result, shape in
+            let rect = shape.boundingRect
+            let minColumn = min(result.minColumn, rect.minColumn)
+            let minRow = min(result.minRow, rect.minRow)
+            let maxColumn = max(result.maxColumn, rect.maxColumn)
+            let maxRow = max(result.maxRow, rect.maxRow)
+            return GridRect(
+                origin: GridPoint(column: minColumn, row: minRow),
+                size: GridSize(width: maxColumn - minColumn + 1, height: maxRow - minRow + 1)
+            )
+        }
+
+        var exportCanvas = Canvas(columns: bounds.size.width, rows: bounds.size.height)
+        for shape in shapes {
+            translatedShape(shape, dx: -bounds.origin.column, dy: -bounds.origin.row)
+                .render(into: &exportCanvas)
+        }
+        return exportCanvas.render()
     }
 
     func exportSelectedLayerAsPNG(scale: Int, backgroundColor: ShapeColor?) {

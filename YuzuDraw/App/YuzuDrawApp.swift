@@ -33,6 +33,9 @@ struct YuzuDrawApp: App {
                 .disabled(workspace.activeEditor?.canRedo != true)
             }
 
+            CommandGroup(replacing: .textEditing) {}
+            CommandGroup(replacing: .textFormatting) {}
+
             CommandGroup(replacing: .newItem) {
                 Button("New Project") {
                     workspace.newProject()
@@ -67,6 +70,32 @@ struct YuzuDrawApp: App {
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(workspace.activeEditor == nil)
+            }
+
+            CommandGroup(replacing: .pasteboard) {
+                Button("Copy") {
+                    if NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) {
+                        return
+                    }
+                    workspace.activeEditor?.copySelectedShapesToClipboard()
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                .disabled(workspace.activeEditor == nil)
+
+                Button("Paste") {
+                    if NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil) {
+                        return
+                    }
+                    _ = workspace.activeEditor?.pasteShapesFromClipboard()
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                .disabled(workspace.activeEditor == nil)
+
+                Button("Copy as Plain Text") {
+                    workspace.activeEditor?.copySelectionAsPlainTextToClipboard()
+                }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(workspace.activeEditor?.canCopySelectionAsPlainText() != true)
             }
 
             CommandGroup(after: .pasteboard) {
