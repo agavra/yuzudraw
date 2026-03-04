@@ -82,6 +82,121 @@ struct SelectionToolTests {
         #expect(action == .none)
     }
 
+    @Test func should_move_all_selected_shapes_when_dragging_one_selected_shape() {
+        // given
+        let tool = SelectionTool()
+        var doc = Document()
+        let box1 = BoxShape(
+            origin: GridPoint(column: 5, row: 3),
+            size: GridSize(width: 10, height: 6)
+        )
+        let box2 = BoxShape(
+            origin: GridPoint(column: 15, row: 8),
+            size: GridSize(width: 8, height: 5)
+        )
+        doc.addShape(.box(box1), toLayerAt: 0)
+        doc.addShape(.box(box2), toLayerAt: 0)
+        tool.selectedShapeIDs = [box1.id, box2.id]
+
+        // when
+        _ = tool.mouseDown(at: GridPoint(column: 8, row: 6), in: doc, activeLayerIndex: 0)
+        let action = tool.mouseDragged(
+            to: GridPoint(column: 11, row: 8),
+            in: doc,
+            activeLayerIndex: 0
+        )
+
+        // then
+        if case .updateShapes(let shapes) = action {
+            #expect(shapes.count == 2)
+            let movedBoxes = shapes.compactMap { shape -> BoxShape? in
+                guard case .box(let box) = shape else { return nil }
+                return box
+            }
+            #expect(movedBoxes.contains { $0.id == box1.id && $0.origin == GridPoint(column: 8, row: 5) })
+            #expect(movedBoxes.contains { $0.id == box2.id && $0.origin == GridPoint(column: 18, row: 10) })
+        } else {
+            Issue.record("Expected updateShapes action with both boxes")
+        }
+    }
+
+    @Test func should_preserve_multi_selection_when_mouse_down_on_selected_shape() {
+        // given
+        let tool = SelectionTool()
+        var doc = Document()
+        let box1 = BoxShape(
+            origin: GridPoint(column: 5, row: 3),
+            size: GridSize(width: 10, height: 6)
+        )
+        let box2 = BoxShape(
+            origin: GridPoint(column: 20, row: 6),
+            size: GridSize(width: 8, height: 5)
+        )
+        doc.addShape(.box(box1), toLayerAt: 0)
+        doc.addShape(.box(box2), toLayerAt: 0)
+        tool.selectedShapeIDs = [box1.id, box2.id]
+
+        // when
+        let action = tool.mouseDown(
+            at: GridPoint(column: 8, row: 6),
+            in: doc,
+            activeLayerIndex: 0
+        )
+
+        // then
+        #expect(action == .none)
+    }
+
+    @Test func should_narrow_selection_to_clicked_shape_on_click_without_drag() {
+        // given
+        let tool = SelectionTool()
+        var doc = Document()
+        let box1 = BoxShape(
+            origin: GridPoint(column: 5, row: 3),
+            size: GridSize(width: 10, height: 6)
+        )
+        let box2 = BoxShape(
+            origin: GridPoint(column: 20, row: 6),
+            size: GridSize(width: 8, height: 5)
+        )
+        doc.addShape(.box(box1), toLayerAt: 0)
+        doc.addShape(.box(box2), toLayerAt: 0)
+        tool.selectedShapeIDs = [box1.id, box2.id]
+
+        // when - click on box1 without dragging
+        let clickPoint = GridPoint(column: 8, row: 6)
+        _ = tool.mouseDown(at: clickPoint, in: doc, activeLayerIndex: 0)
+        let action = tool.mouseUp(at: clickPoint, in: doc, activeLayerIndex: 0)
+
+        // then - selection narrows to just box1
+        #expect(action == .selectShape(box1.id))
+    }
+
+    @Test func should_preserve_multi_selection_after_drag() {
+        // given
+        let tool = SelectionTool()
+        var doc = Document()
+        let box1 = BoxShape(
+            origin: GridPoint(column: 5, row: 3),
+            size: GridSize(width: 10, height: 6)
+        )
+        let box2 = BoxShape(
+            origin: GridPoint(column: 20, row: 8),
+            size: GridSize(width: 8, height: 5)
+        )
+        doc.addShape(.box(box1), toLayerAt: 0)
+        doc.addShape(.box(box2), toLayerAt: 0)
+        tool.selectedShapeIDs = [box1.id, box2.id]
+
+        // when - click and drag
+        _ = tool.mouseDown(at: GridPoint(column: 8, row: 6), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDragged(to: GridPoint(column: 11, row: 8), in: doc, activeLayerIndex: 0)
+        let action = tool.mouseUp(at: GridPoint(column: 11, row: 8), in: doc, activeLayerIndex: 0)
+
+        // then - multi-selection is preserved (no narrowing)
+        #expect(action == .none)
+    }
+
     @Test func should_resize_box_from_bottom_right_handle() {
         // given
         let tool = SelectionTool()

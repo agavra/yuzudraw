@@ -286,6 +286,11 @@ final class EditorViewModel {
         case .updateShape(let shape):
             updateShapeAndAttachments(shape)
             rerender()
+        case .updateShapes(let shapes):
+            for shape in shapes {
+                updateShapeAndAttachments(shape)
+            }
+            rerender()
         }
     }
 
@@ -1133,39 +1138,7 @@ final class EditorViewModel {
                 let shape = document.findShape(id: id)
             else { continue }
 
-            let movedShape: AnyShape
-            switch shape {
-            case .box(var box):
-                box.origin = GridPoint(
-                    column: box.origin.column + dx,
-                    row: box.origin.row + dy
-                )
-                movedShape = .box(box)
-            case .arrow(var arrow):
-                arrow.start = GridPoint(
-                    column: arrow.start.column + dx,
-                    row: arrow.start.row + dy
-                )
-                arrow.end = GridPoint(
-                    column: arrow.end.column + dx,
-                    row: arrow.end.row + dy
-                )
-                arrow.startAttachment = nil
-                arrow.endAttachment = nil
-                movedShape = .arrow(arrow)
-            case .text(var text):
-                text.origin = GridPoint(
-                    column: text.origin.column + dx,
-                    row: text.origin.row + dy
-                )
-                movedShape = .text(text)
-            case .pencil(var pencil):
-                pencil.origin = GridPoint(
-                    column: pencil.origin.column + dx,
-                    row: pencil.origin.row + dy
-                )
-                movedShape = .pencil(pencil)
-            }
+            let movedShape = translatedForSelectionMove(shape: shape, dx: dx, dy: dy)
             updateShapeAndAttachments(movedShape)
         }
         rerender()
@@ -1611,5 +1584,51 @@ final class EditorViewModel {
         }
 
         return (box.attachmentPoint(for: attachment.side), attachment.side)
+    }
+
+    private func translatedForSelectionMove(shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
+        switch shape {
+        case .box(var box):
+            box.origin = GridPoint(
+                column: box.origin.column + dx,
+                row: box.origin.row + dy
+            )
+            return .box(box)
+        case .arrow(var arrow):
+            arrow.start = GridPoint(
+                column: arrow.start.column + dx,
+                row: arrow.start.row + dy
+            )
+            arrow.end = GridPoint(
+                column: arrow.end.column + dx,
+                row: arrow.end.row + dy
+            )
+
+            // Preserve only attachments to shapes that are currently selected and moving.
+            if let attachment = arrow.startAttachment,
+                !selectedShapeIDs.contains(attachment.shapeID)
+            {
+                arrow.startAttachment = nil
+            }
+            if let attachment = arrow.endAttachment,
+                !selectedShapeIDs.contains(attachment.shapeID)
+            {
+                arrow.endAttachment = nil
+            }
+
+            return .arrow(arrow)
+        case .text(var text):
+            text.origin = GridPoint(
+                column: text.origin.column + dx,
+                row: text.origin.row + dy
+            )
+            return .text(text)
+        case .pencil(var pencil):
+            pencil.origin = GridPoint(
+                column: pencil.origin.column + dx,
+                row: pencil.origin.row + dy
+            )
+            return .pencil(pencil)
+        }
     }
 }

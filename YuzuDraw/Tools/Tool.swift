@@ -15,6 +15,7 @@ enum ToolAction: Equatable, Sendable {
     case moveShape(UUID, to: GridPoint)
     case beginTextEdit(GridPoint)
     case updateShape(AnyShape)
+    case updateShapes([AnyShape])
     case selectShapes(Set<UUID>)
 }
 

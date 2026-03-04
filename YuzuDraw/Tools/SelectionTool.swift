@@ -17,6 +17,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
     }
 
     private var mode: Mode = .none
+    private var didDragMove = false
     private var arrowAttachmentPreviewPointsStorage: [GridPoint] = []
 
     /// Exposed for the canvas overlay to draw the marquee rectangle.
@@ -35,8 +36,11 @@ final class SelectionTool: Tool, @unchecked Sendable {
         -> ToolAction
     {
         arrowAttachmentPreviewPointsStorage = []
+        didDragMove = false
 
-        if let (shape, handle) = resizeHandleHit(at: point, in: document) {
+        if selectedShapeIDs.count <= 1,
+            let (shape, handle) = resizeHandleHit(at: point, in: document)
+        {
             mode = .resizingShape(originalShape: shape, handle: handle)
             return .selectShape(shape.id)
         }
@@ -52,6 +56,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
                     row: point.row - rect.origin.row
                 )
             )
+            if selectedShapeIDs.count > 1, selectedShapeIDs.contains(pencilShape.id) {
+                return .none
+            }
             return .selectShape(pencilShape.id)
         }
 
@@ -64,6 +71,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
                     row: point.row - rect.origin.row
                 )
             )
+            if selectedShapeIDs.count > 1, selectedShapeIDs.contains(shape.id) {
+                return .none
+            }
             return .selectShape(shape.id)
         } else {
             mode = .marquee(start: point, current: point)
@@ -94,6 +104,17 @@ final class SelectionTool: Tool, @unchecked Sendable {
                 row: max(0, point.row - offset.row)
             )
 
+            if selectedShapeIDs.count > 1, selectedShapeIDs.contains(shapeID) {
+                let updates = movedSelectedShapes(
+                    draggingShape: shape,
+                    toOrigin: newOrigin,
+                    in: document
+                )
+                if !updates.isEmpty { didDragMove = true }
+                return updates.isEmpty ? .none : .updateShapes(updates)
+            }
+
+            didDragMove = true
             let movedShape: AnyShape
             switch shape {
             case .box(var box):
@@ -145,6 +166,80 @@ final class SelectionTool: Tool, @unchecked Sendable {
         }
     }
 
+    private func movedSelectedShapes(
+        draggingShape: AnyShape,
+        toOrigin newOrigin: GridPoint,
+        in document: Document
+    ) -> [AnyShape] {
+        var movableShapes: [AnyShape] = []
+        for layer in document.layers {
+            guard !layer.isLocked else { continue }
+            for shape in layer.shapes where selectedShapeIDs.contains(shape.id) {
+                movableShapes.append(shape)
+            }
+        }
+
+        guard !movableShapes.isEmpty else { return [] }
+
+        let draggedOrigin = draggingShape.boundingRect.origin
+        var dx = newOrigin.column - draggedOrigin.column
+        var dy = newOrigin.row - draggedOrigin.row
+
+        let minColumn = movableShapes.map { $0.boundingRect.origin.column }.min() ?? 0
+        let minRow = movableShapes.map { $0.boundingRect.origin.row }.min() ?? 0
+        dx = max(-minColumn, dx)
+        dy = max(-minRow, dy)
+
+        if dx == 0, dy == 0 { return [] }
+
+        return movableShapes.map { translateShape($0, dx: dx, dy: dy) }
+    }
+
+    private func translateShape(_ shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
+        switch shape {
+        case .box(var box):
+            box.origin = GridPoint(
+                column: box.origin.column + dx,
+                row: box.origin.row + dy
+            )
+            return .box(box)
+        case .arrow(var arrow):
+            arrow.start = GridPoint(
+                column: arrow.start.column + dx,
+                row: arrow.start.row + dy
+            )
+            arrow.end = GridPoint(
+                column: arrow.end.column + dx,
+                row: arrow.end.row + dy
+            )
+
+            // Preserve only attachments to shapes that are moving as part of this drag.
+            if let attachment = arrow.startAttachment,
+                !selectedShapeIDs.contains(attachment.shapeID)
+            {
+                arrow.startAttachment = nil
+            }
+            if let attachment = arrow.endAttachment,
+                !selectedShapeIDs.contains(attachment.shapeID)
+            {
+                arrow.endAttachment = nil
+            }
+            return .arrow(arrow)
+        case .text(var text):
+            text.origin = GridPoint(
+                column: text.origin.column + dx,
+                row: text.origin.row + dy
+            )
+            return .text(text)
+        case .pencil(var pencil):
+            pencil.origin = GridPoint(
+                column: pencil.origin.column + dx,
+                row: pencil.origin.row + dy
+            )
+            return .pencil(pencil)
+        }
+    }
+
     func mouseUp(at point: GridPoint, in document: Document, activeLayerIndex _: Int) -> ToolAction
     {
         switch mode {
@@ -157,6 +252,15 @@ final class SelectionTool: Tool, @unchecked Sendable {
                 let shapes = document.shapesInRect(rect, excludingLockedLayers: true)
                 let ids = Set(shapes.map(\.id))
                 return .selectShapes(ids)
+            }
+            return .none
+
+        case .draggingShape(let shapeID, _):
+            mode = .none
+            arrowAttachmentPreviewPointsStorage = []
+            // Click without drag on a multi-selected shape: narrow to just that shape.
+            if !didDragMove, selectedShapeIDs.count > 1, selectedShapeIDs.contains(shapeID) {
+                return .selectShape(shapeID)
             }
             return .none
 

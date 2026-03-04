@@ -263,37 +263,11 @@ struct CanvasView: View {
 
     private var selectionOverlay: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(viewModel.selectedShapes) { shape in
-                if case .arrow(let arrow) = shape {
-                    ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
-                        let handleOffset = arrowHandleOffset(for: placement.handle, in: arrow)
-                        Circle()
-                            .fill(Color.accentColor)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 1)
-                            )
-                            .frame(width: 8, height: 8)
-                            .offset(
-                                x: (CGFloat(placement.point.column) + handleOffset.x) * charSize.width - 4,
-                                y: (CGFloat(placement.point.row) + handleOffset.y) * charSize.height - 4
-                            )
-                    }
-                } else {
-                    let rect = shape.boundingRect
-                    ZStack(alignment: .topLeading) {
-                        Rectangle()
-                            .stroke(Color.accentColor, lineWidth: 1)
-                            .frame(
-                                width: CGFloat(rect.size.width) * charSize.width,
-                                height: CGFloat(rect.size.height) * charSize.height
-                            )
-                            .offset(
-                                x: CGFloat(rect.origin.column) * charSize.width,
-                                y: CGFloat(rect.origin.row) * charSize.height
-                            )
-
+            if viewModel.selectedShapes.count <= 1 {
+                ForEach(viewModel.selectedShapes) { shape in
+                    if case .arrow(let arrow) = shape {
                         ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
+                            let handleOffset = arrowHandleOffset(for: placement.handle, in: arrow)
                             Circle()
                                 .fill(Color.accentColor)
                                 .overlay(
@@ -302,11 +276,57 @@ struct CanvasView: View {
                                 )
                                 .frame(width: 8, height: 8)
                                 .offset(
-                                    x: CGFloat(placement.point.column) * charSize.width - 4,
-                                    y: CGFloat(placement.point.row) * charSize.height - 4
+                                    x: (CGFloat(placement.point.column) + handleOffset.x) * charSize.width - 4,
+                                    y: (CGFloat(placement.point.row) + handleOffset.y) * charSize.height - 4
                                 )
                         }
+                    } else {
+                        let rect = shape.boundingRect
+                        ZStack(alignment: .topLeading) {
+                            Rectangle()
+                                .stroke(Color.accentColor, lineWidth: 1)
+                                .frame(
+                                    width: CGFloat(rect.size.width) * charSize.width,
+                                    height: CGFloat(rect.size.height) * charSize.height
+                                )
+                                .offset(
+                                    x: CGFloat(rect.origin.column) * charSize.width,
+                                    y: CGFloat(rect.origin.row) * charSize.height
+                                )
+
+                            ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
+                                Circle()
+                                    .fill(Color.accentColor)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color(nsColor: .textBackgroundColor), lineWidth: 1)
+                                    )
+                                    .frame(width: 8, height: 8)
+                                    .offset(
+                                        x: CGFloat(placement.point.column) * charSize.width - 4,
+                                        y: CGFloat(placement.point.row) * charSize.height - 4
+                                    )
+                            }
+                        }
                     }
+                }
+            } else {
+                ForEach(viewModel.selectedShapes) { shape in
+                    let rect = shape.boundingRect
+                    Rectangle()
+                        .fill(Color.accentColor.opacity(0.08))
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color.accentColor.opacity(0.95), lineWidth: 1)
+                        )
+                        .frame(
+                            width: CGFloat(rect.size.width) * charSize.width,
+                            height: CGFloat(rect.size.height) * charSize.height
+                        )
+                        .offset(
+                            x: CGFloat(rect.origin.column) * charSize.width,
+                            y: CGFloat(rect.origin.row) * charSize.height
+                        )
                 }
             }
             marqueeOverlay
@@ -551,6 +571,7 @@ struct CanvasView: View {
     }
 
     private func cursorForHandle(at point: GridPoint) -> NSCursor? {
+        guard viewModel.selectedShapes.count == 1 else { return nil }
         for shape in viewModel.selectedShapes {
             for placement in shape.resizeHandlePlacements {
                 let dx = abs(placement.point.column - point.column)

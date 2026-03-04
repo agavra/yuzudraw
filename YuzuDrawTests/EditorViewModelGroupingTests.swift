@@ -24,6 +24,24 @@ struct EditorViewModelGroupingTests {
         #expect(viewModel.document.layers[0].groups[0].shapeIDs == [box1.id, box3.id])
     }
 
+    @Test func should_preserve_multi_selection_when_drag_starts_on_selected_shape() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let box1 = BoxShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let box2 = BoxShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.box(box1), toLayerAt: 0)
+        document.addShape(.box(box2), toLayerAt: 0)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+        viewModel.selectedShapeIDs = [box1.id, box2.id]
+
+        // when
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+
+        // then
+        #expect(viewModel.selectedShapeIDs == [box1.id, box2.id])
+    }
+
     @Test func should_not_group_selected_shapes_across_layers() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1"), Layer(name: "Layer 2")])
