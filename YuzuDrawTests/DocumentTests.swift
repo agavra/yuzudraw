@@ -16,13 +16,13 @@ struct DocumentTests {
     @Test func should_add_shape_to_specific_layer() {
         // given
         var doc = Document()
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
 
         // when
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // then
         #expect(doc.layers[0].shapes.count == 1)
@@ -34,31 +34,31 @@ struct DocumentTests {
             Layer(name: "Layer 1"),
             Layer(name: "Layer 2"),
         ])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        doc.addShape(.box(box), toLayerAt: 1)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 1)
 
         // when
-        let found = doc.findShape(id: box.id)
+        let found = doc.findShape(id: rectangle.id)
 
         // then
         #expect(found != nil)
-        #expect(found?.id == box.id)
+        #expect(found?.id == rectangle.id)
     }
 
     @Test func should_remove_shape_from_document() {
         // given
         var doc = Document()
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
-        doc.removeShape(id: box.id)
+        doc.removeShape(id: rectangle.id)
 
         // then
         #expect(doc.layers[0].shapes.isEmpty)
@@ -67,24 +67,24 @@ struct DocumentTests {
     @Test func should_update_existing_shape() {
         // given
         var doc = Document()
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3),
             label: "Old"
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
-        let updated = BoxShape(
-            id: box.id,
+        let updated = RectangleShape(
+            id: rectangle.id,
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 5),
             label: "New"
         )
-        doc.updateShape(.box(updated))
+        doc.updateShape(.rectangle(updated))
 
         // then
-        if case .box(let found) = doc.findShape(id: box.id) {
+        if case .rectangle(let found) = doc.findShape(id: rectangle.id) {
             #expect(found.size.width == 10)
             #expect(found.label == "New")
         } else {
@@ -95,22 +95,22 @@ struct DocumentTests {
     @Test func should_hit_test_topmost_shape() {
         // given
         var doc = Document()
-        let box1 = BoxShape(
+        let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 5)
         )
-        let box2 = BoxShape(
+        let rect2 = RectangleShape(
             origin: GridPoint(column: 5, row: 2),
             size: GridSize(width: 10, height: 5)
         )
-        doc.addShape(.box(box1), toLayerAt: 0)
-        doc.addShape(.box(box2), toLayerAt: 0)
+        doc.addShape(.rectangle(rect1), toLayerAt: 0)
+        doc.addShape(.rectangle(rect2), toLayerAt: 0)
 
         // when - test overlap point
         let hit = doc.hitTest(at: GridPoint(column: 7, row: 3))
 
         // then - should hit the topmost (last added) shape
-        #expect(hit?.id == box2.id)
+        #expect(hit?.id == rect2.id)
     }
 
     @Test func should_skip_hidden_layers_in_hit_test() {
@@ -119,11 +119,11 @@ struct DocumentTests {
             Layer(name: "Layer 1"),
             Layer(name: "Layer 2", isVisible: false),
         ])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 5)
         )
-        doc.addShape(.box(box), toLayerAt: 1)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 1)
 
         // when
         let hit = doc.hitTest(at: GridPoint(column: 5, row: 3))
@@ -198,18 +198,18 @@ struct DocumentTests {
     @Test func should_move_shape_forward_and_backward_within_layer() {
         // given
         var doc = Document()
-        let back = BoxShape(
+        let back = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 4),
             label: "Back"
         )
-        let front = BoxShape(
+        let front = RectangleShape(
             origin: GridPoint(column: 2, row: 1),
             size: GridSize(width: 6, height: 4),
             label: "Front"
         )
-        doc.addShape(.box(back), toLayerAt: 0)
-        doc.addShape(.box(front), toLayerAt: 0)
+        doc.addShape(.rectangle(back), toLayerAt: 0)
+        doc.addShape(.rectangle(front), toLayerAt: 0)
 
         // when
         let movedBackward = doc.moveShapeBackward(id: front.id)
@@ -224,24 +224,24 @@ struct DocumentTests {
     @Test func should_bring_shape_to_front_and_back_within_layer() {
         // given
         var doc = Document()
-        let back = BoxShape(
+        let back = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 4),
             label: "Back"
         )
-        let middle = BoxShape(
+        let middle = RectangleShape(
             origin: GridPoint(column: 2, row: 1),
             size: GridSize(width: 6, height: 4),
             label: "Middle"
         )
-        let front = BoxShape(
+        let front = RectangleShape(
             origin: GridPoint(column: 4, row: 2),
             size: GridSize(width: 6, height: 4),
             label: "Front"
         )
-        doc.addShape(.box(back), toLayerAt: 0)
-        doc.addShape(.box(middle), toLayerAt: 0)
-        doc.addShape(.box(front), toLayerAt: 0)
+        doc.addShape(.rectangle(back), toLayerAt: 0)
+        doc.addShape(.rectangle(middle), toLayerAt: 0)
+        doc.addShape(.rectangle(front), toLayerAt: 0)
 
         // when
         let movedToFront = doc.moveShapeToFront(id: back.id)
@@ -254,26 +254,26 @@ struct DocumentTests {
         #expect(doc.layers[0].shapes[2].id == back.id)
     }
 
-    @Test func should_occlude_lower_layer_when_top_box_fill_is_solid() {
+    @Test func should_occlude_lower_layer_when_top_rectangle_fill_is_solid() {
         // given
         var doc = Document(layers: [
             Layer(name: "Bottom"),
             Layer(name: "Top"),
         ], canvasSize: GridSize(width: 10, height: 6))
-        let bottom = BoxShape(
+        let bottom = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             strokeStyle: .single
         )
-        let top = BoxShape(
+        let top = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 6, height: 3),
             strokeStyle: .single,
             fillMode: .solid,
             fillCharacter: " "
         )
-        doc.addShape(.box(bottom), toLayerAt: 0)
-        doc.addShape(.box(top), toLayerAt: 1)
+        doc.addShape(.rectangle(bottom), toLayerAt: 0)
+        doc.addShape(.rectangle(top), toLayerAt: 1)
         var canvas = Canvas(size: doc.canvasSize)
 
         // when
@@ -288,12 +288,12 @@ struct DocumentTests {
         var doc = Document(
             canvasSize: GridSize(width: 20, height: 5)
         )
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 3),
             strokeStyle: .single
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
         var canvas = Canvas(size: doc.canvasSize)
 
         // when

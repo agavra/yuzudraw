@@ -25,21 +25,21 @@ struct ArrowToolTests {
         }
     }
 
-    @Test func should_attach_arrow_endpoints_to_boxes() {
+    @Test func should_attach_arrow_endpoints_to_rectangles() {
         // given
         let tool = ArrowTool()
         var doc = Document()
 
-        let leftBox = BoxShape(
+        let leftRect = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        let rightBox = BoxShape(
+        let rightRect = RectangleShape(
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.box(leftBox), toLayerAt: 0)
-        doc.addShape(.box(rightBox), toLayerAt: 0)
+        doc.addShape(.rectangle(leftRect), toLayerAt: 0)
+        doc.addShape(.rectangle(rightRect), toLayerAt: 0)
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 5, row: 4), in: doc, activeLayerIndex: 0)
@@ -50,8 +50,8 @@ struct ArrowToolTests {
         if case .addShape(.arrow(let arrow), _) = action {
             #expect(arrow.start == GridPoint(column: 9, row: 4))
             #expect(arrow.end == GridPoint(column: 20, row: 4))
-            #expect(arrow.startAttachment == ArrowAttachment(shapeID: leftBox.id, side: .right))
-            #expect(arrow.endAttachment == ArrowAttachment(shapeID: rightBox.id, side: .left))
+            #expect(arrow.startAttachment == ArrowAttachment(shapeID: leftRect.id, side: .right))
+            #expect(arrow.endAttachment == ArrowAttachment(shapeID: rightRect.id, side: .left))
             #expect(arrow.bendDirection == .horizontalFirst)
         } else {
             Issue.record("Expected addShape action with arrow")
@@ -91,20 +91,20 @@ struct ArrowToolTests {
         // given
         let tool = ArrowTool()
         var doc = Document()
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 10, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: box.boundingRect.minColumn, row: 4), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: rectangle.boundingRect.minColumn, row: 4), in: doc, activeLayerIndex: 0)
         let action = tool.mouseUp(at: GridPoint(column: 0, row: 4), in: doc, activeLayerIndex: 0)
 
         // then
         if case .addShape(.arrow(let arrow), _) = action {
-            #expect(arrow.start == GridPoint(column: box.boundingRect.minColumn, row: 4))
-            #expect(arrow.startAttachment == ArrowAttachment(shapeID: box.id, side: .left))
+            #expect(arrow.start == GridPoint(column: rectangle.boundingRect.minColumn, row: 4))
+            #expect(arrow.startAttachment == ArrowAttachment(shapeID: rectangle.id, side: .left))
         } else {
             Issue.record("Expected addShape action with arrow")
         }
@@ -114,11 +114,11 @@ struct ArrowToolTests {
         // given
         let tool = ArrowTool()
         var doc = Document()
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 10, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 8, row: 4), in: doc, activeLayerIndex: 0)

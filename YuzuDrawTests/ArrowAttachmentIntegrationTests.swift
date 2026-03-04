@@ -4,20 +4,20 @@ import Testing
 
 struct ArrowAttachmentIntegrationTests {
     @MainActor
-    @Test func should_reroute_attached_arrow_when_box_moves() {
+    @Test func should_reroute_attached_arrow_when_rectangle_moves() {
         // given
         let vm = EditorViewModel()
 
-        let leftBox = BoxShape(
+        let leftRect = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        let rightBox = BoxShape(
+        let rightRect = RectangleShape(
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        vm.document.addShape(.box(leftBox), toLayerAt: 0)
-        vm.document.addShape(.box(rightBox), toLayerAt: 0)
+        vm.document.addShape(.rectangle(leftRect), toLayerAt: 0)
+        vm.document.addShape(.rectangle(rightRect), toLayerAt: 0)
 
         vm.activeToolType = .arrow
         vm.mouseDown(at: GridPoint(column: 5, row: 4))
@@ -39,39 +39,39 @@ struct ArrowAttachmentIntegrationTests {
         if let arrow = arrows.first {
             #expect(arrow.start == GridPoint(column: 9, row: 4))
             #expect(arrow.end == GridPoint(column: 30, row: 4))
-            #expect(arrow.startAttachment == ArrowAttachment(shapeID: leftBox.id, side: .right))
-            #expect(arrow.endAttachment == ArrowAttachment(shapeID: rightBox.id, side: .left))
+            #expect(arrow.startAttachment == ArrowAttachment(shapeID: leftRect.id, side: .right))
+            #expect(arrow.endAttachment == ArrowAttachment(shapeID: rightRect.id, side: .left))
         }
     }
 
     @MainActor
-    @Test func should_move_attached_arrow_when_multiple_selected_boxes_move() {
+    @Test func should_move_attached_arrow_when_multiple_selected_rectangles_move() {
         // given
         let vm = EditorViewModel()
 
-        let leftBox = BoxShape(
+        let leftRect = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        let rightBox = BoxShape(
+        let rightRect = RectangleShape(
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
 
         let arrow = ArrowShape(
-            start: leftBox.attachmentPoint(for: .right),
-            end: rightBox.attachmentPoint(for: .left),
-            startAttachment: ArrowAttachment(shapeID: leftBox.id, side: .right),
-            endAttachment: ArrowAttachment(shapeID: rightBox.id, side: .left)
+            start: leftRect.attachmentPoint(for: .right),
+            end: rightRect.attachmentPoint(for: .left),
+            startAttachment: ArrowAttachment(shapeID: leftRect.id, side: .right),
+            endAttachment: ArrowAttachment(shapeID: rightRect.id, side: .left)
         )
 
-        vm.document.addShape(.box(leftBox), toLayerAt: 0)
-        vm.document.addShape(.box(rightBox), toLayerAt: 0)
+        vm.document.addShape(.rectangle(leftRect), toLayerAt: 0)
+        vm.document.addShape(.rectangle(rightRect), toLayerAt: 0)
         vm.document.addShape(.arrow(arrow), toLayerAt: 0)
         vm.rerender()
 
         vm.activeToolType = .select
-        vm.selectedShapeIDs = [leftBox.id, rightBox.id]
+        vm.selectedShapeIDs = [leftRect.id, rightRect.id]
 
         // when
         vm.mouseDown(at: GridPoint(column: 5, row: 4))
@@ -79,16 +79,16 @@ struct ArrowAttachmentIntegrationTests {
         vm.mouseUp(at: GridPoint(column: 8, row: 6))
 
         // then
-        let movedLeft = vm.document.findShape(id: leftBox.id)
-        let movedRight = vm.document.findShape(id: rightBox.id)
+        let movedLeft = vm.document.findShape(id: leftRect.id)
+        let movedRight = vm.document.findShape(id: rightRect.id)
         let movedArrow = vm.document.findShape(id: arrow.id)
 
         guard
-            case .box(let left)? = movedLeft,
-            case .box(let right)? = movedRight,
+            case .rectangle(let left)? = movedLeft,
+            case .rectangle(let right)? = movedRight,
             case .arrow(let updatedArrow)? = movedArrow
         else {
-            Issue.record("Expected moved boxes and arrow")
+            Issue.record("Expected moved rectangles and arrow")
             return
         }
 
@@ -96,7 +96,7 @@ struct ArrowAttachmentIntegrationTests {
         #expect(right.origin == GridPoint(column: 23, row: 4))
         #expect(updatedArrow.start == left.attachmentPoint(for: .right))
         #expect(updatedArrow.end == right.attachmentPoint(for: .left))
-        #expect(updatedArrow.startAttachment == ArrowAttachment(shapeID: leftBox.id, side: .right))
-        #expect(updatedArrow.endAttachment == ArrowAttachment(shapeID: rightBox.id, side: .left))
+        #expect(updatedArrow.startAttachment == ArrowAttachment(shapeID: leftRect.id, side: .right))
+        #expect(updatedArrow.endAttachment == ArrowAttachment(shapeID: rightRect.id, side: .left))
     }
 }

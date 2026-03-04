@@ -1,14 +1,14 @@
 import Foundation
 
 enum AnyShape: Codable, Equatable, Identifiable, Sendable {
-    case box(BoxShape)
+    case rectangle(RectangleShape)
     case arrow(ArrowShape)
     case text(TextShape)
     case pencil(PencilShape)
 
     var id: UUID {
         switch self {
-        case .box(let shape): return shape.id
+        case .rectangle(let shape): return shape.id
         case .arrow(let shape): return shape.id
         case .text(let shape): return shape.id
         case .pencil(let shape): return shape.id
@@ -17,7 +17,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     var colors: [ShapeColor] {
         switch self {
-        case .box(let shape):
+        case .rectangle(let shape):
             return [shape.borderColor, shape.fillColor, shape.textColor].compactMap { $0 }
         case .arrow(let shape):
             return [shape.strokeColor, shape.labelColor].compactMap { $0 }
@@ -30,7 +30,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     var boundingRect: GridRect {
         switch self {
-        case .box(let shape): return shape.boundingRect
+        case .rectangle(let shape): return shape.boundingRect
         case .arrow(let shape): return shape.boundingRect
         case .text(let shape): return shape.boundingRect
         case .pencil(let shape): return shape.boundingRect
@@ -39,7 +39,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     func contains(point: GridPoint) -> Bool {
         switch self {
-        case .box(let shape): return shape.contains(point: point)
+        case .rectangle(let shape): return shape.contains(point: point)
         case .arrow(let shape): return shape.contains(point: point)
         case .text(let shape): return shape.contains(point: point)
         case .pencil(let shape): return shape.contains(point: point)
@@ -48,7 +48,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     func render(into canvas: inout Canvas) {
         switch self {
-        case .box(let shape): shape.render(into: &canvas)
+        case .rectangle(let shape): shape.render(into: &canvas)
         case .arrow(let shape): shape.render(into: &canvas)
         case .text(let shape): shape.render(into: &canvas)
         case .pencil(let shape): shape.render(into: &canvas)
@@ -63,7 +63,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         }
 
         switch self {
-        case .box(let shape): return shape.label.isEmpty ? "Box" : shape.label
+        case .rectangle(let shape): return shape.label.isEmpty ? "Rectangle" : shape.label
         case .arrow(let shape): return shape.label.isEmpty ? "Arrow" : shape.label
         case .text(let shape):
             let firstLine = shape.text.components(separatedBy: "\n").first ?? ""
@@ -74,7 +74,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     var typeName: String {
         switch self {
-        case .box: return "Box"
+        case .rectangle: return "Rectangle"
         case .arrow: return "Arrow"
         case .text: return "Text"
         case .pencil: return "Pencil"
@@ -83,7 +83,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     var customName: String? {
         switch self {
-        case .box(let shape): return shape.name
+        case .rectangle(let shape): return shape.name
         case .arrow(let shape): return shape.name
         case .text(let shape): return shape.name
         case .pencil(let shape): return shape.name
@@ -94,9 +94,9 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedName = trimmed.isEmpty ? nil : trimmed
         switch self {
-        case .box(var shape):
+        case .rectangle(var shape):
             shape.name = normalizedName
-            return .box(shape)
+            return .rectangle(shape)
         case .arrow(var shape):
             shape.name = normalizedName
             return .arrow(shape)
@@ -113,7 +113,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     var resizeHandlePlacements: [ResizeHandlePlacement] {
         switch self {
-        case .box(let shape):
+        case .rectangle(let shape):
             let rect = shape.boundingRect
             let rightColumn = rect.maxColumn + 1
             let bottomRow = rect.maxRow + 1
@@ -166,7 +166,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
             .0
         }
 
-        if case .box(let shape) = self {
+        if case .rectangle(let shape) = self {
             let rect = shape.boundingRect
             let centerColumn = rect.origin.column + rect.size.width / 2
             let centerRow = rect.origin.row + rect.size.height / 2
@@ -191,7 +191,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
     func resized(using handle: ResizeHandle, to point: GridPoint) -> AnyShape {
         switch self {
-        case .box(var shape):
+        case .rectangle(var shape):
             let rect = shape.boundingRect
             let left = rect.minColumn
             let right = rect.maxColumn
@@ -233,7 +233,7 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
                 width: max(2, newRight - newLeft + 1),
                 height: max(2, newBottom - newTop + 1)
             )
-            return .box(shape)
+            return .rectangle(shape)
 
         case .arrow(var shape):
             let clampedPoint = GridPoint(
@@ -266,15 +266,30 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum ShapeType: String, Codable {
-        case box, arrow, text, pencil
+        case rectangle, arrow, text, pencil
+
+        // Backward compatibility: accept "box" from older documents
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            if raw == "box" {
+                self = .rectangle
+            } else if let value = ShapeType(rawValue: raw) {
+                self = value
+            } else {
+                throw DecodingError.dataCorruptedError(
+                    in: try decoder.singleValueContainer(),
+                    debugDescription: "Unknown shape type: \(raw)"
+                )
+            }
+        }
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(ShapeType.self, forKey: .type)
         switch type {
-        case .box:
-            self = .box(try BoxShape(from: decoder))
+        case .rectangle:
+            self = .rectangle(try RectangleShape(from: decoder))
         case .arrow:
             self = .arrow(try ArrowShape(from: decoder))
         case .text:
@@ -287,8 +302,8 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .box(let shape):
-            try container.encode(ShapeType.box, forKey: .type)
+        case .rectangle(let shape):
+            try container.encode(ShapeType.rectangle, forKey: .type)
             try shape.encode(to: encoder)
         case .arrow(let shape):
             try container.encode(ShapeType.arrow, forKey: .type)

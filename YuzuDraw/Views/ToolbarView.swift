@@ -5,11 +5,11 @@ struct ToolbarView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            toolButton(type: .select, icon: "cursorarrow", tooltip: "Select")
-            toolButton(type: .box, icon: "rectangle", tooltip: "Box")
-            toolButton(type: .arrow, icon: "arrow.right", tooltip: "Line")
-            toolButton(type: .text, icon: "textformat", tooltip: "Text")
-            toolButton(type: .pencil, icon: "pencil.and.scribble", tooltip: "Pencil")
+            toolButton(type: .select, icon: "cursorarrow", tooltip: "Select (V)")
+            toolButton(type: .rectangle, icon: "rectangle", tooltip: "Rectangle (R)")
+            toolButton(type: .arrow, icon: "arrow.right", tooltip: "Line (L)")
+            toolButton(type: .text, icon: "textformat", tooltip: "Text (T)")
+            toolButton(type: .pencil, icon: "pencil.and.scribble", tooltip: "Pencil (P)")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)

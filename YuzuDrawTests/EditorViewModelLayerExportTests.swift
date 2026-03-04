@@ -10,7 +10,7 @@ struct EditorViewModelLayerExportTests {
         let layer = Layer(
             name: "Layer 1",
             shapes: [
-                .box(BoxShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3)))
+                .rectangle(RectangleShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3)))
             ]
         )
         let viewModel = EditorViewModel(document: Document(layers: [layer]))
@@ -39,19 +39,19 @@ struct EditorViewModelLayerExportTests {
     @Test func should_paste_shapes_with_new_ids_offset_and_remapped_arrow_attachments() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let boxA = BoxShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let boxB = BoxShape(origin: GridPoint(column: 9, row: 0), size: GridSize(width: 4, height: 3))
+        let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rectB = RectangleShape(origin: GridPoint(column: 9, row: 0), size: GridSize(width: 4, height: 3))
         let arrow = ArrowShape(
             start: GridPoint(column: 3, row: 1),
             end: GridPoint(column: 9, row: 1),
-            startAttachment: ArrowAttachment(shapeID: boxA.id, side: .right),
-            endAttachment: ArrowAttachment(shapeID: boxB.id, side: .left)
+            startAttachment: ArrowAttachment(shapeID: rectA.id, side: .right),
+            endAttachment: ArrowAttachment(shapeID: rectB.id, side: .left)
         )
-        document.addShape(.box(boxA), toLayerAt: 0)
-        document.addShape(.box(boxB), toLayerAt: 0)
+        document.addShape(.rectangle(rectA), toLayerAt: 0)
+        document.addShape(.rectangle(rectB), toLayerAt: 0)
         document.addShape(.arrow(arrow), toLayerAt: 0)
         let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [boxA.id, boxB.id, arrow.id]
+        viewModel.selectedShapeIDs = [rectA.id, rectB.id, arrow.id]
 
         guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
             Issue.record("Expected payload data")
@@ -65,20 +65,20 @@ struct EditorViewModelLayerExportTests {
         #expect(didPaste)
         #expect(viewModel.document.layers[0].shapes.count == 6)
 
-        let originalIDs: Set<UUID> = [boxA.id, boxB.id, arrow.id]
+        let originalIDs: Set<UUID> = [rectA.id, rectB.id, arrow.id]
         let pastedShapes = viewModel.document.layers[0].shapes.filter { !originalIDs.contains($0.id) }
         #expect(pastedShapes.count == 3)
 
-        let pastedBoxes = pastedShapes.compactMap { shape -> BoxShape? in
-            guard case .box(let box) = shape else { return nil }
-            return box
+        let pastedRects = pastedShapes.compactMap { shape -> RectangleShape? in
+            guard case .rectangle(let rectangle) = shape else { return nil }
+            return rectangle
         }
-        #expect(pastedBoxes.count == 2)
-        let pastedBoxIDs = Set(pastedBoxes.map { $0.id })
-        #expect(pastedBoxIDs.count == 2)
-        #expect(pastedBoxIDs.isDisjoint(with: [boxA.id, boxB.id]))
-        #expect(pastedBoxes.contains { $0.origin == GridPoint(column: 2, row: 1) })
-        #expect(pastedBoxes.contains { $0.origin == GridPoint(column: 11, row: 1) })
+        #expect(pastedRects.count == 2)
+        let pastedRectIDs = Set(pastedRects.map { $0.id })
+        #expect(pastedRectIDs.count == 2)
+        #expect(pastedRectIDs.isDisjoint(with: [rectA.id, rectB.id]))
+        #expect(pastedRects.contains { $0.origin == GridPoint(column: 2, row: 1) })
+        #expect(pastedRects.contains { $0.origin == GridPoint(column: 11, row: 1) })
 
         guard
             let pastedArrow = pastedShapes.compactMap({ shape -> ArrowShape? in
@@ -94,10 +94,10 @@ struct EditorViewModelLayerExportTests {
         #expect(pastedArrow.end == GridPoint(column: 11, row: 2))
         #expect(pastedArrow.startAttachment != nil)
         #expect(pastedArrow.endAttachment != nil)
-        #expect(pastedArrow.startAttachment?.shapeID != boxA.id)
-        #expect(pastedArrow.endAttachment?.shapeID != boxB.id)
-        #expect(pastedArrow.startAttachment.map { pastedBoxIDs.contains($0.shapeID) } == true)
-        #expect(pastedArrow.endAttachment.map { pastedBoxIDs.contains($0.shapeID) } == true)
+        #expect(pastedArrow.startAttachment?.shapeID != rectA.id)
+        #expect(pastedArrow.endAttachment?.shapeID != rectB.id)
+        #expect(pastedArrow.startAttachment.map { pastedRectIDs.contains($0.shapeID) } == true)
+        #expect(pastedArrow.endAttachment.map { pastedRectIDs.contains($0.shapeID) } == true)
     }
 
     @Test func should_increase_offset_on_consecutive_pastes_of_same_payload() {
@@ -130,10 +130,10 @@ struct EditorViewModelLayerExportTests {
     @Test func should_copy_selected_shapes_as_normalized_plain_text() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3))
-        document.addShape(.box(box), toLayerAt: 0)
+        let rectangle = RectangleShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rectangle), toLayerAt: 0)
         let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [box.id]
+        viewModel.selectedShapeIDs = [rectangle.id]
 
         // when
         let text = viewModel.selectionOrCanvasPlainText()

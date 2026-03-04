@@ -327,8 +327,8 @@ struct InspectorPanel: View {
     @ViewBuilder
     private func shapeProperties(_ shape: AnyShape) -> some View {
         switch shape {
-        case .box(let box):
-            boxProperties(box)
+        case .rectangle(let rectangle):
+            rectangleProperties(rectangle)
         case .arrow(let arrow):
             arrowProperties(arrow)
         case .text(let text):
@@ -338,26 +338,26 @@ struct InspectorPanel: View {
         }
     }
 
-    // MARK: - Box properties
+    // MARK: - Rectangle properties
 
     @ViewBuilder
-    private func boxProperties(_ box: BoxShape) -> some View {
+    private func rectangleProperties(_ rectangle: RectangleShape) -> some View {
         // Position & Size
         staticSection(label: "Position & Size", icon: "arrow.up.left.and.arrow.down.right") {
             HStack {
-                numberField("X", value: box.origin.column) { newVal in
-                    viewModel.updateSelectedBoxOrigin(column: newVal, row: box.origin.row)
+                numberField("X", value: rectangle.origin.column) { newVal in
+                    viewModel.updateSelectedRectangleOrigin(column: newVal, row: rectangle.origin.row)
                 }
-                numberField("Y", value: box.origin.row) { newVal in
-                    viewModel.updateSelectedBoxOrigin(column: box.origin.column, row: newVal)
+                numberField("Y", value: rectangle.origin.row) { newVal in
+                    viewModel.updateSelectedRectangleOrigin(column: rectangle.origin.column, row: newVal)
                 }
             }
             HStack {
-                numberField("W", value: box.size.width) { newVal in
-                    viewModel.updateSelectedBoxSize(width: newVal, height: box.size.height)
+                numberField("W", value: rectangle.size.width) { newVal in
+                    viewModel.updateSelectedRectangleSize(width: newVal, height: rectangle.size.height)
                 }
-                numberField("H", value: box.size.height) { newVal in
-                    viewModel.updateSelectedBoxSize(width: box.size.width, height: newVal)
+                numberField("H", value: rectangle.size.height) { newVal in
+                    viewModel.updateSelectedRectangleSize(width: rectangle.size.width, height: newVal)
                 }
             }
         }
@@ -367,9 +367,9 @@ struct InspectorPanel: View {
         // Text
         staticSection(label: "Text", icon: "textformat") {
             colorSwatchRow(
-                color: box.textColor,
-                target: .boxText,
-                onColorSelected: { viewModel.updateSelectedBoxTextColor($0) }
+                color: rectangle.textColor,
+                target: .rectangleText,
+                onColorSelected: { viewModel.updateSelectedRectangleTextColor($0) }
             )
             HStack(spacing: 6) {
                     Text("H")
@@ -378,9 +378,9 @@ struct InspectorPanel: View {
                         .frame(width: 12)
                     HStack(spacing: 0) {
                         alignmentIconButton(
-                            isSelected: box.textHorizontalAlignment == .left,
+                            isSelected: rectangle.textHorizontalAlignment == .left,
                             action: {
-                                viewModel.updateSelectedBoxTextHorizontalAlignment(.left)
+                                viewModel.updateSelectedRectangleTextHorizontalAlignment(.left)
                             }
                         ) {
                             horizontalAlignmentIcon(.left)
@@ -388,9 +388,9 @@ struct InspectorPanel: View {
                         Divider()
                             .frame(height: 16)
                         alignmentIconButton(
-                            isSelected: box.textHorizontalAlignment == .center,
+                            isSelected: rectangle.textHorizontalAlignment == .center,
                             action: {
-                                viewModel.updateSelectedBoxTextHorizontalAlignment(.center)
+                                viewModel.updateSelectedRectangleTextHorizontalAlignment(.center)
                             }
                         ) {
                             horizontalAlignmentIcon(.center)
@@ -398,9 +398,9 @@ struct InspectorPanel: View {
                         Divider()
                             .frame(height: 16)
                         alignmentIconButton(
-                            isSelected: box.textHorizontalAlignment == .right,
+                            isSelected: rectangle.textHorizontalAlignment == .right,
                             action: {
-                                viewModel.updateSelectedBoxTextHorizontalAlignment(.right)
+                                viewModel.updateSelectedRectangleTextHorizontalAlignment(.right)
                             }
                         ) {
                             horizontalAlignmentIcon(.right)
@@ -423,9 +423,9 @@ struct InspectorPanel: View {
                         .frame(width: 12)
                     HStack(spacing: 0) {
                         alignmentIconButton(
-                            isSelected: box.textVerticalAlignment == .top,
+                            isSelected: rectangle.textVerticalAlignment == .top,
                             action: {
-                                viewModel.updateSelectedBoxTextVerticalAlignment(.top)
+                                viewModel.updateSelectedRectangleTextVerticalAlignment(.top)
                             }
                         ) {
                             verticalAlignmentIcon(.top)
@@ -433,9 +433,9 @@ struct InspectorPanel: View {
                         Divider()
                             .frame(height: 16)
                         alignmentIconButton(
-                            isSelected: box.textVerticalAlignment == .middle,
+                            isSelected: rectangle.textVerticalAlignment == .middle,
                             action: {
-                                viewModel.updateSelectedBoxTextVerticalAlignment(.middle)
+                                viewModel.updateSelectedRectangleTextVerticalAlignment(.middle)
                             }
                         ) {
                             verticalAlignmentIcon(.middle)
@@ -443,9 +443,9 @@ struct InspectorPanel: View {
                         Divider()
                             .frame(height: 16)
                         alignmentIconButton(
-                            isSelected: box.textVerticalAlignment == .bottom,
+                            isSelected: rectangle.textVerticalAlignment == .bottom,
                             action: {
-                                viewModel.updateSelectedBoxTextVerticalAlignment(.bottom)
+                                viewModel.updateSelectedRectangleTextVerticalAlignment(.bottom)
                             }
                         ) {
                             verticalAlignmentIcon(.bottom)
@@ -462,10 +462,10 @@ struct InspectorPanel: View {
                 }
 
                 Toggle("Allow Text On Border", isOn: Binding(
-                    get: { box.allowTextOnBorder },
-                    set: { viewModel.updateSelectedBoxAllowTextOnBorder($0) }
+                    get: { rectangle.allowTextOnBorder },
+                    set: { viewModel.updateSelectedRectangleAllowTextOnBorder($0) }
                 ))
-                .disabled(!box.hasBorder)
+                .disabled(!rectangle.hasBorder)
         }
 
         Divider()
@@ -474,19 +474,19 @@ struct InspectorPanel: View {
         staticSection(label: "Padding", icon: "square.dashed") {
             Grid(alignment: .leading, horizontalSpacing: 4, verticalSpacing: 6) {
                 GridRow {
-                    numberField("Left", value: box.textPaddingLeft) { newVal in
-                        viewModel.updateSelectedBoxTextPadding(left: newVal)
+                    numberField("Left", value: rectangle.textPaddingLeft) { newVal in
+                        viewModel.updateSelectedRectangleTextPadding(left: newVal)
                     }
-                    numberField("Right", value: box.textPaddingRight) { newVal in
-                        viewModel.updateSelectedBoxTextPadding(right: newVal)
+                    numberField("Right", value: rectangle.textPaddingRight) { newVal in
+                        viewModel.updateSelectedRectangleTextPadding(right: newVal)
                     }
                 }
                 GridRow {
-                    numberField("Top", value: box.textPaddingTop) { newVal in
-                        viewModel.updateSelectedBoxTextPadding(top: newVal)
+                    numberField("Top", value: rectangle.textPaddingTop) { newVal in
+                        viewModel.updateSelectedRectangleTextPadding(top: newVal)
                     }
-                    numberField("Bottom", value: box.textPaddingBottom) { newVal in
-                        viewModel.updateSelectedBoxTextPadding(bottom: newVal)
+                    numberField("Bottom", value: rectangle.textPaddingBottom) { newVal in
+                        viewModel.updateSelectedRectangleTextPadding(bottom: newVal)
                     }
                 }
             }
@@ -498,22 +498,22 @@ struct InspectorPanel: View {
         toggleSection(
             label: "Border",
             icon: "paintbrush",
-            isEnabled: box.hasBorder,
-            onToggle: { viewModel.updateSelectedBoxHasBorder($0) }
+            isEnabled: rectangle.hasBorder,
+            onToggle: { viewModel.updateSelectedRectangleHasBorder($0) }
         ) {
             VStack(alignment: .leading, spacing: 8) {
                 colorSwatchRow(
-                    color: box.borderColor,
-                    target: .boxBorder,
-                    onColorSelected: { viewModel.updateSelectedBoxBorderColor($0) }
+                    color: rectangle.borderColor,
+                    target: .rectangleBorder,
+                    onColorSelected: { viewModel.updateSelectedRectangleBorderColor($0) }
                 )
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Style")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     strokeStylePicker(
-                        selected: box.strokeStyle,
-                        onChange: { viewModel.updateSelectedBoxStrokeStyle($0) }
+                        selected: rectangle.strokeStyle,
+                        onChange: { viewModel.updateSelectedRectangleStrokeStyle($0) }
                     )
                 }
                 VStack(alignment: .leading, spacing: 4) {
@@ -521,9 +521,9 @@ struct InspectorPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     borderSidesPicker(
-                        box: box,
+                        rectangle: rectangle,
                         onToggle: { side, isVisible in
-                            viewModel.updateSelectedBoxBorderSide(side, isVisible: isVisible)
+                            viewModel.updateSelectedRectangleBorderSide(side, isVisible: isVisible)
                         }
                     )
                 }
@@ -532,17 +532,17 @@ struct InspectorPanel: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     borderLineStylePicker(
-                        selected: box.borderLineStyle,
-                        onChange: { viewModel.updateSelectedBoxBorderLineStyle($0) }
+                        selected: rectangle.borderLineStyle,
+                        onChange: { viewModel.updateSelectedRectangleBorderLineStyle($0) }
                     )
                 }
-                if box.borderLineStyle == .dashed {
+                if rectangle.borderLineStyle == .dashed {
                     HStack {
-                        numberField("Dash", value: box.borderDashLength) { newVal in
-                            viewModel.updateSelectedBoxBorderDashLength(newVal)
+                        numberField("Dash", value: rectangle.borderDashLength) { newVal in
+                            viewModel.updateSelectedRectangleBorderDashLength(newVal)
                         }
-                        numberField("Gap", value: box.borderGapLength) { newVal in
-                            viewModel.updateSelectedBoxBorderGapLength(newVal)
+                        numberField("Gap", value: rectangle.borderGapLength) { newVal in
+                            viewModel.updateSelectedRectangleBorderGapLength(newVal)
                         }
                     }
                 }
@@ -555,13 +555,13 @@ struct InspectorPanel: View {
         toggleSection(
             label: "Fill",
             icon: "square.fill",
-            isEnabled: box.fillMode == .solid,
-            onToggle: { viewModel.updateSelectedBoxFillEnabled($0) }
+            isEnabled: rectangle.fillMode == .solid,
+            onToggle: { viewModel.updateSelectedRectangleFillEnabled($0) }
         ) {
             colorSwatchRow(
-                color: box.fillColor,
-                target: .boxFill,
-                onColorSelected: { viewModel.updateSelectedBoxFillColor($0) }
+                color: rectangle.fillColor,
+                target: .rectangleFill,
+                onColorSelected: { viewModel.updateSelectedRectangleFillColor($0) }
             )
             HStack {
                 Text("Char")
@@ -569,11 +569,11 @@ struct InspectorPanel: View {
                     .font(.caption)
                 TextField("", text: Binding(
                     get: {
-                        box.fillCharacter == " " ? "" : String(box.fillCharacter)
+                        rectangle.fillCharacter == " " ? "" : String(rectangle.fillCharacter)
                     },
                     set: { newValue in
                         let char = newValue.first ?? Character(" ")
-                        viewModel.updateSelectedBoxFillCharacter(char)
+                        viewModel.updateSelectedRectangleFillCharacter(char)
                     }
                 ))
                 .textFieldStyle(.roundedBorder)
@@ -587,21 +587,21 @@ struct InspectorPanel: View {
         toggleSection(
             label: "Shadow",
             icon: "shadow",
-            isEnabled: box.hasShadow,
-            onToggle: { viewModel.updateSelectedBoxHasShadow($0) }
+            isEnabled: rectangle.hasShadow,
+            onToggle: { viewModel.updateSelectedRectangleHasShadow($0) }
         ) {
             VStack(alignment: .leading, spacing: 6) {
                 shadowStylePicker(
-                    selected: box.shadowStyle,
-                    onChange: { viewModel.updateSelectedBoxShadowStyle($0) }
+                    selected: rectangle.shadowStyle,
+                    onChange: { viewModel.updateSelectedRectangleShadowStyle($0) }
                 )
 
                 HStack {
-                    numberField("X", value: box.shadowOffsetX) { newVal in
-                        viewModel.updateSelectedBoxShadowOffsetX(newVal)
+                    numberField("X", value: rectangle.shadowOffsetX) { newVal in
+                        viewModel.updateSelectedRectangleShadowOffsetX(newVal)
                     }
-                    numberField("Y", value: box.shadowOffsetY) { newVal in
-                        viewModel.updateSelectedBoxShadowOffsetY(newVal)
+                    numberField("Y", value: rectangle.shadowOffsetY) { newVal in
+                        viewModel.updateSelectedRectangleShadowOffsetY(newVal)
                     }
                 }
             }
@@ -938,7 +938,7 @@ struct InspectorPanel: View {
 
     private func shapeIcon(for shape: AnyShape) -> String {
         switch shape {
-        case .box: return "rectangle"
+        case .rectangle: return "rectangle"
         case .arrow: return "arrow.right"
         case .text: return "textformat"
         case .pencil: return "pencil"
@@ -1059,11 +1059,11 @@ struct InspectorPanel: View {
     }
 
     private func shadowStylePicker(
-        selected: BoxShadowStyle, onChange: @escaping (BoxShadowStyle) -> Void
+        selected: RectangleShadowStyle, onChange: @escaping (RectangleShadowStyle) -> Void
     ) -> some View {
         HStack(spacing: 0) {
-            ForEach(BoxShadowStyle.allCases, id: \.self) { style in
-                if style != BoxShadowStyle.allCases.first {
+            ForEach(RectangleShadowStyle.allCases, id: \.self) { style in
+                if style != RectangleShadowStyle.allCases.first {
                     Divider()
                         .frame(height: 16)
                 }
@@ -1118,8 +1118,8 @@ struct InspectorPanel: View {
     }
 
     private func borderLineStylePicker(
-        selected: BoxBorderLineStyle,
-        onChange: @escaping (BoxBorderLineStyle) -> Void
+        selected: RectangleBorderLineStyle,
+        onChange: @escaping (RectangleBorderLineStyle) -> Void
     ) -> some View {
         let cellWidth: CGFloat = 56
         return HStack(spacing: 0) {
@@ -1159,17 +1159,17 @@ struct InspectorPanel: View {
     }
 
     private func borderSidesPicker(
-        box: BoxShape,
-        onToggle: @escaping (BoxBorderSide, Bool) -> Void
+        rectangle: RectangleShape,
+        onToggle: @escaping (RectangleBorderSide, Bool) -> Void
     ) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
-                borderSideCell(.top, in: box, onToggle: onToggle)
-                borderSideCell(.right, in: box, onToggle: onToggle)
+                borderSideCell(.top, in: rectangle, onToggle: onToggle)
+                borderSideCell(.right, in: rectangle, onToggle: onToggle)
             }
             GridRow {
-                borderSideCell(.left, in: box, onToggle: onToggle)
-                borderSideCell(.bottom, in: box, onToggle: onToggle)
+                borderSideCell(.left, in: rectangle, onToggle: onToggle)
+                borderSideCell(.bottom, in: rectangle, onToggle: onToggle)
             }
         }
         .background(
@@ -1184,11 +1184,11 @@ struct InspectorPanel: View {
     }
 
     private func borderSideCell(
-        _ side: BoxBorderSide,
-        in box: BoxShape,
-        onToggle: @escaping (BoxBorderSide, Bool) -> Void
+        _ side: RectangleBorderSide,
+        in rectangle: RectangleShape,
+        onToggle: @escaping (RectangleBorderSide, Bool) -> Void
     ) -> some View {
-        let isVisible = box.visibleBorders.contains(side)
+        let isVisible = rectangle.visibleBorders.contains(side)
         return alignmentIconButton(
             isSelected: isVisible,
             action: { onToggle(side, !isVisible) }
@@ -1199,7 +1199,7 @@ struct InspectorPanel: View {
     }
 
     private struct BorderSideIcon: View {
-        let side: BoxBorderSide
+        let side: RectangleBorderSide
 
         var body: some View {
             GeometryReader { geometry in
@@ -1235,14 +1235,14 @@ struct InspectorPanel: View {
             }
         }
 
-        private func style(for candidate: BoxBorderSide) -> SwiftUI.StrokeStyle {
+        private func style(for candidate: RectangleBorderSide) -> SwiftUI.StrokeStyle {
             if candidate == side {
                 return SwiftUI.StrokeStyle(lineWidth: 1.6, lineCap: .round)
             }
             return SwiftUI.StrokeStyle(lineWidth: 0.85, lineCap: .round, dash: [2, 2])
         }
 
-        private func color(for candidate: BoxBorderSide) -> Color {
+        private func color(for candidate: RectangleBorderSide) -> Color {
             if candidate == side {
                 return .primary
             }
@@ -1292,17 +1292,17 @@ struct InspectorPanel: View {
         .contentShape(Rectangle())
     }
 
-    private func horizontalAlignmentIcon(_ alignment: BoxTextHorizontalAlignment) -> some View {
+    private func horizontalAlignmentIcon(_ alignment: RectangleTextHorizontalAlignment) -> some View {
         Image(systemName: horizontalAlignmentSymbol(for: alignment))
             .font(.system(size: 13, weight: .medium))
     }
 
-    private func verticalAlignmentIcon(_ alignment: BoxTextVerticalAlignment) -> some View {
+    private func verticalAlignmentIcon(_ alignment: RectangleTextVerticalAlignment) -> some View {
         Image(systemName: verticalAlignmentSymbol(for: alignment))
             .font(.system(size: 13, weight: .medium))
     }
 
-    private func horizontalAlignmentSymbol(for alignment: BoxTextHorizontalAlignment) -> String {
+    private func horizontalAlignmentSymbol(for alignment: RectangleTextHorizontalAlignment) -> String {
         switch alignment {
         case .left:
             return "text.alignleft"
@@ -1313,7 +1313,7 @@ struct InspectorPanel: View {
         }
     }
 
-    private func verticalAlignmentSymbol(for alignment: BoxTextVerticalAlignment) -> String {
+    private func verticalAlignmentSymbol(for alignment: RectangleTextVerticalAlignment) -> String {
         switch alignment {
         case .top:
             return "align.vertical.top"
@@ -1327,15 +1327,15 @@ struct InspectorPanel: View {
 }
 
 #Preview {
-    let box = BoxShape(
+    let rectangle = RectangleShape(
         origin: GridPoint(column: 4, row: 2),
         size: GridSize(width: 20, height: 10),
-        label: "My Box"
+        label: "My Rectangle"
     )
     var document = Document()
-    document.addShape(.box(box), toLayerAt: 0)
+    document.addShape(.rectangle(rectangle), toLayerAt: 0)
     let vm = EditorViewModel(document: document)
-    vm.selectedShapeIDs = [box.id]
+    vm.selectedShapeIDs = [rectangle.id]
     return InspectorPanel(viewModel: vm)
         .frame(height: 700)
 }

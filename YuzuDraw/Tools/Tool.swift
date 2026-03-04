@@ -2,7 +2,7 @@ import Foundation
 
 enum ToolType: String, CaseIterable, Sendable {
     case select
-    case box
+    case rectangle
     case arrow
     case text
     case pencil

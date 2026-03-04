@@ -1,9 +1,9 @@
 import SwiftUI
 
 enum ColorTarget: Hashable {
-    case boxBorder
-    case boxFill
-    case boxText
+    case rectangleBorder
+    case rectangleFill
+    case rectangleText
     case arrowStroke
     case arrowLabel
     case textColor
@@ -107,7 +107,7 @@ final class EditorViewModel {
     }
 
     private var selectionTool = SelectionTool()
-    private var boxTool = BoxTool()
+    private var rectangleTool = RectangleTool()
     private var arrowTool = ArrowTool()
     private var textTool = TextTool()
     private var pencilTool = PencilTool()
@@ -117,7 +117,7 @@ final class EditorViewModel {
     var activeTool: any Tool {
         switch activeToolType {
         case .select: return selectionTool
-        case .box: return boxTool
+        case .rectangle: return rectangleTool
         case .arrow: return arrowTool
         case .text: return textTool
         case .pencil: return pencilTool
@@ -130,7 +130,7 @@ final class EditorViewModel {
             return arrowTool.attachmentPreviewPoints(near: hoverGridPoint, in: document)
         case .select:
             return selectionTool.arrowAttachmentPreviewPoints
-        case .box, .text, .pencil:
+        case .rectangle, .text, .pencil:
             return []
         }
     }
@@ -215,9 +215,9 @@ final class EditorViewModel {
         case .text(let text):
             editPoint = text.origin
             content = text.text
-        case .box(let box):
-            editPoint = box.labelEditPoint
-            content = box.label
+        case .rectangle(let rectangle):
+            editPoint = rectangle.labelEditPoint
+            content = rectangle.label
         case .arrow(let arrow):
             editPoint = arrow.labelEditPoint
             content = arrow.label
@@ -328,9 +328,9 @@ final class EditorViewModel {
                     text.text = textEditContent
                     document.updateShape(.text(text))
                 }
-            case .box(var box):
-                box.label = textEditContent
-                updateShapeAndAttachments(.box(box))
+            case .rectangle(var rectangle):
+                rectangle.label = textEditContent
+                updateShapeAndAttachments(.rectangle(rectangle))
             case .arrow(var arrow):
                 arrow.label = textEditContent
                 document.updateShape(.arrow(arrow))
@@ -392,12 +392,12 @@ final class EditorViewModel {
     // MARK: - Layer aggregate colors
 
     var hasLayerFillShapes: Bool {
-        selectedLayer?.shapes.contains { if case .box = $0 { return true }; return false } ?? false
+        selectedLayer?.shapes.contains { if case .rectangle = $0 { return true }; return false } ?? false
     }
 
     var hasLayerBorderShapes: Bool {
         selectedLayer?.shapes.contains {
-            if case .box = $0 { return true }
+            if case .rectangle = $0 { return true }
             if case .arrow = $0 { return true }
             return false
         } ?? false
@@ -429,7 +429,7 @@ final class EditorViewModel {
     var layerFillColor: ShapeColor? {
         guard let layer = selectedLayer else { return nil }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            if case .box(let box) = shape { return box.fillColor }
+            if case .rectangle(let rectangle) = shape { return rectangle.fillColor }
             return nil
         }
         guard let first = colors.first else { return nil }
@@ -439,7 +439,7 @@ final class EditorViewModel {
     var isLayerFillColorMixed: Bool {
         guard let layer = selectedLayer else { return false }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            if case .box(let box) = shape { return box.fillColor }
+            if case .rectangle(let rectangle) = shape { return rectangle.fillColor }
             return nil
         }
         guard colors.count > 1 else { return false }
@@ -450,7 +450,7 @@ final class EditorViewModel {
         guard let layer = selectedLayer else { return nil }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in
             switch shape {
-            case .box(let box): return box.borderColor
+            case .rectangle(let rectangle): return rectangle.borderColor
             case .arrow(let arrow): return arrow.strokeColor
             case .text, .pencil: return nil
             }
@@ -463,7 +463,7 @@ final class EditorViewModel {
         guard let layer = selectedLayer else { return false }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in
             switch shape {
-            case .box(let box): return box.borderColor
+            case .rectangle(let rectangle): return rectangle.borderColor
             case .arrow(let arrow): return arrow.strokeColor
             case .text, .pencil: return nil
             }
@@ -476,7 +476,7 @@ final class EditorViewModel {
         guard let layer = selectedLayer else { return nil }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in
             switch shape {
-            case .box(let box): return box.textColor
+            case .rectangle(let rectangle): return rectangle.textColor
             case .arrow(let arrow): return arrow.labelColor
             case .text(let text): return text.textColor
             case .pencil: return nil
@@ -490,7 +490,7 @@ final class EditorViewModel {
         guard let layer = selectedLayer else { return false }
         let colors = layer.shapes.compactMap { shape -> ShapeColor? in
             switch shape {
-            case .box(let box): return box.textColor
+            case .rectangle(let rectangle): return rectangle.textColor
             case .arrow(let arrow): return arrow.labelColor
             case .text(let text): return text.textColor
             case .pencil: return nil
@@ -504,9 +504,9 @@ final class EditorViewModel {
         recordSnapshot()
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
-            if case .box(var box) = shape {
-                box.fillColor = color
-                updateShapeAndAttachments(.box(box))
+            if case .rectangle(var rectangle) = shape {
+                rectangle.fillColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
             }
         }
         rerender()
@@ -517,9 +517,9 @@ final class EditorViewModel {
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
             switch shape {
-            case .box(var box):
-                box.borderColor = color
-                updateShapeAndAttachments(.box(box))
+            case .rectangle(var rectangle):
+                rectangle.borderColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
             case .arrow(var arrow):
                 arrow.strokeColor = color
                 document.updateShape(.arrow(arrow))
@@ -535,9 +535,9 @@ final class EditorViewModel {
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
             switch shape {
-            case .box(var box):
-                box.textColor = color
-                updateShapeAndAttachments(.box(box))
+            case .rectangle(var rectangle):
+                rectangle.textColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
             case .arrow(var arrow):
                 arrow.labelColor = color
                 document.updateShape(.arrow(arrow))
@@ -551,141 +551,141 @@ final class EditorViewModel {
         rerender()
     }
 
-    func updateSelectedBoxLabel(_ label: String) {
+    func updateSelectedRectangleLabel(_ label: String) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.label = label
-        updateShapeAndAttachments(.box(box))
+        rectangle.label = label
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxTextHorizontalAlignment(_ alignment: BoxTextHorizontalAlignment) {
+    func updateSelectedRectangleTextHorizontalAlignment(_ alignment: RectangleTextHorizontalAlignment) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.textHorizontalAlignment = alignment
-        updateShapeAndAttachments(.box(box))
+        rectangle.textHorizontalAlignment = alignment
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxTextVerticalAlignment(_ alignment: BoxTextVerticalAlignment) {
+    func updateSelectedRectangleTextVerticalAlignment(_ alignment: RectangleTextVerticalAlignment) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.textVerticalAlignment = alignment
-        updateShapeAndAttachments(.box(box))
+        rectangle.textVerticalAlignment = alignment
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxHasBorder(_ hasBorder: Bool) {
+    func updateSelectedRectangleHasBorder(_ hasBorder: Bool) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.hasBorder = hasBorder
-        updateShapeAndAttachments(.box(box))
+        rectangle.hasBorder = hasBorder
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxBorderSide(_ side: BoxBorderSide, isVisible: Bool) {
+    func updateSelectedRectangleBorderSide(_ side: RectangleBorderSide, isVisible: Bool) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
         if isVisible {
-            box.visibleBorders.insert(side)
+            rectangle.visibleBorders.insert(side)
         } else {
-            box.visibleBorders.remove(side)
+            rectangle.visibleBorders.remove(side)
         }
-        updateShapeAndAttachments(.box(box))
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxBorderLineStyle(_ lineStyle: BoxBorderLineStyle) {
+    func updateSelectedRectangleBorderLineStyle(_ lineStyle: RectangleBorderLineStyle) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.borderLineStyle = lineStyle
-        updateShapeAndAttachments(.box(box))
+        rectangle.borderLineStyle = lineStyle
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxBorderDashLength(_ value: Int) {
+    func updateSelectedRectangleBorderDashLength(_ value: Int) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.borderDashLength = max(1, value)
-        updateShapeAndAttachments(.box(box))
+        rectangle.borderDashLength = max(1, value)
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxBorderGapLength(_ value: Int) {
+    func updateSelectedRectangleBorderGapLength(_ value: Int) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.borderGapLength = max(0, value)
-        updateShapeAndAttachments(.box(box))
+        rectangle.borderGapLength = max(0, value)
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxAllowTextOnBorder(_ allow: Bool) {
+    func updateSelectedRectangleAllowTextOnBorder(_ allow: Bool) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.allowTextOnBorder = allow
-        updateShapeAndAttachments(.box(box))
+        rectangle.allowTextOnBorder = allow
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxHasShadow(_ hasShadow: Bool) {
+    func updateSelectedRectangleHasShadow(_ hasShadow: Bool) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.hasShadow = hasShadow
-        updateShapeAndAttachments(.box(box))
+        rectangle.hasShadow = hasShadow
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxShadowStyle(_ style: BoxShadowStyle) {
+    func updateSelectedRectangleShadowStyle(_ style: RectangleShadowStyle) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.shadowStyle = style
-        updateShapeAndAttachments(.box(box))
+        rectangle.shadowStyle = style
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxShadowOffsetX(_ value: Int) {
+    func updateSelectedRectangleShadowOffsetX(_ value: Int) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.shadowOffsetX = value
-        updateShapeAndAttachments(.box(box))
+        rectangle.shadowOffsetX = value
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxShadowOffsetY(_ value: Int) {
+    func updateSelectedRectangleShadowOffsetY(_ value: Int) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.shadowOffsetY = value
-        updateShapeAndAttachments(.box(box))
+        rectangle.shadowOffsetY = value
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxTextPadding(
+    func updateSelectedRectangleTextPadding(
         left: Int? = nil,
         right: Int? = nil,
         top: Int? = nil,
@@ -693,75 +693,75 @@ final class EditorViewModel {
     ) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
         if let left {
-            box.textPaddingLeft = max(0, left)
+            rectangle.textPaddingLeft = max(0, left)
         }
         if let right {
-            box.textPaddingRight = max(0, right)
+            rectangle.textPaddingRight = max(0, right)
         }
         if let top {
-            box.textPaddingTop = max(0, top)
+            rectangle.textPaddingTop = max(0, top)
         }
         if let bottom {
-            box.textPaddingBottom = max(0, bottom)
+            rectangle.textPaddingBottom = max(0, bottom)
         }
-        updateShapeAndAttachments(.box(box))
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxStrokeStyle(_ style: StrokeStyle) {
+    func updateSelectedRectangleStrokeStyle(_ style: StrokeStyle) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.strokeStyle = style
-        updateShapeAndAttachments(.box(box))
+        rectangle.strokeStyle = style
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxFillMode(_ fillMode: BoxFillMode) {
+    func updateSelectedRectangleFillMode(_ fillMode: RectangleFillMode) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.fillMode = fillMode
-        updateShapeAndAttachments(.box(box))
+        rectangle.fillMode = fillMode
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxFillEnabled(_ isEnabled: Bool) {
-        updateSelectedBoxFillMode(isEnabled ? .solid : .transparent)
+    func updateSelectedRectangleFillEnabled(_ isEnabled: Bool) {
+        updateSelectedRectangleFillMode(isEnabled ? .solid : .transparent)
     }
 
-    func updateSelectedBoxFillCharacter(_ fillCharacter: Character) {
+    func updateSelectedRectangleFillCharacter(_ fillCharacter: Character) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.fillCharacter = fillCharacter
-        updateShapeAndAttachments(.box(box))
+        rectangle.fillCharacter = fillCharacter
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxOrigin(column: Int, row: Int) {
+    func updateSelectedRectangleOrigin(column: Int, row: Int) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.origin = GridPoint(column: column, row: row)
-        updateShapeAndAttachments(.box(box))
+        rectangle.origin = GridPoint(column: column, row: row)
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxSize(width: Int, height: Int) {
+    func updateSelectedRectangleSize(width: Int, height: Int) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.size = GridSize(width: width, height: height)
-        updateShapeAndAttachments(.box(box))
+        rectangle.size = GridSize(width: width, height: height)
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
@@ -913,33 +913,33 @@ final class EditorViewModel {
 
     // MARK: - Color editing
 
-    func updateSelectedBoxBorderColor(_ color: ShapeColor?) {
+    func updateSelectedRectangleBorderColor(_ color: ShapeColor?) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.borderColor = color
-        updateShapeAndAttachments(.box(box))
+        rectangle.borderColor = color
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxFillColor(_ color: ShapeColor?) {
+    func updateSelectedRectangleFillColor(_ color: ShapeColor?) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.fillColor = color
-        updateShapeAndAttachments(.box(box))
+        rectangle.fillColor = color
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
-    func updateSelectedBoxTextColor(_ color: ShapeColor?) {
+    func updateSelectedRectangleTextColor(_ color: ShapeColor?) {
         recordSnapshot()
         guard let shape = selectedShape,
-            case .box(var box) = shape
+            case .rectangle(var rectangle) = shape
         else { return }
-        box.textColor = color
-        updateShapeAndAttachments(.box(box))
+        rectangle.textColor = color
+        updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
@@ -1133,36 +1133,36 @@ final class EditorViewModel {
         idMap: [UUID: UUID]
     ) -> AnyShape {
         switch shape {
-        case .box(let box):
-            return .box(
-                BoxShape(
+        case .rectangle(let rectangle):
+            return .rectangle(
+                RectangleShape(
                     id: newID,
-                    name: box.name,
-                    origin: box.origin,
-                    size: box.size,
-                    strokeStyle: box.strokeStyle,
-                    hasBorder: box.hasBorder,
-                    visibleBorders: box.visibleBorders,
-                    borderLineStyle: box.borderLineStyle,
-                    borderDashLength: box.borderDashLength,
-                    borderGapLength: box.borderGapLength,
-                    fillMode: box.fillMode,
-                    fillCharacter: box.fillCharacter,
-                    label: box.label,
-                    textHorizontalAlignment: box.textHorizontalAlignment,
-                    textVerticalAlignment: box.textVerticalAlignment,
-                    allowTextOnBorder: box.allowTextOnBorder,
-                    textPaddingLeft: box.textPaddingLeft,
-                    textPaddingRight: box.textPaddingRight,
-                    textPaddingTop: box.textPaddingTop,
-                    textPaddingBottom: box.textPaddingBottom,
-                    hasShadow: box.hasShadow,
-                    shadowStyle: box.shadowStyle,
-                    shadowOffsetX: box.shadowOffsetX,
-                    shadowOffsetY: box.shadowOffsetY,
-                    borderColor: box.borderColor,
-                    fillColor: box.fillColor,
-                    textColor: box.textColor
+                    name: rectangle.name,
+                    origin: rectangle.origin,
+                    size: rectangle.size,
+                    strokeStyle: rectangle.strokeStyle,
+                    hasBorder: rectangle.hasBorder,
+                    visibleBorders: rectangle.visibleBorders,
+                    borderLineStyle: rectangle.borderLineStyle,
+                    borderDashLength: rectangle.borderDashLength,
+                    borderGapLength: rectangle.borderGapLength,
+                    fillMode: rectangle.fillMode,
+                    fillCharacter: rectangle.fillCharacter,
+                    label: rectangle.label,
+                    textHorizontalAlignment: rectangle.textHorizontalAlignment,
+                    textVerticalAlignment: rectangle.textVerticalAlignment,
+                    allowTextOnBorder: rectangle.allowTextOnBorder,
+                    textPaddingLeft: rectangle.textPaddingLeft,
+                    textPaddingRight: rectangle.textPaddingRight,
+                    textPaddingTop: rectangle.textPaddingTop,
+                    textPaddingBottom: rectangle.textPaddingBottom,
+                    hasShadow: rectangle.hasShadow,
+                    shadowStyle: rectangle.shadowStyle,
+                    shadowOffsetX: rectangle.shadowOffsetX,
+                    shadowOffsetY: rectangle.shadowOffsetY,
+                    borderColor: rectangle.borderColor,
+                    fillColor: rectangle.fillColor,
+                    textColor: rectangle.textColor
                 )
             )
         case .arrow(let arrow):
@@ -1296,9 +1296,9 @@ final class EditorViewModel {
 
     private func translatedShape(_ shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
         switch shape {
-        case .box(var box):
-            box.origin = GridPoint(column: box.origin.column + dx, row: box.origin.row + dy)
-            return .box(box)
+        case .rectangle(var rectangle):
+            rectangle.origin = GridPoint(column: rectangle.origin.column + dx, row: rectangle.origin.row + dy)
+            return .rectangle(rectangle)
         case .arrow(var arrow):
             arrow.start = GridPoint(column: arrow.start.column + dx, row: arrow.start.row + dy)
             arrow.end = GridPoint(column: arrow.end.column + dx, row: arrow.end.row + dy)
@@ -1562,6 +1562,115 @@ final class EditorViewModel {
         rerender()
     }
 
+    func canUngroupSelectedShapes() -> Bool {
+        guard !selectedShapeIDs.isEmpty else { return false }
+        for shapeID in selectedShapeIDs {
+            guard let layerIndex = document.layerIndex(containingShape: shapeID),
+                !document.layers[layerIndex].isLocked
+            else { return false }
+            let layer = document.layers[layerIndex]
+            for group in layer.groups {
+                if !group.allShapeIDs.isDisjoint(with: selectedShapeIDs) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    func ungroupSelectedShapes() {
+        recordSnapshot()
+        guard !selectedShapeIDs.isEmpty else { return }
+
+        var layerIndicesProcessed = Set<Int>()
+        for shapeID in selectedShapeIDs {
+            guard let layerIndex = document.layerIndex(containingShape: shapeID) else { continue }
+            layerIndicesProcessed.insert(layerIndex)
+        }
+
+        for layerIndex in layerIndicesProcessed {
+            guard !document.layers[layerIndex].isLocked else { continue }
+            var layer = document.layers[layerIndex]
+            layer.groups = ungroupedGroups(layer.groups, selectedIDs: selectedShapeIDs)
+            document.layers[layerIndex] = layer
+        }
+        rerender()
+    }
+
+    private func ungroupedGroups(
+        _ groups: [ShapeGroup],
+        selectedIDs: Set<UUID>
+    ) -> [ShapeGroup] {
+        var result: [ShapeGroup] = []
+        for var group in groups {
+            group.children = ungroupedGroups(group.children, selectedIDs: selectedIDs)
+            if !group.allShapeIDs.isDisjoint(with: selectedIDs) {
+                // Promote children to siblings; drop this group entirely
+                result.append(contentsOf: group.children)
+            } else {
+                result.append(group)
+            }
+        }
+        return result
+    }
+
+    func canSelectAllShapes() -> Bool {
+        guard !isEditingText,
+            document.layers.indices.contains(activeLayerIndex)
+        else { return false }
+        return !document.layers[activeLayerIndex].shapes.isEmpty
+    }
+
+    func selectAllShapes() {
+        guard canSelectAllShapes() else { return }
+        let layer = document.layers[activeLayerIndex]
+        selectedShapeIDs = Set(layer.shapes.map(\.id))
+        activeToolType = .select
+    }
+
+    func canCutSelectedShapes() -> Bool {
+        !isEditingText && !selectedShapeIDs.isEmpty
+    }
+
+    func cutSelectedShapes() {
+        copySelectedShapesToClipboard()
+        deleteSelectedShapes()
+    }
+
+    func canDuplicateSelectedShapes() -> Bool {
+        !isEditingText && !selectedShapeIDs.isEmpty
+    }
+
+    func duplicateSelectedShapes() {
+        guard let payloadData = selectedShapesClipboardPayloadData(),
+            let payload = decodeShapeClipboardPayload(from: payloadData),
+            !payload.shapes.isEmpty,
+            document.layers.indices.contains(activeLayerIndex),
+            !document.layers[activeLayerIndex].isLocked
+        else { return }
+
+        recordSnapshot()
+
+        let idMap = Dictionary(uniqueKeysWithValues: payload.shapes.map { ($0.id, UUID()) })
+        var duplicatedIDs: Set<UUID> = []
+
+        for shape in payload.shapes {
+            guard let newID = idMap[shape.id] else { continue }
+            let remapped = remappedShapeForClipboardPaste(shape, newID: newID, idMap: idMap)
+            let translated = translatedShape(
+                remapped,
+                dx: Self.pasteOffset.column,
+                dy: Self.pasteOffset.row
+            )
+            document.addShape(translated, toLayerAt: activeLayerIndex)
+            duplicatedIDs.insert(translated.id)
+        }
+
+        selectedShapeIDs = duplicatedIDs
+        activeToolType = .select
+        rerender()
+    }
+
     func moveLayer(draggedLayerID: UUID, before targetLayerID: UUID) {
         recordSnapshot()
         let activeLayerID =
@@ -1759,8 +1868,8 @@ final class EditorViewModel {
     private func updateShapeAndAttachments(_ shape: AnyShape) {
         document.updateShape(shape)
 
-        if case .box(let box) = shape {
-            rerouteAttachedArrows(for: box.id)
+        if case .rectangle(let rectangle) = shape {
+            rerouteAttachedArrows(for: rectangle.id)
         }
     }
 
@@ -1829,22 +1938,22 @@ final class EditorViewModel {
     private func resolveAttachment(_ attachment: ArrowAttachment?) -> (point: GridPoint, side: ArrowAttachmentSide)? {
         guard let attachment else { return nil }
         guard let shape = document.findShape(id: attachment.shapeID),
-            case .box(let box) = shape
+            case .rectangle(let rectangle) = shape
         else {
             return nil
         }
 
-        return (box.attachmentPoint(for: attachment.side), attachment.side)
+        return (rectangle.attachmentPoint(for: attachment.side), attachment.side)
     }
 
     private func translatedForSelectionMove(shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
         switch shape {
-        case .box(var box):
-            box.origin = GridPoint(
-                column: box.origin.column + dx,
-                row: box.origin.row + dy
+        case .rectangle(var rectangle):
+            rectangle.origin = GridPoint(
+                column: rectangle.origin.column + dx,
+                row: rectangle.origin.row + dy
             )
-            return .box(box)
+            return .rectangle(rectangle)
         case .arrow(var arrow):
             arrow.start = GridPoint(
                 column: arrow.start.column + dx,

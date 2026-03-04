@@ -144,7 +144,7 @@ private extension EditorViewModel {
             Layer(name: "Annotations"),
         ], canvasSize: GridSize(width: 120, height: 40))
 
-        let datacenter = BoxShape(
+        let datacenter = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 90, height: 24),
             strokeStyle: .double,
@@ -156,7 +156,7 @@ private extension EditorViewModel {
             shadowOffsetX: 1,
             shadowOffsetY: 1
         )
-        let api = BoxShape(
+        let api = RectangleShape(
             origin: GridPoint(column: 10, row: 6),
             size: GridSize(width: 24, height: 8),
             strokeStyle: .single,
@@ -168,7 +168,7 @@ private extension EditorViewModel {
             shadowOffsetX: 2,
             shadowOffsetY: 1
         )
-        let workers = BoxShape(
+        let workers = RectangleShape(
             origin: GridPoint(column: 46, row: 8),
             size: GridSize(width: 28, height: 10),
             strokeStyle: .heavy,
@@ -180,7 +180,7 @@ private extension EditorViewModel {
             shadowOffsetX: 2,
             shadowOffsetY: 1
         )
-        let db = BoxShape(
+        let db = RectangleShape(
             origin: GridPoint(column: 78, row: 5),
             size: GridSize(width: 12, height: 7),
             strokeStyle: .rounded,
@@ -225,10 +225,10 @@ private extension EditorViewModel {
             endHeadStyle: .openDiamond
         )
 
-        document.addShape(.box(datacenter), toLayerAt: 0)
-        document.addShape(.box(api), toLayerAt: 1)
-        document.addShape(.box(workers), toLayerAt: 1)
-        document.addShape(.box(db), toLayerAt: 1)
+        document.addShape(.rectangle(datacenter), toLayerAt: 0)
+        document.addShape(.rectangle(api), toLayerAt: 1)
+        document.addShape(.rectangle(workers), toLayerAt: 1)
+        document.addShape(.rectangle(db), toLayerAt: 1)
         document.addShape(.arrow(flow1), toLayerAt: 1)
         document.addShape(.arrow(flow2), toLayerAt: 1)
         document.addShape(.arrow(flow3), toLayerAt: 1)

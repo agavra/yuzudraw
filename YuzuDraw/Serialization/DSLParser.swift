@@ -53,8 +53,8 @@ enum DSLParser {
                     groupStack[groupStack.count - 1].shapeIDs.append(shape.id)
                 }
                 currentLayer?.addShape(shape)
-            } else if trimmed.hasPrefix("box ") || trimmed.hasPrefix("text ")
-                || trimmed.hasPrefix("pencil ")
+            } else if trimmed.hasPrefix("rectangle ") || trimmed.hasPrefix("box ")
+                || trimmed.hasPrefix("text ") || trimmed.hasPrefix("pencil ")
             {
                 // Pop groups whose indent is >= this shape's indent
                 popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
@@ -126,8 +126,8 @@ enum DSLParser {
     }
 
     private static func parseShape(_ line: String) throws -> AnyShape {
-        if line.hasPrefix("box ") {
-            return try .box(parseBox(line))
+        if line.hasPrefix("rectangle ") || line.hasPrefix("box ") {
+            return try .rectangle(parseRectangle(line))
         } else if line.hasPrefix("text ") {
             return try .text(parseText(line))
         } else if line.hasPrefix("pencil ") {
@@ -136,20 +136,21 @@ enum DSLParser {
         throw DSLParserError.unexpectedToken(line)
     }
 
-    private static func parseBox(_ line: String) throws -> BoxShape {
-        // box "label" at col,row size WxH [style|stroke styleName] [fill transparent|solid [char "x"]]
-        guard let label = try? parseQuotedString(from: line, after: "box ") else {
-            throw DSLParserError.invalidSyntax("Expected box label: \(line)")
+    private static func parseRectangle(_ line: String) throws -> RectangleShape {
+        // rectangle "label" at col,row size WxH [style|stroke styleName] [fill transparent|solid [char "x"]]
+        let keyword = line.hasPrefix("box ") ? "box " : "rectangle "
+        guard let label = try? parseQuotedString(from: line, after: keyword) else {
+            throw DSLParserError.invalidSyntax("Expected rectangle label: \(line)")
         }
 
         guard let atRange = line.range(of: " at ") else {
-            throw DSLParserError.invalidSyntax("Expected 'at' in box: \(line)")
+            throw DSLParserError.invalidSyntax("Expected 'at' in rectangle: \(line)")
         }
         let afterAt = String(line[atRange.upperBound...])
         let (col, row) = try parseCoordinate(afterAt)
 
         guard let sizeRange = line.range(of: " size ") else {
-            throw DSLParserError.invalidSyntax("Expected 'size' in box: \(line)")
+            throw DSLParserError.invalidSyntax("Expected 'size' in rectangle: \(line)")
         }
         let afterSize = String(line[sizeRange.upperBound...])
         let (width, height) = try parseDimension(afterSize)
@@ -169,7 +170,7 @@ enum DSLParser {
             }
         }
 
-        var fillMode: BoxFillMode = .transparent
+        var fillMode: RectangleFillMode = .transparent
         var fillCharacter: Character = " "
         if line.contains(" fill solid") {
             fillMode = .solid
@@ -184,23 +185,23 @@ enum DSLParser {
         if line.contains(" border hidden") {
             hasBorder = false
         }
-        var visibleBorders = Set(BoxBorderSide.allCases)
+        var visibleBorders = Set(RectangleBorderSide.allCases)
         if let bordersRange = line.range(of: " borders ") {
             let value = String(line[bordersRange.upperBound...].prefix(while: { !$0.isWhitespace }))
             let parsedSides = value
                 .split(separator: ",")
-                .compactMap { BoxBorderSide(rawValue: String($0)) }
+                .compactMap { RectangleBorderSide(rawValue: String($0)) }
             if !parsedSides.isEmpty {
                 visibleBorders = Set(parsedSides)
             }
         }
-        var borderLineStyle: BoxBorderLineStyle = .solid
+        var borderLineStyle: RectangleBorderLineStyle = .solid
         var borderDashLength = 1
         var borderGapLength = 1
         if let lineStyleRange = line.range(of: " line ") {
             let value = String(
                 line[lineStyleRange.upperBound...].prefix(while: { !$0.isWhitespace }))
-            if let parsed = BoxBorderLineStyle(rawValue: value) {
+            if let parsed = RectangleBorderLineStyle(rawValue: value) {
                 borderLineStyle = parsed
             }
             if let dashRange = line.range(of: " dash ") {
@@ -215,19 +216,19 @@ enum DSLParser {
             }
         }
 
-        var textHorizontalAlignment: BoxTextHorizontalAlignment = .center
+        var textHorizontalAlignment: RectangleTextHorizontalAlignment = .center
         if let horizontalRange = line.range(of: " halign ") {
             let value = String(
                 line[horizontalRange.upperBound...].prefix(while: { !$0.isWhitespace }))
-            if let parsed = BoxTextHorizontalAlignment(rawValue: value) {
+            if let parsed = RectangleTextHorizontalAlignment(rawValue: value) {
                 textHorizontalAlignment = parsed
             }
         }
 
-        var textVerticalAlignment: BoxTextVerticalAlignment = .middle
+        var textVerticalAlignment: RectangleTextVerticalAlignment = .middle
         if let verticalRange = line.range(of: " valign ") {
             let value = String(line[verticalRange.upperBound...].prefix(while: { !$0.isWhitespace }))
-            if let parsed = BoxTextVerticalAlignment(rawValue: value) {
+            if let parsed = RectangleTextVerticalAlignment(rawValue: value) {
                 textVerticalAlignment = parsed
             }
         }
@@ -256,7 +257,7 @@ enum DSLParser {
         }
 
         var hasShadow = false
-        var shadowStyle: BoxShadowStyle = .light
+        var shadowStyle: RectangleShadowStyle = .light
         var shadowOffsetX = 1
         var shadowOffsetY = 1
         if let shadowRange = line.range(of: " shadow ") {
@@ -264,7 +265,7 @@ enum DSLParser {
             let shadowSection = String(line[shadowRange.upperBound...])
 
             let styleValue = String(shadowSection.prefix(while: { !$0.isWhitespace }))
-            if let parsed = BoxShadowStyle(rawValue: styleValue) {
+            if let parsed = RectangleShadowStyle(rawValue: styleValue) {
                 shadowStyle = parsed
             }
 
@@ -283,12 +284,12 @@ enum DSLParser {
             // Backward compatibility with old syntax:
             // shadow <style> direction <dir> offset <n> size <n>
             if shadowSection.contains(" direction ") || shadowSection.contains(" offset ") {
-                var legacyDirection: BoxShadowDirection = .bottomRight
+                var legacyDirection: RectangleShadowDirection = .bottomRight
                 var legacyOffset = 1
                 if let directionRange = shadowSection.range(of: " direction ") {
                     let value = String(
                         shadowSection[directionRange.upperBound...].prefix(while: { !$0.isWhitespace }))
-                    if let parsed = BoxShadowDirection(rawValue: value) {
+                    if let parsed = RectangleShadowDirection(rawValue: value) {
                         legacyDirection = parsed
                     }
                 }
@@ -306,7 +307,7 @@ enum DSLParser {
         let fillColor = parseColorKeyword("fillColor", in: line)
         let textColor = parseColorKeyword("textColor", in: line)
 
-        return BoxShape(
+        return RectangleShape(
             origin: GridPoint(column: col, row: row),
             size: GridSize(width: width, height: height),
             strokeStyle: strokeStyle,
@@ -347,7 +348,7 @@ enum DSLParser {
     ) throws -> ArrowShape {
         // Supports two endpoint formats:
         //   arrow from col,row to col,row ...
-        //   arrow from "BoxLabel".side to "BoxLabel".side ...
+        //   arrow from "RectangleLabel".side to "RectangleLabel".side ...
         guard let fromRange = line.range(of: "from ") else {
             throw DSLParserError.invalidSyntax("Expected 'from' in arrow: \(line)")
         }
@@ -365,12 +366,12 @@ enum DSLParser {
         var startPoint: GridPoint
         var startAttachment: ArrowAttachment?
         if let ref = parseNamedEndpoint(afterFrom) {
-            guard let box = findBoxByLabel(ref.label, in: allShapes) else {
+            guard let rectangle = findRectangleByLabel(ref.label, in: allShapes) else {
                 throw DSLParserError.invalidSyntax(
-                    "Box '\(ref.label)' not found for arrow attachment")
+                    "Rectangle '\(ref.label)' not found for arrow attachment")
             }
-            startPoint = box.attachmentPoint(for: ref.side)
-            startAttachment = ArrowAttachment(shapeID: box.id, side: ref.side)
+            startPoint = rectangle.attachmentPoint(for: ref.side)
+            startAttachment = ArrowAttachment(shapeID: rectangle.id, side: ref.side)
         } else {
             let (col, row) = try parseCoordinate(afterFrom)
             startPoint = GridPoint(column: col, row: row)
@@ -380,12 +381,12 @@ enum DSLParser {
         var endPoint: GridPoint
         var endAttachment: ArrowAttachment?
         if let ref = parseNamedEndpoint(afterTo) {
-            guard let box = findBoxByLabel(ref.label, in: allShapes) else {
+            guard let rectangle = findRectangleByLabel(ref.label, in: allShapes) else {
                 throw DSLParserError.invalidSyntax(
-                    "Box '\(ref.label)' not found for arrow attachment")
+                    "Rectangle '\(ref.label)' not found for arrow attachment")
             }
-            endPoint = box.attachmentPoint(for: ref.side)
-            endAttachment = ArrowAttachment(shapeID: box.id, side: ref.side)
+            endPoint = rectangle.attachmentPoint(for: ref.side)
+            endAttachment = ArrowAttachment(shapeID: rectangle.id, side: ref.side)
         } else {
             let (col, row) = try parseCoordinate(afterTo)
             endPoint = GridPoint(column: col, row: row)
@@ -427,7 +428,7 @@ enum DSLParser {
         )
     }
 
-    /// Parse a named endpoint like `"BoxLabel".right`
+    /// Parse a named endpoint like `"RectangleLabel".right`
     private static func parseNamedEndpoint(_ text: String) -> NamedEndpoint? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard trimmed.first == "\"" else { return nil }
@@ -446,11 +447,11 @@ enum DSLParser {
         return NamedEndpoint(label: label, side: side)
     }
 
-    /// Find the first box with a matching label across all shapes.
-    private static func findBoxByLabel(_ label: String, in shapes: [AnyShape]) -> BoxShape? {
+    /// Find the first rectangle with a matching label across all shapes.
+    private static func findRectangleByLabel(_ label: String, in shapes: [AnyShape]) -> RectangleShape? {
         for shape in shapes {
-            if case .box(let box) = shape, box.label == label {
-                return box
+            if case .rectangle(let rectangle) = shape, rectangle.label == label {
+                return rectangle
             }
         }
         return nil

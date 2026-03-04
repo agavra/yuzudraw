@@ -499,7 +499,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-extension BoxShape {
+extension RectangleShape {
     func attachmentPoint(for side: ArrowAttachmentSide) -> GridPoint {
         let rect = boundingRect
         let centerColumn = rect.minColumn + rect.size.width / 2

@@ -242,7 +242,7 @@ struct ArrowShapeTests {
     @Test func should_use_tee_not_cross_at_attached_start() {
         // given
         var canvas = Canvas(columns: 16, rows: 10)
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 4, row: 2),
             size: GridSize(width: 6, height: 5)
         )
@@ -253,7 +253,7 @@ struct ArrowShapeTests {
         )
 
         // when
-        box.render(into: &canvas)
+        rectangle.render(into: &canvas)
         arrow.render(into: &canvas)
 
         // then
@@ -295,7 +295,7 @@ struct ArrowShapeTests {
         #expect(last.to.column > last.from.column)
     }
 
-    @Test func should_detour_when_straight_horizontal_route_would_align_with_box_edge() {
+    @Test func should_detour_when_straight_horizontal_route_would_align_with_rectangle_edge() {
         // given
         let arrow = ArrowShape(
             start: GridPoint(column: 10, row: 4),

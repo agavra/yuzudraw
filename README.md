@@ -9,9 +9,9 @@
 
 ## Features
 
-- **Shape types** — Boxes (with configurable border styles, fill, shadows), arrows (with orthogonal routing and attachment points), and free-form text
-- **Drawing tools** — Selection, box, arrow, and text tools with rubber-band preview and inline editing
-- **Arrow attachments** — Arrows snap to box sides and automatically re-route when boxes move
+- **Shape types** — Rectangles (with configurable border styles, fill, shadows), arrows (with orthogonal routing and attachment points), and free-form text
+- **Drawing tools** — Selection, rectangle, arrow, and text tools with rubber-band preview and inline editing
+- **Arrow attachments** — Arrows snap to rectangle sides and automatically re-route when rectangles move
 - **Layers & grouping** — Hierarchical layer panel with visibility/lock toggles, drag-and-drop reorder, and shape grouping (Cmd+G)
 - **Multi-project workspace** — Tabbed interface with a welcome screen, recent projects list, and auto-save
 - **Inspector panel** — Edit shape properties including position, size, text alignment, border style, fill, and shadow

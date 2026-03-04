@@ -7,50 +7,50 @@ struct EditorViewModelGroupingTests {
     @Test func should_group_selected_shapes_in_same_layer() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let box1 = BoxShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let box2 = BoxShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
-        let box3 = BoxShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.box(box1), toLayerAt: 0)
-        document.addShape(.box(box2), toLayerAt: 0)
-        document.addShape(.box(box3), toLayerAt: 0)
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect3), toLayerAt: 0)
         let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [box3.id, box1.id]
+        viewModel.selectedShapeIDs = [rect3.id, rect1.id]
 
         // when
         viewModel.groupSelectedShapes()
 
         // then
         #expect(viewModel.document.layers[0].groups.count == 1)
-        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [box1.id, box3.id])
+        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [rect1.id, rect3.id])
     }
 
     @Test func should_preserve_multi_selection_when_drag_starts_on_selected_shape() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let box1 = BoxShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
-        let box2 = BoxShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.box(box1), toLayerAt: 0)
-        document.addShape(.box(box2), toLayerAt: 0)
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
-        viewModel.selectedShapeIDs = [box1.id, box2.id]
+        viewModel.selectedShapeIDs = [rect1.id, rect2.id]
 
         // when
         viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
 
         // then
-        #expect(viewModel.selectedShapeIDs == [box1.id, box2.id])
+        #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id])
     }
 
     @Test func should_not_group_selected_shapes_across_layers() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1"), Layer(name: "Layer 2")])
-        let box1 = BoxShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let box2 = BoxShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.box(box1), toLayerAt: 0)
-        document.addShape(.box(box2), toLayerAt: 1)
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 1)
         let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [box1.id, box2.id]
+        viewModel.selectedShapeIDs = [rect1.id, rect2.id]
 
         // when
         viewModel.groupSelectedShapes()
@@ -63,46 +63,46 @@ struct EditorViewModelGroupingTests {
     @Test func should_remove_shapes_from_existing_groups_before_creating_new_group() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let box1 = BoxShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let box2 = BoxShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
-        let box3 = BoxShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.box(box1), toLayerAt: 0)
-        document.addShape(.box(box2), toLayerAt: 0)
-        document.addShape(.box(box3), toLayerAt: 0)
-        document.layers[0].groups.append(ShapeGroup(name: "Existing", shapeIDs: [box1.id, box2.id]))
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect3), toLayerAt: 0)
+        document.layers[0].groups.append(ShapeGroup(name: "Existing", shapeIDs: [rect1.id, rect2.id]))
         let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [box2.id, box3.id]
+        viewModel.selectedShapeIDs = [rect2.id, rect3.id]
 
         // when
         viewModel.groupSelectedShapes()
 
         // then
         #expect(viewModel.document.layers[0].groups.count == 2)
-        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [box1.id])
-        #expect(viewModel.document.layers[0].groups[1].shapeIDs == [box2.id, box3.id])
+        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [rect1.id])
+        #expect(viewModel.document.layers[0].groups[1].shapeIDs == [rect2.id, rect3.id])
     }
 
     @Test func should_rename_shape_without_changing_label() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 4),
             label: "Rendered"
         )
-        document.addShape(.box(box), toLayerAt: 0)
+        document.addShape(.rectangle(rectangle), toLayerAt: 0)
         let viewModel = EditorViewModel(document: document)
 
         // when
-        viewModel.renameShapeFromPanel(box.id, to: "Node A")
+        viewModel.renameShapeFromPanel(rectangle.id, to: "Node A")
 
         // then
-        guard case .box(let renamedBox) = viewModel.document.layers[0].shapes[0] else {
-            Issue.record("Expected box shape")
+        guard case .rectangle(let renamedRect) = viewModel.document.layers[0].shapes[0] else {
+            Issue.record("Expected rectangle shape")
             return
         }
-        #expect(renamedBox.name == "Node A")
-        #expect(renamedBox.label == "Rendered")
+        #expect(renamedRect.name == "Node A")
+        #expect(renamedRect.label == "Rendered")
         #expect(viewModel.document.layers[0].shapes[0].displayName == "Node A")
     }
 
@@ -254,8 +254,8 @@ struct EditorViewModelGroupingTests {
     @Test func should_not_shrink_canvas_below_shape_bounds_plus_padding() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(origin: GridPoint(column: 95, row: 5), size: GridSize(width: 10, height: 4))
-        document.addShape(.box(box), toLayerAt: 0)
+        let rectangle = RectangleShape(origin: GridPoint(column: 95, row: 5), size: GridSize(width: 10, height: 4))
+        document.addShape(.rectangle(rectangle), toLayerAt: 0)
         let viewModel = EditorViewModel(document: document)
         viewModel.document.canvasSize = GridSize(width: 140, height: 40)
 
@@ -268,7 +268,7 @@ struct EditorViewModelGroupingTests {
         )
 
         // then
-        // box max col is 104 -> minimum width with padding is 115
+        // rectangle max col is 104 -> minimum width with padding is 115
         #expect(viewModel.document.canvasSize.width == 120)
 
         // when

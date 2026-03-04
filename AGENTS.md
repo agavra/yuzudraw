@@ -22,7 +22,7 @@ xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
 - `YuzuDraw/Models/` — Data models (Canvas, Geometry, Shapes, Layers, Document, ProjectMetadata, ProjectTab, RecentProject)
 - `YuzuDraw/Views/` — SwiftUI views (RootView, WelcomeView, TabBarContentView, ContentView, CanvasView, ToolbarView, LayerPanel, InspectorPanel)
 - `YuzuDraw/ViewModels/` — Observable view models (WorkspaceViewModel, EditorViewModel)
-- `YuzuDraw/Tools/` — Drawing tool system (Tool protocol, SelectionTool, BoxTool, ArrowTool, TextTool)
+- `YuzuDraw/Tools/` — Drawing tool system (Tool protocol, SelectionTool, RectangleTool, ArrowTool, TextTool)
 - `YuzuDraw/Serialization/` — Document persistence (JSON via DocumentCodable, DSL via DSLSerializer/DSLParser, ProjectFileManager for file I/O)
 - `YuzuDraw/Resources/` — Assets, Info.plist, entitlements
 - `YuzuDrawTests/` — Unit tests
@@ -53,20 +53,20 @@ CanvasView: displays Canvas.render() as monospaced Text
 - Tools conform to the `Tool` protocol with `mouseDown`/`mouseDragged`/`mouseUp` returning `ToolAction` enums
 - `ToolAction` cases: `.addShape`, `.selectShape`, `.updateShape`, `.beginTextEdit`, `.none`
 - Tools are stateful (track drag start point) but the ViewModel applies all actions to the document
-- `BoxTool` and `ArrowTool` expose `previewShape()` for rubber-band rendering during drag
+- `RectangleTool` and `ArrowTool` expose `previewShape()` for rubber-band rendering during drag
 
 ### Shape Model
 
-- `AnyShape` is a type-erased enum (`.box`, `.arrow`, `.text`) — not a protocol, for easy `Codable`/`Equatable`
+- `AnyShape` is a type-erased enum (`.rectangle`, `.arrow`, `.text`) — not a protocol, for easy `Codable`/`Equatable`
 - Each shape has `render(into: &Canvas)`, `contains(point:)`, and `boundingRect`
-- `BoxShape` supports 4 border styles (single/double/rounded/heavy) via `BorderStyle` enum mapping to Unicode box-drawing chars
+- `RectangleShape` supports 4 border styles (single/double/rounded/heavy) via `BorderStyle` enum mapping to Unicode box-drawing chars
 - `ArrowShape` generates L-shaped orthogonal paths (horizontal-first) with directional arrowheads (▶◀▲▼)
 
 ### Serialization
 
 Two-tier serialization designed for AI agent interaction:
 - **JSON**: automatic via `Codable`, uses `"type"` discriminator key in `AnyShape`
-- **DSL**: concise line-oriented format (`box "Server" at 5,3 size 20x5 style single`)
+- **DSL**: concise line-oriented format (`rectangle "Server" at 5,3 size 20x5 style single`)
 
 ### Multi-Project / Workspace
 

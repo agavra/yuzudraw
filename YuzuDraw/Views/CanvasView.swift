@@ -130,6 +130,31 @@ struct CanvasView: View {
                 }
                 return .handled
             }
+            .onKeyPress(characters: .init(charactersIn: "vVrRlLtTpP")) { press in
+                guard !viewModel.isEditingText else { return .ignored }
+                switch press.characters.lowercased() {
+                case "v":
+                    viewModel.activeToolType = .select
+                case "r":
+                    viewModel.activeToolType = .rectangle
+                case "l":
+                    viewModel.activeToolType = .arrow
+                case "t":
+                    viewModel.activeToolType = .text
+                case "p":
+                    viewModel.activeToolType = .pencil
+                    let hasSelectedPencil = viewModel.selectedShapes.contains {
+                        if case .pencil = $0 { return true }
+                        return false
+                    }
+                    if !hasSelectedPencil {
+                        viewModel.selectedShapeIDs = []
+                    }
+                default:
+                    return .ignored
+                }
+                return .handled
+            }
         }
     }
 
@@ -559,7 +584,7 @@ struct CanvasView: View {
             case .pencil:
                 viewModel.updateHoverGridPoint(point)
                 NSCursor.crosshair.set()
-            case .box, .text:
+            case .rectangle, .text:
                 viewModel.updateHoverGridPoint(nil)
                 NSCursor.arrow.set()
             }
@@ -739,7 +764,7 @@ struct InlineTextEditor: NSViewRepresentable {
     CanvasView(viewModel: {
         let vm = EditorViewModel()
         vm.document.addShape(
-            .box(BoxShape(
+            .rectangle(RectangleShape(
                 origin: GridPoint(column: 5, row: 3),
                 size: GridSize(width: 14, height: 5),
                 strokeStyle: .single,
@@ -748,7 +773,7 @@ struct InlineTextEditor: NSViewRepresentable {
             toLayerAt: 0
         )
         vm.document.addShape(
-            .box(BoxShape(
+            .rectangle(RectangleShape(
                 origin: GridPoint(column: 30, row: 3),
                 size: GridSize(width: 14, height: 5),
                 strokeStyle: .double,

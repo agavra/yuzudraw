@@ -40,7 +40,7 @@ When modifying any of the following, **you must also update the corresponding co
 ## Claude Code Skill (`skills/diagram/`)
 The `/diagram` skill teaches Claude how to create ASCII diagrams via the MCP server. It lives in `skills/diagram/SKILL.md` and contains:
 - DSL syntax reference
-- Layout heuristics (box sizing, spacing, arrow endpoints)
+- Layout heuristics (rectangle sizing, spacing, arrow endpoints)
 - Common diagram patterns
 - MCP tool usage instructions
 

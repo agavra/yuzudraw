@@ -1,35 +1,35 @@
 import Foundation
 
-enum BoxFillMode: String, Codable, CaseIterable, Sendable {
+enum RectangleFillMode: String, Codable, CaseIterable, Sendable {
     case transparent
     case solid
 }
 
-enum BoxTextHorizontalAlignment: String, Codable, CaseIterable, Sendable {
+enum RectangleTextHorizontalAlignment: String, Codable, CaseIterable, Sendable {
     case left
     case center
     case right
 }
 
-enum BoxTextVerticalAlignment: String, Codable, CaseIterable, Sendable {
+enum RectangleTextVerticalAlignment: String, Codable, CaseIterable, Sendable {
     case top
     case middle
     case bottom
 }
 
-enum BoxBorderSide: String, Codable, CaseIterable, Hashable, Sendable {
+enum RectangleBorderSide: String, Codable, CaseIterable, Hashable, Sendable {
     case top
     case bottom
     case right
     case left
 }
 
-enum BoxBorderLineStyle: String, Codable, CaseIterable, Sendable {
+enum RectangleBorderLineStyle: String, Codable, CaseIterable, Sendable {
     case solid
     case dashed
 }
 
-enum BoxShadowStyle: String, Codable, CaseIterable, Sendable {
+enum RectangleShadowStyle: String, Codable, CaseIterable, Sendable {
     case light
     case medium
     case dark
@@ -49,7 +49,7 @@ enum BoxShadowStyle: String, Codable, CaseIterable, Sendable {
     }
 }
 
-enum BoxShadowDirection: String, Codable, Sendable {
+enum RectangleShadowDirection: String, Codable, Sendable {
     case topLeft
     case topRight
     case bottomLeft
@@ -74,29 +74,29 @@ enum BoxShadowDirection: String, Codable, Sendable {
     }
 }
 
-struct BoxShape: Codable, Equatable, Identifiable, Sendable {
+struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     var name: String?
     var origin: GridPoint
     var size: GridSize
     var strokeStyle: StrokeStyle
     var hasBorder: Bool
-    var visibleBorders: Set<BoxBorderSide>
-    var borderLineStyle: BoxBorderLineStyle
+    var visibleBorders: Set<RectangleBorderSide>
+    var borderLineStyle: RectangleBorderLineStyle
     var borderDashLength: Int
     var borderGapLength: Int
-    var fillMode: BoxFillMode
+    var fillMode: RectangleFillMode
     var fillCharacter: Character
     var label: String
-    var textHorizontalAlignment: BoxTextHorizontalAlignment
-    var textVerticalAlignment: BoxTextVerticalAlignment
+    var textHorizontalAlignment: RectangleTextHorizontalAlignment
+    var textVerticalAlignment: RectangleTextVerticalAlignment
     var allowTextOnBorder: Bool
     var textPaddingLeft: Int
     var textPaddingRight: Int
     var textPaddingTop: Int
     var textPaddingBottom: Int
     var hasShadow: Bool
-    var shadowStyle: BoxShadowStyle
+    var shadowStyle: RectangleShadowStyle
     var shadowOffsetX: Int
     var shadowOffsetY: Int
     var borderColor: ShapeColor?
@@ -110,22 +110,22 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         size: GridSize,
         strokeStyle: StrokeStyle = .single,
         hasBorder: Bool = true,
-        visibleBorders: Set<BoxBorderSide> = Set(BoxBorderSide.allCases),
-        borderLineStyle: BoxBorderLineStyle = .solid,
+        visibleBorders: Set<RectangleBorderSide> = Set(RectangleBorderSide.allCases),
+        borderLineStyle: RectangleBorderLineStyle = .solid,
         borderDashLength: Int = 1,
         borderGapLength: Int = 1,
-        fillMode: BoxFillMode = .transparent,
+        fillMode: RectangleFillMode = .transparent,
         fillCharacter: Character = " ",
         label: String = "",
-        textHorizontalAlignment: BoxTextHorizontalAlignment = .center,
-        textVerticalAlignment: BoxTextVerticalAlignment = .middle,
+        textHorizontalAlignment: RectangleTextHorizontalAlignment = .center,
+        textVerticalAlignment: RectangleTextVerticalAlignment = .middle,
         allowTextOnBorder: Bool = false,
         textPaddingLeft: Int = 0,
         textPaddingRight: Int = 0,
         textPaddingTop: Int = 0,
         textPaddingBottom: Int = 0,
         hasShadow: Bool = false,
-        shadowStyle: BoxShadowStyle = .light,
+        shadowStyle: RectangleShadowStyle = .light,
         shadowOffsetX: Int = 1,
         shadowOffsetY: Int = 1,
         borderColor: ShapeColor? = nil,
@@ -246,9 +246,9 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
 
             for r in shadowRow..<(shadowRow + h) {
                 for c in shadowCol..<(shadowCol + w) {
-                    let insideBoxX = c >= col && c < (col + w)
-                    let insideBoxY = r >= row && r < (row + h)
-                    if insideBoxX && insideBoxY {
+                    let insideRectX = c >= col && c < (col + w)
+                    let insideRectY = r >= row && r < (row + h)
+                    if insideRectX && insideRectY {
                         continue
                     }
                     canvas.setCharacter(
@@ -483,10 +483,10 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
             ?? .single
         hasBorder = try container.decodeIfPresent(Bool.self, forKey: .hasBorder) ?? true
         visibleBorders =
-            try container.decodeIfPresent(Set<BoxBorderSide>.self, forKey: .visibleBorders)
-            ?? Set(BoxBorderSide.allCases)
+            try container.decodeIfPresent(Set<RectangleBorderSide>.self, forKey: .visibleBorders)
+            ?? Set(RectangleBorderSide.allCases)
         borderLineStyle =
-            try container.decodeIfPresent(BoxBorderLineStyle.self, forKey: .borderLineStyle)
+            try container.decodeIfPresent(RectangleBorderLineStyle.self, forKey: .borderLineStyle)
             ?? .solid
         borderDashLength = max(
             1,
@@ -496,19 +496,19 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
             0,
             try container.decodeIfPresent(Int.self, forKey: .borderGapLength) ?? 1
         )
-        fillMode = try container.decodeIfPresent(BoxFillMode.self, forKey: .fillMode) ?? .transparent
+        fillMode = try container.decodeIfPresent(RectangleFillMode.self, forKey: .fillMode) ?? .transparent
         let fillCharacterString =
             try container.decodeIfPresent(String.self, forKey: .fillCharacter) ?? " "
         fillCharacter = fillCharacterString.first ?? Character(" ")
         label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
         textHorizontalAlignment =
             try container.decodeIfPresent(
-                BoxTextHorizontalAlignment.self,
+                RectangleTextHorizontalAlignment.self,
                 forKey: .textHorizontalAlignment
             ) ?? .center
         textVerticalAlignment =
             try container.decodeIfPresent(
-                BoxTextVerticalAlignment.self,
+                RectangleTextVerticalAlignment.self,
                 forKey: .textVerticalAlignment
             ) ?? .middle
         allowTextOnBorder = try container.decodeIfPresent(Bool.self, forKey: .allowTextOnBorder) ?? false
@@ -519,7 +519,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         textPaddingBottom = max(
             0, try container.decodeIfPresent(Int.self, forKey: .textPaddingBottom) ?? 0)
         hasShadow = try container.decodeIfPresent(Bool.self, forKey: .hasShadow) ?? false
-        shadowStyle = try container.decodeIfPresent(BoxShadowStyle.self, forKey: .shadowStyle) ?? .light
+        shadowStyle = try container.decodeIfPresent(RectangleShadowStyle.self, forKey: .shadowStyle) ?? .light
 
         if let x = try container.decodeIfPresent(Int.self, forKey: .shadowOffsetX),
             let y = try container.decodeIfPresent(Int.self, forKey: .shadowOffsetY)
@@ -529,7 +529,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         } else {
             // Backward compatibility for old direction/offset fields.
             let legacyDirection =
-                try container.decodeIfPresent(BoxShadowDirection.self, forKey: .shadowDirection)
+                try container.decodeIfPresent(RectangleShadowDirection.self, forKey: .shadowDirection)
                 ?? .bottomRight
             let legacyOffset = max(
                 0, try container.decodeIfPresent(Int.self, forKey: .shadowOffset) ?? 1)
@@ -572,7 +572,7 @@ struct BoxShape: Codable, Equatable, Identifiable, Sendable {
         try container.encodeIfPresent(textColor, forKey: .textColor)
     }
 
-    private func shouldDraw(_ side: BoxBorderSide) -> Bool {
+    private func shouldDraw(_ side: RectangleBorderSide) -> Bool {
         hasBorder && visibleBorders.contains(side)
     }
 

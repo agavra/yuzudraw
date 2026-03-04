@@ -6,20 +6,20 @@ struct DSLSerializerTests {
     @Test func should_serialize_simple_document() {
         // given
         var doc = Document(layers: [Layer(name: "Infrastructure")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 20, height: 5),
             strokeStyle: .single,
             label: "Server"
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         let dsl = DSLSerializer.serialize(doc)
 
         // then
         #expect(dsl.contains("layer \"Infrastructure\" visible"))
-        #expect(dsl.contains("box \"Server\" at 5,3 size 20x5 style single"))
+        #expect(dsl.contains("rectangle \"Server\" at 5,3 size 20x5 style single"))
     }
 
     @Test func should_serialize_arrow_with_label() {
@@ -40,10 +40,10 @@ struct DSLSerializerTests {
         #expect(dsl.contains("arrow from 15,7 to 15,15 style heavy label \"SQL\""))
     }
 
-    @Test func should_serialize_box_fill() {
+    @Test func should_serialize_rectangle_fill() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             strokeStyle: .single,
@@ -51,19 +51,19 @@ struct DSLSerializerTests {
             fillCharacter: ".",
             label: "Filled"
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         let dsl = DSLSerializer.serialize(doc)
 
         // then
-        #expect(dsl.contains("box \"Filled\" at 1,1 size 8x4 style single fill solid char \".\""))
+        #expect(dsl.contains("rectangle \"Filled\" at 1,1 size 8x4 style single fill solid char \".\""))
     }
 
-    @Test func should_serialize_box_text_layout_settings() {
+    @Test func should_serialize_rectangle_text_layout_settings() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             hasBorder: false,
@@ -76,7 +76,7 @@ struct DSLSerializerTests {
             textPaddingTop: 0,
             textPaddingBottom: 1
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -88,16 +88,16 @@ struct DSLSerializerTests {
         #expect(dsl.contains("padding 1,2,0,1"))
     }
 
-    @Test func should_serialize_box_visible_borders() {
+    @Test func should_serialize_rectangle_visible_borders() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             visibleBorders: [.top, .left],
             label: "Sides"
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -106,10 +106,10 @@ struct DSLSerializerTests {
         #expect(dsl.contains("borders top,left"))
     }
 
-    @Test func should_serialize_box_dashed_border_settings() {
+    @Test func should_serialize_rectangle_dashed_border_settings() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 8, height: 4),
             borderLineStyle: .dashed,
@@ -117,7 +117,7 @@ struct DSLSerializerTests {
             borderGapLength: 2,
             label: "Dash"
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -128,10 +128,10 @@ struct DSLSerializerTests {
         #expect(dsl.contains("gap 2"))
     }
 
-    @Test func should_serialize_box_shadow_settings() {
+    @Test func should_serialize_rectangle_shadow_settings() {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             label: "Note",
@@ -140,7 +140,7 @@ struct DSLSerializerTests {
             shadowOffsetX: -2,
             shadowOffsetY: -3
         )
-        doc.addShape(.box(box), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -183,21 +183,21 @@ struct DSLSerializerTests {
     @Test func should_serialize_nested_groups() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box1 = BoxShape(
+        let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3),
             label: "Inner"
         )
-        let box2 = BoxShape(
+        let rect2 = RectangleShape(
             origin: GridPoint(column: 10, row: 0),
             size: GridSize(width: 5, height: 3),
             label: "Outer"
         )
-        layer.addShape(.box(box1))
-        layer.addShape(.box(box2))
-        let innerGroup = ShapeGroup(name: "InnerGroup", shapeIDs: [box1.id])
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        let innerGroup = ShapeGroup(name: "InnerGroup", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(
-            name: "OuterGroup", shapeIDs: [box2.id], children: [innerGroup])
+            name: "OuterGroup", shapeIDs: [rect2.id], children: [innerGroup])
         layer.groups.append(outerGroup)
 
         let doc = Document(layers: [layer])
@@ -208,27 +208,27 @@ struct DSLSerializerTests {
         // then
         #expect(dsl.contains("group \"OuterGroup\""))
         #expect(dsl.contains("group \"InnerGroup\""))
-        #expect(dsl.contains("box \"Inner\""))
-        #expect(dsl.contains("box \"Outer\""))
+        #expect(dsl.contains("rectangle \"Inner\""))
+        #expect(dsl.contains("rectangle \"Outer\""))
     }
 
     @Test func should_serialize_groups() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box1 = BoxShape(
+        let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3),
             label: "A"
         )
-        let box2 = BoxShape(
+        let rect2 = RectangleShape(
             origin: GridPoint(column: 10, row: 0),
             size: GridSize(width: 5, height: 3),
             label: "B"
         )
-        layer.addShape(.box(box1))
-        layer.addShape(.box(box2))
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
         layer.groups.append(
-            ShapeGroup(name: "Backend", shapeIDs: [box1.id, box2.id]))
+            ShapeGroup(name: "Backend", shapeIDs: [rect1.id, rect2.id]))
 
         let doc = Document(layers: [layer])
 
@@ -237,7 +237,7 @@ struct DSLSerializerTests {
 
         // then
         #expect(dsl.contains("group \"Backend\""))
-        #expect(dsl.contains("box \"A\""))
-        #expect(dsl.contains("box \"B\""))
+        #expect(dsl.contains("rectangle \"A\""))
+        #expect(dsl.contains("rectangle \"B\""))
     }
 }

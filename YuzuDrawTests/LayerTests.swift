@@ -19,30 +19,30 @@ struct LayerTests {
     @Test func should_add_shape_to_layer() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
 
         // when
-        layer.addShape(.box(box))
+        layer.addShape(.rectangle(rectangle))
 
         // then
         #expect(layer.shapes.count == 1)
-        #expect(layer.shapes[0].id == box.id)
+        #expect(layer.shapes[0].id == rectangle.id)
     }
 
     @Test func should_remove_shape_from_layer() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.box(box))
+        layer.addShape(.rectangle(rectangle))
 
         // when
-        layer.removeShape(id: box.id)
+        layer.removeShape(id: rectangle.id)
 
         // then
         #expect(layer.shapes.isEmpty)
@@ -51,15 +51,15 @@ struct LayerTests {
     @Test func should_remove_shape_from_groups_when_removed_from_layer() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.box(box))
-        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [box.id]))
+        layer.addShape(.rectangle(rectangle))
+        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rectangle.id]))
 
         // when
-        layer.removeShape(id: box.id)
+        layer.removeShape(id: rectangle.id)
 
         // then
         #expect(layer.groups[0].shapeIDs.isEmpty)
@@ -68,56 +68,56 @@ struct LayerTests {
     @Test func should_remove_shape_from_nested_groups_when_removed_from_layer() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box1 = BoxShape(
+        let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        let box2 = BoxShape(
+        let rect2 = RectangleShape(
             origin: GridPoint(column: 10, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.box(box1))
-        layer.addShape(.box(box2))
-        let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [box1.id])
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(
-            name: "Outer", shapeIDs: [box2.id], children: [innerGroup])
+            name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
         layer.groups.append(outerGroup)
 
         // when
-        layer.removeShape(id: box1.id)
+        layer.removeShape(id: rect1.id)
 
         // then
         #expect(layer.shapes.count == 1)
         #expect(layer.groups[0].children[0].shapeIDs.isEmpty)
-        #expect(layer.groups[0].shapeIDs == [box2.id])
+        #expect(layer.groups[0].shapeIDs == [rect2.id])
     }
 
     @Test func should_compute_ungrouped_shapes() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box1 = BoxShape(
+        let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        let box2 = BoxShape(
+        let rect2 = RectangleShape(
             origin: GridPoint(column: 10, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        let box3 = BoxShape(
+        let rect3 = RectangleShape(
             origin: GridPoint(column: 20, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.box(box1))
-        layer.addShape(.box(box2))
-        layer.addShape(.box(box3))
-        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [box1.id, box2.id]))
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        layer.addShape(.rectangle(rect3))
+        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
 
         // when
         let ungrouped = layer.ungroupedShapes
 
         // then
         #expect(ungrouped.count == 1)
-        #expect(ungrouped[0].id == box3.id)
+        #expect(ungrouped[0].id == rect3.id)
     }
 
     @Test func should_compute_allShapeIDs_recursively() {
@@ -144,17 +144,17 @@ struct LayerTests {
     @Test func should_find_shape_by_id() {
         // given
         var layer = Layer(name: "Layer 1")
-        let box = BoxShape(
+        let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.box(box))
+        layer.addShape(.rectangle(rectangle))
 
         // when
-        let found = layer.findShape(id: box.id)
+        let found = layer.findShape(id: rectangle.id)
 
         // then
         #expect(found != nil)
-        #expect(found?.id == box.id)
+        #expect(found?.id == rectangle.id)
     }
 }

@@ -7,7 +7,7 @@ struct DSLParserTests {
         // given
         let dsl = """
             layer "Infrastructure" visible
-              box "Server" at 5,3 size 20x5 style single
+              rectangle "Server" at 5,3 size 20x5 style single
             """
 
         // when
@@ -18,13 +18,13 @@ struct DSLParserTests {
         #expect(doc.layers[0].name == "Infrastructure")
         #expect(doc.layers[0].isVisible)
         #expect(doc.layers[0].shapes.count == 1)
-        if case .box(let box) = doc.layers[0].shapes[0] {
-            #expect(box.label == "Server")
-            #expect(box.origin == GridPoint(column: 5, row: 3))
-            #expect(box.size == GridSize(width: 20, height: 5))
-            #expect(box.strokeStyle == .single)
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.label == "Server")
+            #expect(rectangle.origin == GridPoint(column: 5, row: 3))
+            #expect(rectangle.size == GridSize(width: 20, height: 5))
+            #expect(rectangle.strokeStyle == .single)
         } else {
-            Issue.record("Expected box shape")
+            Issue.record("Expected rectangle shape")
         }
     }
 
@@ -49,106 +49,106 @@ struct DSLParserTests {
         }
     }
 
-    @Test func should_parse_box_with_solid_fill() throws {
+    @Test func should_parse_rectangle_with_solid_fill() throws {
         // given
         let dsl = """
             layer "Layer 1" visible
-              box "Server" at 5,3 size 20x5 style single fill solid char "."
+              rectangle "Server" at 5,3 size 20x5 style single fill solid char "."
             """
 
         // when
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .box(let box) = doc.layers[0].shapes[0] {
-            #expect(box.fillMode == .solid)
-            #expect(box.fillCharacter == ".")
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.fillMode == .solid)
+            #expect(rectangle.fillCharacter == ".")
         } else {
-            Issue.record("Expected box shape")
+            Issue.record("Expected rectangle shape")
         }
     }
 
-    @Test func should_parse_box_text_layout_settings() throws {
+    @Test func should_parse_rectangle_text_layout_settings() throws {
         // given
         let dsl = """
             layer "Layer 1" visible
-              box "Server" at 5,3 size 20x5 style single fill transparent border hidden halign right valign bottom textOnBorder true padding 1,2,3,4
+              rectangle "Server" at 5,3 size 20x5 style single fill transparent border hidden halign right valign bottom textOnBorder true padding 1,2,3,4
             """
 
         // when
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .box(let box) = doc.layers[0].shapes[0] {
-            #expect(box.hasBorder == false)
-            #expect(box.textHorizontalAlignment == .right)
-            #expect(box.textVerticalAlignment == .bottom)
-            #expect(box.allowTextOnBorder)
-            #expect(box.textPaddingLeft == 1)
-            #expect(box.textPaddingRight == 2)
-            #expect(box.textPaddingTop == 3)
-            #expect(box.textPaddingBottom == 4)
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.hasBorder == false)
+            #expect(rectangle.textHorizontalAlignment == .right)
+            #expect(rectangle.textVerticalAlignment == .bottom)
+            #expect(rectangle.allowTextOnBorder)
+            #expect(rectangle.textPaddingLeft == 1)
+            #expect(rectangle.textPaddingRight == 2)
+            #expect(rectangle.textPaddingTop == 3)
+            #expect(rectangle.textPaddingBottom == 4)
         } else {
-            Issue.record("Expected box shape")
+            Issue.record("Expected rectangle shape")
         }
     }
 
-    @Test func should_parse_box_shadow_settings() throws {
+    @Test func should_parse_rectangle_shadow_settings() throws {
         // given
         let dsl = """
             layer "Layer 1" visible
-              box "Server" at 5,3 size 20x5 style single fill transparent border visible halign center valign middle textOnBorder false padding 0,0,0,0 shadow dark x 2 y -3
+              rectangle "Server" at 5,3 size 20x5 style single fill transparent border visible halign center valign middle textOnBorder false padding 0,0,0,0 shadow dark x 2 y -3
             """
 
         // when
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .box(let box) = doc.layers[0].shapes[0] {
-            #expect(box.hasShadow)
-            #expect(box.shadowStyle == .dark)
-            #expect(box.shadowOffsetX == 2)
-            #expect(box.shadowOffsetY == -3)
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.hasShadow)
+            #expect(rectangle.shadowStyle == .dark)
+            #expect(rectangle.shadowOffsetX == 2)
+            #expect(rectangle.shadowOffsetY == -3)
         } else {
-            Issue.record("Expected box shape")
+            Issue.record("Expected rectangle shape")
         }
     }
 
-    @Test func should_parse_box_visible_borders() throws {
+    @Test func should_parse_rectangle_visible_borders() throws {
         // given
         let dsl = """
             layer "Layer 1" visible
-              box "Server" at 5,3 size 20x5 style single border visible borders top,left
+              rectangle "Server" at 5,3 size 20x5 style single border visible borders top,left
             """
 
         // when
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .box(let box) = doc.layers[0].shapes[0] {
-            #expect(box.visibleBorders == [.top, .left])
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.visibleBorders == [.top, .left])
         } else {
-            Issue.record("Expected box shape")
+            Issue.record("Expected rectangle shape")
         }
     }
 
-    @Test func should_parse_box_dashed_border_settings() throws {
+    @Test func should_parse_rectangle_dashed_border_settings() throws {
         // given
         let dsl = """
             layer "Layer 1" visible
-              box "Server" at 5,3 size 20x5 style single border visible line dashed dash 3 gap 2
+              rectangle "Server" at 5,3 size 20x5 style single border visible line dashed dash 3 gap 2
             """
 
         // when
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .box(let box) = doc.layers[0].shapes[0] {
-            #expect(box.borderLineStyle == .dashed)
-            #expect(box.borderDashLength == 3)
-            #expect(box.borderGapLength == 2)
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.borderLineStyle == .dashed)
+            #expect(rectangle.borderDashLength == 3)
+            #expect(rectangle.borderGapLength == 2)
         } else {
-            Issue.record("Expected box shape")
+            Issue.record("Expected rectangle shape")
         }
     }
 
@@ -190,8 +190,8 @@ struct DSLParserTests {
         let dsl = """
             layer "Layer 1" visible
               group "Backend"
-                box "A" at 0,0 size 5x3 style single
-                box "B" at 10,0 size 5x3 style single
+                rectangle "A" at 0,0 size 5x3 style single
+                rectangle "B" at 10,0 size 5x3 style single
             """
 
         // when
@@ -210,8 +210,8 @@ struct DSLParserTests {
             layer "Layer 1" visible
               group "Outer"
                 group "Inner"
-                  box "A" at 0,0 size 5x3 style single
-                box "B" at 10,0 size 5x3 style single
+                  rectangle "A" at 0,0 size 5x3 style single
+                rectangle "B" at 10,0 size 5x3 style single
             """
 
         // when
@@ -231,8 +231,8 @@ struct DSLParserTests {
         // given
         var doc = Document(layers: [Layer(name: "Layer 1")])
         doc.addShape(
-            .box(
-                BoxShape(
+            .rectangle(
+                RectangleShape(
                     origin: GridPoint(column: 5, row: 3),
                     size: GridSize(width: 20, height: 5),
                     strokeStyle: .double,

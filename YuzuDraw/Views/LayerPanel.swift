@@ -507,7 +507,7 @@ private struct ShapeRow: View {
 
     private var shapeTypeIcon: String {
         switch shape {
-        case .box: return "rectangle"
+        case .rectangle: return "rectangle"
         case .arrow: return "arrow.right"
         case .text: return "textformat"
         case .pencil: return "pencil"
@@ -530,35 +530,35 @@ private struct LayerReorderContextMenu: View {
     }
 
     var body: some View {
-        Button("Move Back") {
-            guard let shapeID else { return }
-            viewModel.moveShapeBackward(shapeID)
-        }
-        .keyboardShortcut("[", modifiers: [])
-        .disabled(!canMoveBack)
-
-        Button("Move Front") {
-            guard let shapeID else { return }
-            viewModel.moveShapeForward(shapeID)
-        }
-        .keyboardShortcut("]", modifiers: [])
-        .disabled(!canMoveFront)
-
-        Divider()
-
-        Button("Bring to Back") {
-            guard let shapeID else { return }
-            viewModel.moveShapeToBack(shapeID)
-        }
-        .keyboardShortcut("[", modifiers: .command)
-        .disabled(!canMoveBack)
-
         Button("Bring to Front") {
             guard let shapeID else { return }
             viewModel.moveShapeToFront(shapeID)
         }
+        .keyboardShortcut("]", modifiers: [])
+        .disabled(!canMoveFront)
+
+        Button("Send to Back") {
+            guard let shapeID else { return }
+            viewModel.moveShapeToBack(shapeID)
+        }
+        .keyboardShortcut("[", modifiers: [])
+        .disabled(!canMoveBack)
+
+        Divider()
+
+        Button("Bring Forward") {
+            guard let shapeID else { return }
+            viewModel.moveShapeForward(shapeID)
+        }
         .keyboardShortcut("]", modifiers: .command)
         .disabled(!canMoveFront)
+
+        Button("Send Backward") {
+            guard let shapeID else { return }
+            viewModel.moveShapeBackward(shapeID)
+        }
+        .keyboardShortcut("[", modifiers: .command)
+        .disabled(!canMoveBack)
     }
 }
 
@@ -652,12 +652,12 @@ private struct ShapeDropDelegate: DropDelegate {
 
 #Preview {
     let vm = EditorViewModel()
-    let box1 = BoxShape(
+    let rect1 = RectangleShape(
         origin: GridPoint(column: 5, row: 3),
         size: GridSize(width: 20, height: 5),
         label: "Server"
     )
-    let box2 = BoxShape(
+    let rect2 = RectangleShape(
         origin: GridPoint(column: 30, row: 3),
         size: GridSize(width: 15, height: 4),
         label: "Database"
@@ -671,15 +671,15 @@ private struct ShapeDropDelegate: DropDelegate {
         origin: GridPoint(column: 5, row: 10),
         text: "Notes here"
     )
-    vm.document.addShape(.box(box1), toLayerAt: 0)
-    vm.document.addShape(.box(box2), toLayerAt: 0)
+    vm.document.addShape(.rectangle(rect1), toLayerAt: 0)
+    vm.document.addShape(.rectangle(rect2), toLayerAt: 0)
     vm.document.addShape(.arrow(arrow), toLayerAt: 0)
     vm.document.addShape(.text(text), toLayerAt: 0)
     vm.document.layers[0].groups.append(
-        ShapeGroup(name: "Backend", shapeIDs: [box1.id, box2.id])
+        ShapeGroup(name: "Backend", shapeIDs: [rect1.id, rect2.id])
     )
     vm.expandedItemIDs.insert(vm.document.layers[0].id)
-    vm.selectedShapeIDs = [box1.id]
+    vm.selectedShapeIDs = [rect1.id]
 
     return LayerPanel(viewModel: vm)
         .frame(height: 300)

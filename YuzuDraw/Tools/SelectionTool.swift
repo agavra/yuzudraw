@@ -117,9 +117,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
             didDragMove = true
             let movedShape: AnyShape
             switch shape {
-            case .box(var box):
-                box.origin = newOrigin
-                movedShape = .box(box)
+            case .rectangle(var rectangle):
+                rectangle.origin = newOrigin
+                movedShape = .rectangle(rectangle)
             case .arrow(var arrow):
                 let dx = newOrigin.column - arrow.boundingRect.origin.column
                 let dy = newOrigin.row - arrow.boundingRect.origin.row
@@ -197,12 +197,12 @@ final class SelectionTool: Tool, @unchecked Sendable {
 
     private func translateShape(_ shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
         switch shape {
-        case .box(var box):
-            box.origin = GridPoint(
-                column: box.origin.column + dx,
-                row: box.origin.row + dy
+        case .rectangle(var rectangle):
+            rectangle.origin = GridPoint(
+                column: rectangle.origin.column + dx,
+                row: rectangle.origin.row + dy
             )
-            return .box(box)
+            return .rectangle(rectangle)
         case .arrow(var arrow):
             arrow.start = GridPoint(
                 column: arrow.start.column + dx,
@@ -323,9 +323,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
         case .start:
             if let snapResult {
                 arrow.start = snapResult.point
-                arrow.startAttachment = ArrowAttachment(shapeID: snapResult.box.id, side: snapResult.side)
+                arrow.startAttachment = ArrowAttachment(shapeID: snapResult.rectangle.id, side: snapResult.side)
                 arrowAttachmentPreviewPointsStorage = ArrowAttachmentSide.allCases.map {
-                    snapResult.box.attachmentPoint(for: $0)
+                    snapResult.rectangle.attachmentPoint(for: $0)
                 }
             } else {
                 arrow.start = clampedPoint
@@ -335,9 +335,9 @@ final class SelectionTool: Tool, @unchecked Sendable {
         case .end:
             if let snapResult {
                 arrow.end = snapResult.point
-                arrow.endAttachment = ArrowAttachment(shapeID: snapResult.box.id, side: snapResult.side)
+                arrow.endAttachment = ArrowAttachment(shapeID: snapResult.rectangle.id, side: snapResult.side)
                 arrowAttachmentPreviewPointsStorage = ArrowAttachmentSide.allCases.map {
-                    snapResult.box.attachmentPoint(for: $0)
+                    snapResult.rectangle.attachmentPoint(for: $0)
                 }
             } else {
                 arrow.end = clampedPoint
@@ -362,17 +362,17 @@ final class SelectionTool: Tool, @unchecked Sendable {
         near point: GridPoint,
         in document: Document,
         excludingShapeID: UUID
-    ) -> (box: BoxShape, side: ArrowAttachmentSide, point: GridPoint)? {
-        var best: (box: BoxShape, side: ArrowAttachmentSide, point: GridPoint)?
+    ) -> (rectangle: RectangleShape, side: ArrowAttachmentSide, point: GridPoint)? {
+        var best: (rectangle: RectangleShape, side: ArrowAttachmentSide, point: GridPoint)?
         var bestDistance = Double.greatestFiniteMagnitude
 
         for layer in document.layers.reversed() {
             guard layer.isVisible else { continue }
             for shape in layer.shapes.reversed() {
                 guard shape.id != excludingShapeID else { continue }
-                guard case .box(let box) = shape else { continue }
+                guard case .rectangle(let rectangle) = shape else { continue }
                 for side in ArrowAttachmentSide.allCases {
-                    let attachPoint = box.attachmentPoint(for: side)
+                    let attachPoint = rectangle.attachmentPoint(for: side)
                     let distance = hypot(
                         Double(attachPoint.column - point.column),
                         Double(attachPoint.row - point.row)
@@ -380,7 +380,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
                     guard distance <= Self.attachmentSnapRadius else { continue }
                     if distance < bestDistance {
                         bestDistance = distance
-                        best = (box, side, attachPoint)
+                        best = (rectangle, side, attachPoint)
                     }
                 }
             }

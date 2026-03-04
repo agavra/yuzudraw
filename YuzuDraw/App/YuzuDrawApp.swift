@@ -73,6 +73,15 @@ struct YuzuDrawApp: App {
             }
 
             CommandGroup(replacing: .pasteboard) {
+                Button("Cut") {
+                    if NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) {
+                        return
+                    }
+                    workspace.activeEditor?.cutSelectedShapes()
+                }
+                .keyboardShortcut("x", modifiers: .command)
+                .disabled(workspace.activeEditor == nil)
+
                 Button("Copy") {
                     if NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) {
                         return
@@ -91,11 +100,30 @@ struct YuzuDrawApp: App {
                 .keyboardShortcut("v", modifiers: .command)
                 .disabled(workspace.activeEditor == nil)
 
+                Button("Duplicate") {
+                    workspace.activeEditor?.duplicateSelectedShapes()
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(workspace.activeEditor?.canDuplicateSelectedShapes() != true)
+
+                Divider()
+
                 Button("Copy as Plain Text") {
                     workspace.activeEditor?.copySelectionAsPlainTextToClipboard()
                 }
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(workspace.activeEditor?.canCopySelectionAsPlainText() != true)
+
+                Divider()
+
+                Button("Select All") {
+                    if NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) {
+                        return
+                    }
+                    workspace.activeEditor?.selectAllShapes()
+                }
+                .keyboardShortcut("a", modifiers: .command)
+                .disabled(workspace.activeEditor?.canSelectAllShapes() != true)
             }
 
             CommandGroup(after: .pasteboard) {
@@ -105,31 +133,37 @@ struct YuzuDrawApp: App {
                 .keyboardShortcut("g", modifiers: .command)
                 .disabled(workspace.activeEditor?.canGroupSelectedShapes() != true)
 
+                Button("Ungroup") {
+                    workspace.activeEditor?.ungroupSelectedShapes()
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(workspace.activeEditor?.canUngroupSelectedShapes() != true)
+
                 Divider()
-
-                Button("Move Back") {
-                    workspace.activeEditor?.moveSelectedShapeBackward()
-                }
-                .keyboardShortcut("[", modifiers: [])
-                .disabled(workspace.activeEditor?.canMoveSelectedShapeBackward() != true)
-
-                Button("Move Front") {
-                    workspace.activeEditor?.moveSelectedShapeForward()
-                }
-                .keyboardShortcut("]", modifiers: [])
-                .disabled(workspace.activeEditor?.canMoveSelectedShapeForward() != true)
-
-                Button("Bring to Back") {
-                    workspace.activeEditor?.moveSelectedShapeToBack()
-                }
-                .keyboardShortcut("[", modifiers: .command)
-                .disabled(workspace.activeEditor?.canMoveSelectedShapeBackward() != true)
 
                 Button("Bring to Front") {
                     workspace.activeEditor?.moveSelectedShapeToFront()
                 }
+                .keyboardShortcut("]", modifiers: [])
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeForward() != true)
+
+                Button("Send to Back") {
+                    workspace.activeEditor?.moveSelectedShapeToBack()
+                }
+                .keyboardShortcut("[", modifiers: [])
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeBackward() != true)
+
+                Button("Bring Forward") {
+                    workspace.activeEditor?.moveSelectedShapeForward()
+                }
                 .keyboardShortcut("]", modifiers: .command)
                 .disabled(workspace.activeEditor?.canMoveSelectedShapeForward() != true)
+
+                Button("Send Backward") {
+                    workspace.activeEditor?.moveSelectedShapeBackward()
+                }
+                .keyboardShortcut("[", modifiers: .command)
+                .disabled(workspace.activeEditor?.canMoveSelectedShapeBackward() != true)
             }
         }
     }

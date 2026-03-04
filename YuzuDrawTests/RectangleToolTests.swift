@@ -2,10 +2,10 @@ import Testing
 
 @testable import YuzuDraw
 
-struct BoxToolTests {
-    @Test func should_create_box_on_drag_and_release() {
+struct RectangleToolTests {
+    @Test func should_create_rectangle_on_drag_and_release() {
         // given
-        let tool = BoxTool()
+        let tool = RectangleTool()
         let doc = Document()
 
         // when
@@ -14,18 +14,18 @@ struct BoxToolTests {
         let action = tool.mouseUp(at: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
 
         // then
-        if case .addShape(.box(let box), let layerIndex) = action {
-            #expect(box.origin == GridPoint(column: 2, row: 1))
-            #expect(box.size == GridSize(width: 9, height: 5))
+        if case .addShape(.rectangle(let rectangle), let layerIndex) = action {
+            #expect(rectangle.origin == GridPoint(column: 2, row: 1))
+            #expect(rectangle.size == GridSize(width: 9, height: 5))
             #expect(layerIndex == 0)
         } else {
-            Issue.record("Expected addShape action with box")
+            Issue.record("Expected addShape action with rectangle")
         }
     }
 
-    @Test func should_not_create_box_smaller_than_2x2() {
+    @Test func should_not_create_rectangle_smaller_than_2x2() {
         // given
-        let tool = BoxTool()
+        let tool = RectangleTool()
         let doc = Document()
 
         // when
@@ -38,7 +38,7 @@ struct BoxToolTests {
 
     @Test func should_show_preview_during_drag() {
         // given
-        let tool = BoxTool()
+        let tool = RectangleTool()
         let doc = Document()
 
         // when
@@ -48,14 +48,14 @@ struct BoxToolTests {
 
         // then
         #expect(preview != nil)
-        if case .box(let box) = preview {
-            #expect(box.origin == GridPoint(column: 2, row: 1))
+        if case .rectangle(let rectangle) = preview {
+            #expect(rectangle.origin == GridPoint(column: 2, row: 1))
         }
     }
 
     @Test func should_clear_preview_after_mouse_up() {
         // given
-        let tool = BoxTool()
+        let tool = RectangleTool()
         let doc = Document()
 
         // when
@@ -69,7 +69,7 @@ struct BoxToolTests {
 
     @Test func should_use_configured_border_style() {
         // given
-        let tool = BoxTool()
+        let tool = RectangleTool()
         tool.strokeStyle = .double
         let doc = Document()
 
@@ -78,10 +78,10 @@ struct BoxToolTests {
         let action = tool.mouseUp(at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
 
         // then
-        if case .addShape(.box(let box), _) = action {
-            #expect(box.strokeStyle == .double)
+        if case .addShape(.rectangle(let rectangle), _) = action {
+            #expect(rectangle.strokeStyle == .double)
         } else {
-            Issue.record("Expected addShape action with box")
+            Issue.record("Expected addShape action with rectangle")
         }
     }
 }

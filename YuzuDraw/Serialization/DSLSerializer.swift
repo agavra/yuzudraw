@@ -55,8 +55,8 @@ enum DSLSerializer {
 
     private static func serializeShape(_ shape: AnyShape, allShapes: [AnyShape]) -> String {
         switch shape {
-        case .box(let box):
-            return serializeBox(box)
+        case .rectangle(let rectangle):
+            return serializeRectangle(rectangle)
         case .arrow(let arrow):
             return serializeArrow(arrow, allShapes: allShapes)
         case .text(let text):
@@ -66,44 +66,44 @@ enum DSLSerializer {
         }
     }
 
-    private static func serializeBox(_ box: BoxShape) -> String {
+    private static func serializeRectangle(_ rectangle: RectangleShape) -> String {
         var result =
-            "box \"\(box.label)\" at \(box.origin.column),\(box.origin.row) size \(box.size.width)x\(box.size.height) style \(box.strokeStyle.rawValue)"
-        let fill = " fill \(box.fillMode.rawValue)"
-        if box.fillMode == .solid {
-            result += "\(fill) char \"\(String(box.fillCharacter))\""
+            "rectangle \"\(rectangle.label)\" at \(rectangle.origin.column),\(rectangle.origin.row) size \(rectangle.size.width)x\(rectangle.size.height) style \(rectangle.strokeStyle.rawValue)"
+        let fill = " fill \(rectangle.fillMode.rawValue)"
+        if rectangle.fillMode == .solid {
+            result += "\(fill) char \"\(String(rectangle.fillCharacter))\""
         } else {
             result += fill
         }
-        result += box.hasBorder ? " border visible" : " border hidden"
-        if box.hasBorder && box.visibleBorders != Set(BoxBorderSide.allCases) {
-            let sideOrder: [BoxBorderSide] = [.top, .bottom, .right, .left]
+        result += rectangle.hasBorder ? " border visible" : " border hidden"
+        if rectangle.hasBorder && rectangle.visibleBorders != Set(RectangleBorderSide.allCases) {
+            let sideOrder: [RectangleBorderSide] = [.top, .bottom, .right, .left]
             let encodedSides = sideOrder
-                .filter { box.visibleBorders.contains($0) }
+                .filter { rectangle.visibleBorders.contains($0) }
                 .map(\.rawValue)
                 .joined(separator: ",")
             result += " borders \(encodedSides)"
         }
-        if box.borderLineStyle == .dashed {
-            result += " line dashed dash \(box.borderDashLength) gap \(box.borderGapLength)"
+        if rectangle.borderLineStyle == .dashed {
+            result += " line dashed dash \(rectangle.borderDashLength) gap \(rectangle.borderGapLength)"
         }
         result +=
-            " halign \(box.textHorizontalAlignment.rawValue) valign \(box.textVerticalAlignment.rawValue)"
+            " halign \(rectangle.textHorizontalAlignment.rawValue) valign \(rectangle.textVerticalAlignment.rawValue)"
         result +=
-            " textOnBorder \(box.allowTextOnBorder ? "true" : "false")"
+            " textOnBorder \(rectangle.allowTextOnBorder ? "true" : "false")"
         result +=
-            " padding \(box.textPaddingLeft),\(box.textPaddingRight),\(box.textPaddingTop),\(box.textPaddingBottom)"
-        if box.hasShadow {
+            " padding \(rectangle.textPaddingLeft),\(rectangle.textPaddingRight),\(rectangle.textPaddingTop),\(rectangle.textPaddingBottom)"
+        if rectangle.hasShadow {
             result +=
-                " shadow \(box.shadowStyle.rawValue) x \(box.shadowOffsetX) y \(box.shadowOffsetY)"
+                " shadow \(rectangle.shadowStyle.rawValue) x \(rectangle.shadowOffsetX) y \(rectangle.shadowOffsetY)"
         }
-        if let borderColor = box.borderColor {
+        if let borderColor = rectangle.borderColor {
             result += " borderColor \(borderColor.hexString)"
         }
-        if let fillColor = box.fillColor {
+        if let fillColor = rectangle.fillColor {
             result += " fillColor \(fillColor.hexString)"
         }
-        if let textColor = box.textColor {
+        if let textColor = rectangle.textColor {
             result += " textColor \(textColor.hexString)"
         }
         return result
@@ -133,17 +133,17 @@ enum DSLSerializer {
         point: GridPoint, attachment: ArrowAttachment?, allShapes: [AnyShape]
     ) -> String {
         if let attachment,
-            let box = findBoxByID(attachment.shapeID, in: allShapes)
+            let rectangle = findRectangleByID(attachment.shapeID, in: allShapes)
         {
-            return "\"\(box.label)\".\(attachment.side.rawValue)"
+            return "\"\(rectangle.label)\".\(attachment.side.rawValue)"
         }
         return "\(point.column),\(point.row)"
     }
 
-    private static func findBoxByID(_ id: UUID, in shapes: [AnyShape]) -> BoxShape? {
+    private static func findRectangleByID(_ id: UUID, in shapes: [AnyShape]) -> RectangleShape? {
         for shape in shapes {
-            if case .box(let box) = shape, box.id == id {
-                return box
+            if case .rectangle(let rectangle) = shape, rectangle.id == id {
+                return rectangle
             }
         }
         return nil
