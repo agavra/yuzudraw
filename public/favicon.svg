@@ -1,4 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#FFC233"/>
-  <text x="16" y="23" font-family="monospace" font-size="18" font-weight="bold" fill="#0a0a0a" text-anchor="middle">Y</text>
+<svg width="360" height="360" viewBox="0 0 360 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style>
+  .bg { fill: #fff; }
+  .fg { fill: #1a1a1a; }
+  .stroke { stroke: #1a1a1a; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #1a1a1a; }
+    .fg { fill: #fff; }
+    .stroke { stroke: #fff; }
+  }
+</style>
+<rect width="360" height="360" rx="72" class="bg"/>
+<circle cx="174.5" cy="225.5" r="95.5" class="fg"/>
+<path d="M237.314 94.5C251.814 71 247.314 48 247.314 48C247.314 48 224.314 48 208.814 66.5C193.314 85 200.814 118 200.814 118C200.814 118 222.814 118 237.314 94.5Z" class="fg"/>
+<rect x="165" y="38" width="18" height="18" rx="4" class="fg"/>
+<path d="M165 84C165 81.7909 166.791 80 169 80H179C181.209 80 183 81.7909 183 84V98H169C166.791 98 165 96.2091 165 94V84Z" class="fg"/>
+<path d="M167 117.5V112C173.564 109.5 175 98 175 98H183C183 98 183 114.5 167 117.5Z" class="fg"/>
+<path d="M259 118H280V41H259" class="stroke" stroke-width="8"/>
 </svg>
