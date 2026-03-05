@@ -7,6 +7,7 @@
 - [x] Attach points for destination aren't showing (they are snapping)
 - [x] highlighted options in inspector panel show square corners on rounded pills
 - [ ] dragging color takes up too many undo/redo slots
+- [ ] deleting all emenets in a group doesn't delete the group
 
 ## Core Features
 

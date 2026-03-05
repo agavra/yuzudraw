@@ -67,8 +67,9 @@ enum DSLSerializer {
     }
 
     private static func serializeRectangle(_ rectangle: RectangleShape) -> String {
+        let escapedLabel = rectangle.label.replacingOccurrences(of: "\n", with: "\\n")
         var result =
-            "rectangle \"\(rectangle.label)\" at \(rectangle.origin.column),\(rectangle.origin.row) size \(rectangle.size.width)x\(rectangle.size.height) style \(rectangle.strokeStyle.rawValue)"
+            "rectangle \"\(escapedLabel)\" at \(rectangle.origin.column),\(rectangle.origin.row) size \(rectangle.size.width)x\(rectangle.size.height) style \(rectangle.strokeStyle.rawValue)"
         let fill = " fill \(rectangle.fillMode.rawValue)"
         if rectangle.fillMode == .solid {
             result += "\(fill) char \"\(String(rectangle.fillCharacter))\""

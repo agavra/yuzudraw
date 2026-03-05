@@ -139,9 +139,10 @@ enum DSLParser {
     private static func parseRectangle(_ line: String) throws -> RectangleShape {
         // rectangle "label" at col,row size WxH [style|stroke styleName] [fill transparent|solid [char "x"]]
         let keyword = line.hasPrefix("box ") ? "box " : "rectangle "
-        guard let label = try? parseQuotedString(from: line, after: keyword) else {
+        guard let rawLabel = try? parseQuotedString(from: line, after: keyword) else {
             throw DSLParserError.invalidSyntax("Expected rectangle label: \(line)")
         }
+        let label = rawLabel.replacingOccurrences(of: "\\n", with: "\n")
 
         guard let atRange = line.range(of: " at ") else {
             throw DSLParserError.invalidSyntax("Expected 'at' in rectangle: \(line)")
@@ -435,7 +436,7 @@ enum DSLParser {
 
         let afterOpen = trimmed.index(after: trimmed.startIndex)
         guard let closeQuote = trimmed[afterOpen...].firstIndex(of: "\"") else { return nil }
-        let label = String(trimmed[afterOpen..<closeQuote])
+        let label = String(trimmed[afterOpen..<closeQuote]).replacingOccurrences(of: "\\n", with: "\n")
 
         let afterClose = trimmed.index(after: closeQuote)
         guard afterClose < trimmed.endIndex, trimmed[afterClose] == "." else { return nil }
