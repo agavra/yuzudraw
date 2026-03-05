@@ -312,9 +312,11 @@ final class SelectionTool: Tool, @unchecked Sendable {
     }
 
     private func resizeHandleHit(at point: GridPoint, in document: Document) -> (AnyShape, ResizeHandle)? {
+        guard !selectedShapeIDs.isEmpty else { return nil }
         for layer in document.layers.reversed() {
             guard layer.isVisible, !layer.isLocked else { continue }
             for shape in layer.shapes.reversed() {
+                guard selectedShapeIDs.contains(shape.id) else { continue }
                 if let handle = shape.resizeHandle(at: point) {
                     return (shape, handle)
                 }

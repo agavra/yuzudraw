@@ -206,9 +206,10 @@ struct SelectionToolTests {
             size: GridSize(width: 6, height: 4)
         )
         doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        tool.selectedShapeIDs = [rectangle.id]
 
-        // when
-        _ = tool.mouseDown(at: GridPoint(column: 10, row: 6), in: doc, activeLayerIndex: 0)
+        // when — click at the handle position (maxColumn+1, maxRow+1)
+        _ = tool.mouseDown(at: GridPoint(column: 11, row: 7), in: doc, activeLayerIndex: 0)
         let action = tool.mouseDragged(
             to: GridPoint(column: 14, row: 9), in: doc, activeLayerIndex: 0)
 
@@ -230,6 +231,7 @@ struct SelectionToolTests {
             end: GridPoint(column: 8, row: 2)
         )
         doc.addShape(.arrow(arrow), toLayerAt: 0)
+        tool.selectedShapeIDs = [arrow.id]
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 8, row: 2), in: doc, activeLayerIndex: 0)
@@ -284,6 +286,7 @@ struct SelectionToolTests {
         )
         doc.addShape(.rectangle(rectangle), toLayerAt: 0)
         doc.addShape(.arrow(arrow), toLayerAt: 0)
+        tool.selectedShapeIDs = [arrow.id]
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 2, row: 2), in: doc, activeLayerIndex: 0)
@@ -313,6 +316,7 @@ struct SelectionToolTests {
         )
         doc.addShape(.rectangle(rectangle), toLayerAt: 0)
         doc.addShape(.arrow(arrow), toLayerAt: 0)
+        tool.selectedShapeIDs = [arrow.id]
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 2, row: 2), in: doc, activeLayerIndex: 0)
@@ -337,6 +341,7 @@ struct SelectionToolTests {
             size: GridSize(width: 6, height: 4)
         )
         doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        tool.selectedShapeIDs = [rectangle.id]
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 11, row: 7), in: doc, activeLayerIndex: 0)
@@ -361,6 +366,7 @@ struct SelectionToolTests {
             size: GridSize(width: 6, height: 4)
         )
         doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        tool.selectedShapeIDs = [rectangle.id]
 
         // when
         _ = tool.mouseDown(at: GridPoint(column: 11, row: 5), in: doc, activeLayerIndex: 0)

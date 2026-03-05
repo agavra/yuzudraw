@@ -150,43 +150,20 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     func resizeHandle(at point: GridPoint) -> ResizeHandle? {
-        if case .arrow(let shape) = self {
-            return [
-                ResizeHandlePlacement(handle: .start, point: shape.start),
-                ResizeHandlePlacement(handle: .end, point: shape.end),
-            ]
-            .compactMap { placement -> (ResizeHandle, Int)? in
-                let dx = abs(placement.point.column - point.column)
-                let dy = abs(placement.point.row - point.row)
-                let distance = dx + dy
-                guard distance <= 2 else { return nil }
-                return (placement.handle, distance)
-            }
-            .min(by: { $0.1 < $1.1 })?
-            .0
+        if case .arrow = self {
+            return resizeHandlePlacements
+                .compactMap { placement -> (ResizeHandle, Int)? in
+                    let dx = abs(placement.point.column - point.column)
+                    let dy = abs(placement.point.row - point.row)
+                    let distance = dx + dy
+                    guard distance <= 1 else { return nil }
+                    return (placement.handle, distance)
+                }
+                .min(by: { $0.1 < $1.1 })?
+                .0
         }
 
-        if case .rectangle(let shape) = self {
-            let rect = shape.boundingRect
-            let centerColumn = rect.origin.column + rect.size.width / 2
-            let centerRow = rect.origin.row + rect.size.height / 2
-            if point == GridPoint(column: rect.maxColumn, row: rect.minRow) { return .topRight }
-            if point == GridPoint(column: rect.minColumn, row: rect.maxRow) { return .bottomLeft }
-            if point == GridPoint(column: rect.maxColumn, row: rect.maxRow) { return .bottomRight }
-            if point == GridPoint(column: rect.maxColumn, row: centerRow) { return .right }
-            if point == GridPoint(column: centerColumn, row: rect.maxRow) { return .bottom }
-        }
-
-        return resizeHandlePlacements
-            .compactMap { placement -> (ResizeHandle, Int)? in
-                let dx = abs(placement.point.column - point.column)
-                let dy = abs(placement.point.row - point.row)
-                let distance = dx + dy
-                guard dx <= 1, dy <= 1 else { return nil }
-                return (placement.handle, distance)
-            }
-            .min(by: { $0.1 < $1.1 })?
-            .0
+        return resizeHandlePlacements.first { $0.point == point }?.handle
     }
 
     func resized(using handle: ResizeHandle, to point: GridPoint) -> AnyShape {
