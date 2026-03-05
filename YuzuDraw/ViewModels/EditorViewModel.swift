@@ -234,6 +234,9 @@ final class EditorViewModel {
 
     func mouseDragged(to point: GridPoint) {
         arrowTool.suppressAttachment = isOptionKeyPressed
+        if activeToolType == .arrow {
+            hoverGridPoint = point
+        }
         let action = activeTool.mouseDragged(
             to: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
