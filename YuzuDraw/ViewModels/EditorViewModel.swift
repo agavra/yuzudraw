@@ -13,6 +13,13 @@ enum ColorTarget: Hashable {
     case layerBorder
     case layerText
     case exportBackground
+    case multiSelectRectBorder
+    case multiSelectRectFill
+    case multiSelectRectText
+    case multiSelectArrowStroke
+    case multiSelectArrowLabel
+    case multiSelectBorderStroke
+    case multiSelectText
 }
 
 @MainActor
@@ -537,6 +544,473 @@ final class EditorViewModel {
         recordSnapshot()
         guard let layer = selectedLayer else { return }
         for shape in layer.shapes {
+            switch shape {
+            case .rectangle(var rectangle):
+                rectangle.textColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
+            case .arrow(var arrow):
+                arrow.labelColor = color
+                document.updateShape(.arrow(arrow))
+            case .text(var text):
+                text.textColor = color
+                document.updateShape(.text(text))
+            case .pencil:
+                break
+            }
+        }
+        rerender()
+    }
+
+    // MARK: - Multi-selection helpers
+
+    private func uniformValue<T: Equatable>(_ values: [T]) -> T? {
+        guard let first = values.first else { return nil }
+        return values.allSatisfy({ $0 == first }) ? first : nil
+    }
+
+    private func uniformOptionalValue<T: Equatable>(_ values: [T?]) -> T? {
+        guard let first = values.first else { return nil }
+        return values.allSatisfy({ $0 == first }) ? first : nil
+    }
+
+    private func isMixed<T: Equatable>(_ values: [T]) -> Bool {
+        guard values.count > 1 else { return false }
+        return !values.allSatisfy { $0 == values[0] }
+    }
+
+    var selectedRectangles: [RectangleShape] {
+        selectedShapes.compactMap { if case .rectangle(let r) = $0 { return r }; return nil }
+    }
+
+    var selectedArrows: [ArrowShape] {
+        selectedShapes.compactMap { if case .arrow(let a) = $0 { return a }; return nil }
+    }
+
+    var isAllRectanglesSelected: Bool {
+        selectedShapes.count > 1 && selectedShapes.allSatisfy { if case .rectangle = $0 { return true }; return false }
+    }
+
+    var isAllArrowsSelected: Bool {
+        selectedShapes.count > 1 && selectedShapes.allSatisfy { if case .arrow = $0 { return true }; return false }
+    }
+
+    var hasSelectedRectangles: Bool {
+        selectedShapes.contains { if case .rectangle = $0 { return true }; return false }
+    }
+
+    var hasSelectedArrows: Bool {
+        selectedShapes.contains { if case .arrow = $0 { return true }; return false }
+    }
+
+    // MARK: - Multi-selection rectangle computed properties
+
+    var multiSelectRectHasBorder: Bool? { uniformValue(selectedRectangles.map(\.hasBorder)) }
+    var isMultiSelectRectHasBorderMixed: Bool { isMixed(selectedRectangles.map(\.hasBorder)) }
+
+    var multiSelectRectBorderColor: ShapeColor? { uniformOptionalValue(selectedRectangles.map(\.borderColor)) }
+    var isMultiSelectRectBorderColorMixed: Bool { isMixed(selectedRectangles.map(\.borderColor)) }
+
+    var multiSelectRectStrokeStyle: StrokeStyle? { uniformValue(selectedRectangles.map(\.strokeStyle)) }
+    var isMultiSelectRectStrokeStyleMixed: Bool { isMixed(selectedRectangles.map(\.strokeStyle)) }
+
+    var multiSelectRectBorderLineStyle: RectangleBorderLineStyle? { uniformValue(selectedRectangles.map(\.borderLineStyle)) }
+    var isMultiSelectRectBorderLineStyleMixed: Bool { isMixed(selectedRectangles.map(\.borderLineStyle)) }
+
+    var multiSelectRectBorderDashLength: Int? { uniformValue(selectedRectangles.map(\.borderDashLength)) }
+    var isMultiSelectRectBorderDashLengthMixed: Bool { isMixed(selectedRectangles.map(\.borderDashLength)) }
+
+    var multiSelectRectBorderGapLength: Int? { uniformValue(selectedRectangles.map(\.borderGapLength)) }
+    var isMultiSelectRectBorderGapLengthMixed: Bool { isMixed(selectedRectangles.map(\.borderGapLength)) }
+
+    var multiSelectRectVisibleBorders: Set<RectangleBorderSide>? { uniformValue(selectedRectangles.map(\.visibleBorders)) }
+    var isMultiSelectRectVisibleBordersMixed: Bool { isMixed(selectedRectangles.map(\.visibleBorders)) }
+
+    func multiSelectRectBorderSideUniform(_ side: RectangleBorderSide) -> Bool? {
+        uniformValue(selectedRectangles.map { $0.visibleBorders.contains(side) })
+    }
+
+    func isMultiSelectRectBorderSideMixed(_ side: RectangleBorderSide) -> Bool {
+        isMixed(selectedRectangles.map { $0.visibleBorders.contains(side) })
+    }
+
+    var multiSelectRectFillMode: RectangleFillMode? { uniformValue(selectedRectangles.map(\.fillMode)) }
+    var isMultiSelectRectFillModeMixed: Bool { isMixed(selectedRectangles.map(\.fillMode)) }
+
+    var multiSelectRectFillColor: ShapeColor? { uniformOptionalValue(selectedRectangles.map(\.fillColor)) }
+    var isMultiSelectRectFillColorMixed: Bool { isMixed(selectedRectangles.map(\.fillColor)) }
+
+    var multiSelectRectFillCharacter: Character? { uniformValue(selectedRectangles.map(\.fillCharacter)) }
+    var isMultiSelectRectFillCharacterMixed: Bool { isMixed(selectedRectangles.map(\.fillCharacter)) }
+
+    var multiSelectRectHasShadow: Bool? { uniformValue(selectedRectangles.map(\.hasShadow)) }
+    var isMultiSelectRectHasShadowMixed: Bool { isMixed(selectedRectangles.map(\.hasShadow)) }
+
+    var multiSelectRectShadowStyle: RectangleShadowStyle? { uniformValue(selectedRectangles.map(\.shadowStyle)) }
+    var isMultiSelectRectShadowStyleMixed: Bool { isMixed(selectedRectangles.map(\.shadowStyle)) }
+
+    var multiSelectRectShadowOffsetX: Int? { uniformValue(selectedRectangles.map(\.shadowOffsetX)) }
+    var isMultiSelectRectShadowOffsetXMixed: Bool { isMixed(selectedRectangles.map(\.shadowOffsetX)) }
+
+    var multiSelectRectShadowOffsetY: Int? { uniformValue(selectedRectangles.map(\.shadowOffsetY)) }
+    var isMultiSelectRectShadowOffsetYMixed: Bool { isMixed(selectedRectangles.map(\.shadowOffsetY)) }
+
+    var multiSelectRectTextColor: ShapeColor? { uniformOptionalValue(selectedRectangles.map(\.textColor)) }
+    var isMultiSelectRectTextColorMixed: Bool { isMixed(selectedRectangles.map(\.textColor)) }
+
+    // MARK: - Multi-selection arrow computed properties
+
+    var multiSelectArrowStrokeColor: ShapeColor? { uniformOptionalValue(selectedArrows.map(\.strokeColor)) }
+    var isMultiSelectArrowStrokeColorMixed: Bool { isMixed(selectedArrows.map(\.strokeColor)) }
+
+    var multiSelectArrowLabelColor: ShapeColor? { uniformOptionalValue(selectedArrows.map(\.labelColor)) }
+    var isMultiSelectArrowLabelColorMixed: Bool { isMixed(selectedArrows.map(\.labelColor)) }
+
+    var multiSelectArrowStrokeStyle: StrokeStyle? { uniformValue(selectedArrows.map(\.strokeStyle)) }
+    var isMultiSelectArrowStrokeStyleMixed: Bool { isMixed(selectedArrows.map(\.strokeStyle)) }
+
+    var multiSelectArrowStartHeadStyle: ArrowHeadStyle? { uniformValue(selectedArrows.map(\.startHeadStyle)) }
+    var isMultiSelectArrowStartHeadStyleMixed: Bool { isMixed(selectedArrows.map(\.startHeadStyle)) }
+
+    var multiSelectArrowEndHeadStyle: ArrowHeadStyle? { uniformValue(selectedArrows.map(\.endHeadStyle)) }
+    var isMultiSelectArrowEndHeadStyleMixed: Bool { isMixed(selectedArrows.map(\.endHeadStyle)) }
+
+    // MARK: - Multi-selection cross-type computed properties
+
+    var multiSelectCrossStrokeStyle: StrokeStyle? {
+        let styles: [StrokeStyle] = selectedShapes.compactMap { shape in
+            switch shape {
+            case .rectangle(let r): return r.strokeStyle
+            case .arrow(let a): return a.strokeStyle
+            case .text, .pencil: return nil
+            }
+        }
+        return uniformValue(styles)
+    }
+
+    var isMultiSelectCrossStrokeStyleMixed: Bool {
+        let styles: [StrokeStyle] = selectedShapes.compactMap { shape in
+            switch shape {
+            case .rectangle(let r): return r.strokeStyle
+            case .arrow(let a): return a.strokeStyle
+            case .text, .pencil: return nil
+            }
+        }
+        return isMixed(styles)
+    }
+
+    var multiSelectCrossBorderStrokeColor: ShapeColor? {
+        let colors: [ShapeColor?] = selectedShapes.compactMap { (shape: AnyShape) -> ShapeColor?? in
+            switch shape {
+            case .rectangle(let r): return r.borderColor
+            case .arrow(let a): return a.strokeColor
+            case .text, .pencil: return nil
+            }
+        }
+        return uniformOptionalValue(colors)
+    }
+
+    var isMultiSelectCrossBorderStrokeColorMixed: Bool {
+        let colors: [ShapeColor?] = selectedShapes.compactMap { (shape: AnyShape) -> ShapeColor?? in
+            switch shape {
+            case .rectangle(let r): return r.borderColor
+            case .arrow(let a): return a.strokeColor
+            case .text, .pencil: return nil
+            }
+        }
+        return isMixed(colors)
+    }
+
+    var multiSelectCrossTextLabelColor: ShapeColor? {
+        let colors: [ShapeColor?] = selectedShapes.compactMap { (shape: AnyShape) -> ShapeColor?? in
+            switch shape {
+            case .rectangle(let r): return r.textColor
+            case .arrow(let a): return a.labelColor
+            case .text(let t): return t.textColor
+            case .pencil: return nil
+            }
+        }
+        return uniformOptionalValue(colors)
+    }
+
+    var isMultiSelectCrossTextLabelColorMixed: Bool {
+        let colors: [ShapeColor?] = selectedShapes.compactMap { (shape: AnyShape) -> ShapeColor?? in
+            switch shape {
+            case .rectangle(let r): return r.textColor
+            case .arrow(let a): return a.labelColor
+            case .text(let t): return t.textColor
+            case .pencil: return nil
+            }
+        }
+        return isMixed(colors)
+    }
+
+    // MARK: - Multi-selection batch update methods
+
+    func updateMultiSelectRectHasBorder(_ hasBorder: Bool) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.hasBorder = hasBorder
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectBorderColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.borderColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectStrokeStyle(_ style: StrokeStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.strokeStyle = style
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectBorderLineStyle(_ lineStyle: RectangleBorderLineStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.borderLineStyle = lineStyle
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectBorderDashLength(_ value: Int) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.borderDashLength = max(1, value)
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectBorderGapLength(_ value: Int) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.borderGapLength = max(0, value)
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectBorderSide(_ side: RectangleBorderSide, isVisible: Bool) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                if isVisible {
+                    rectangle.visibleBorders.insert(side)
+                } else {
+                    rectangle.visibleBorders.remove(side)
+                }
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectFillMode(_ fillMode: RectangleFillMode) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.fillMode = fillMode
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectFillEnabled(_ isEnabled: Bool) {
+        updateMultiSelectRectFillMode(isEnabled ? .solid : .transparent)
+    }
+
+    func updateMultiSelectRectFillColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.fillColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectFillCharacter(_ fillCharacter: Character) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.fillCharacter = fillCharacter
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectHasShadow(_ hasShadow: Bool) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.hasShadow = hasShadow
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectShadowStyle(_ style: RectangleShadowStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.shadowStyle = style
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectShadowOffsetX(_ value: Int) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.shadowOffsetX = value
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectShadowOffsetY(_ value: Int) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.shadowOffsetY = value
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectTextColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.textColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectArrowStrokeColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .arrow(var arrow) = shape {
+                arrow.strokeColor = color
+                document.updateShape(.arrow(arrow))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectArrowLabelColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .arrow(var arrow) = shape {
+                arrow.labelColor = color
+                document.updateShape(.arrow(arrow))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectArrowStrokeStyle(_ style: StrokeStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .arrow(var arrow) = shape {
+                arrow.strokeStyle = style
+                document.updateShape(.arrow(arrow))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectArrowStartHeadStyle(_ style: ArrowHeadStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .arrow(var arrow) = shape {
+                arrow.startHeadStyle = style
+                document.updateShape(.arrow(arrow))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectArrowEndHeadStyle(_ style: ArrowHeadStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .arrow(var arrow) = shape {
+                arrow.endHeadStyle = style
+                document.updateShape(.arrow(arrow))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectCrossStrokeStyle(_ style: StrokeStyle) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            switch shape {
+            case .rectangle(var rectangle):
+                rectangle.strokeStyle = style
+                updateShapeAndAttachments(.rectangle(rectangle))
+            case .arrow(var arrow):
+                arrow.strokeStyle = style
+                document.updateShape(.arrow(arrow))
+            case .text, .pencil:
+                break
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectCrossBorderStrokeColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            switch shape {
+            case .rectangle(var rectangle):
+                rectangle.borderColor = color
+                updateShapeAndAttachments(.rectangle(rectangle))
+            case .arrow(var arrow):
+                arrow.strokeColor = color
+                document.updateShape(.arrow(arrow))
+            case .text, .pencil:
+                break
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectCrossTextLabelColor(_ color: ShapeColor?) {
+        recordSnapshot()
+        for shape in selectedShapes {
             switch shape {
             case .rectangle(var rectangle):
                 rectangle.textColor = color

@@ -28,7 +28,6 @@ struct InspectorPanel: View {
                         layerProperties(layer)
                     } else if viewModel.selectedShapes.count > 1 {
                         multiSelectionView
-                            .padding(12)
                     } else if let shape = viewModel.selectedShape {
                         shapeProperties(shape)
                     } else if viewModel.activeToolType == .pencil {
@@ -139,10 +138,217 @@ struct InspectorPanel: View {
 
     // MARK: - Empty state
 
+    @ViewBuilder
     private var multiSelectionView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("\(viewModel.selectedShapes.count) shapes selected")
-                .foregroundStyle(.secondary)
+        if viewModel.isAllRectanglesSelected {
+            multiSelectRectangleProperties
+        } else if viewModel.isAllArrowsSelected {
+            multiSelectArrowProperties
+        } else {
+            multiSelectMixedProperties
+        }
+    }
+
+    // MARK: - Multi-select rectangle properties
+
+    @ViewBuilder
+    private var multiSelectRectangleProperties: some View {
+        // Text color
+        staticSection(label: "Text", icon: "textformat") {
+            mixableColorSwatchRow(
+                color: viewModel.multiSelectRectTextColor,
+                isMixed: viewModel.isMultiSelectRectTextColorMixed,
+                target: .multiSelectRectText,
+                onColorSelected: { viewModel.updateMultiSelectRectTextColor($0) }
+            )
+        }
+
+        Divider()
+
+        // Border
+        mixableToggleSection(
+            label: "Border",
+            icon: "paintbrush",
+            isEnabled: viewModel.multiSelectRectHasBorder,
+            onToggle: { viewModel.updateMultiSelectRectHasBorder($0) }
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                mixableColorSwatchRow(
+                    color: viewModel.multiSelectRectBorderColor,
+                    isMixed: viewModel.isMultiSelectRectBorderColorMixed,
+                    target: .multiSelectRectBorder,
+                    onColorSelected: { viewModel.updateMultiSelectRectBorderColor($0) }
+                )
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Style")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    mixableStrokeStylePicker(
+                        selected: viewModel.multiSelectRectStrokeStyle,
+                        onChange: { viewModel.updateMultiSelectRectStrokeStyle($0) }
+                    )
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sides")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    multiSelectBorderSidesPicker()
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Line")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    mixableBorderLineStylePicker(
+                        selected: viewModel.multiSelectRectBorderLineStyle,
+                        onChange: { viewModel.updateMultiSelectRectBorderLineStyle($0) }
+                    )
+                }
+                if viewModel.multiSelectRectBorderLineStyle == .dashed {
+                    HStack {
+                        mixableNumberField("Dash", value: viewModel.multiSelectRectBorderDashLength) { newVal in
+                            viewModel.updateMultiSelectRectBorderDashLength(newVal)
+                        }
+                        mixableNumberField("Gap", value: viewModel.multiSelectRectBorderGapLength) { newVal in
+                            viewModel.updateMultiSelectRectBorderGapLength(newVal)
+                        }
+                    }
+                }
+            }
+        }
+
+        Divider()
+
+        // Fill
+        mixableToggleSection(
+            label: "Fill",
+            icon: "square.fill",
+            isEnabled: viewModel.multiSelectRectFillMode.map { $0 == .solid },
+            onToggle: { viewModel.updateMultiSelectRectFillEnabled($0) }
+        ) {
+            mixableColorSwatchRow(
+                color: viewModel.multiSelectRectFillColor,
+                isMixed: viewModel.isMultiSelectRectFillColorMixed,
+                target: .multiSelectRectFill,
+                onColorSelected: { viewModel.updateMultiSelectRectFillColor($0) }
+            )
+            HStack {
+                Text("Char")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                TextField("", text: Binding(
+                    get: {
+                        guard let ch = viewModel.multiSelectRectFillCharacter else { return "" }
+                        return ch == " " ? "" : String(ch)
+                    },
+                    set: { newValue in
+                        let char = newValue.first ?? Character(" ")
+                        viewModel.updateMultiSelectRectFillCharacter(char)
+                    }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 24)
+            }
+        }
+
+        Divider()
+
+        // Shadow
+        mixableToggleSection(
+            label: "Shadow",
+            icon: "shadow",
+            isEnabled: viewModel.multiSelectRectHasShadow,
+            onToggle: { viewModel.updateMultiSelectRectHasShadow($0) }
+        ) {
+            VStack(alignment: .leading, spacing: 6) {
+                mixableShadowStylePicker(
+                    selected: viewModel.multiSelectRectShadowStyle,
+                    onChange: { viewModel.updateMultiSelectRectShadowStyle($0) }
+                )
+                HStack {
+                    mixableNumberField("X", value: viewModel.multiSelectRectShadowOffsetX) { newVal in
+                        viewModel.updateMultiSelectRectShadowOffsetX(newVal)
+                    }
+                    mixableNumberField("Y", value: viewModel.multiSelectRectShadowOffsetY) { newVal in
+                        viewModel.updateMultiSelectRectShadowOffsetY(newVal)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Multi-select arrow properties
+
+    @ViewBuilder
+    private var multiSelectArrowProperties: some View {
+        staticSection(label: "Style", icon: "paintbrush") {
+            mixableColorSwatchRow(
+                color: viewModel.multiSelectArrowStrokeColor,
+                isMixed: viewModel.isMultiSelectArrowStrokeColorMixed,
+                target: .multiSelectArrowStroke,
+                onColorSelected: { viewModel.updateMultiSelectArrowStrokeColor($0) }
+            )
+            mixableColorSwatchRow(
+                color: viewModel.multiSelectArrowLabelColor,
+                isMixed: viewModel.isMultiSelectArrowLabelColorMixed,
+                target: .multiSelectArrowLabel,
+                onColorSelected: { viewModel.updateMultiSelectArrowLabelColor($0) }
+            )
+            mixableStrokeStylePicker(
+                selected: viewModel.multiSelectArrowStrokeStyle,
+                onChange: { viewModel.updateMultiSelectArrowStrokeStyle($0) }
+            )
+            HStack {
+                Picker("Start", selection: Binding(
+                    get: { viewModel.multiSelectArrowStartHeadStyle ?? .none },
+                    set: { viewModel.updateMultiSelectArrowStartHeadStyle($0) }
+                )) {
+                    ForEach(ArrowHeadStyle.allCases, id: \.self) { style in
+                        Text(style.pickerCharacter).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Picker("End", selection: Binding(
+                    get: { viewModel.multiSelectArrowEndHeadStyle ?? .none },
+                    set: { viewModel.updateMultiSelectArrowEndHeadStyle($0) }
+                )) {
+                    ForEach(ArrowHeadStyle.allCases, id: \.self) { style in
+                        Text(style.pickerCharacter).tag(style)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+        }
+    }
+
+    // MARK: - Multi-select mixed type properties
+
+    @ViewBuilder
+    private var multiSelectMixedProperties: some View {
+        if viewModel.hasSelectedRectangles || viewModel.hasSelectedArrows {
+            staticSection(label: "Stroke", icon: "paintbrush") {
+                mixableColorSwatchRow(
+                    color: viewModel.multiSelectCrossBorderStrokeColor,
+                    isMixed: viewModel.isMultiSelectCrossBorderStrokeColorMixed,
+                    target: .multiSelectBorderStroke,
+                    onColorSelected: { viewModel.updateMultiSelectCrossBorderStrokeColor($0) }
+                )
+                mixableStrokeStylePicker(
+                    selected: viewModel.multiSelectCrossStrokeStyle,
+                    onChange: { viewModel.updateMultiSelectCrossStrokeStyle($0) }
+                )
+            }
+
+            Divider()
+
+            staticSection(label: "Text", icon: "textformat") {
+                mixableColorSwatchRow(
+                    color: viewModel.multiSelectCrossTextLabelColor,
+                    isMixed: viewModel.isMultiSelectCrossTextLabelColorMixed,
+                    target: .multiSelectText,
+                    onColorSelected: { viewModel.updateMultiSelectCrossTextLabelColor($0) }
+                )
+            }
         }
     }
 
@@ -1061,6 +1267,228 @@ struct InspectorPanel: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
+    }
+
+    private func mixableToggleSection<Content: View>(
+        label: String,
+        icon: String,
+        isEnabled: Bool?,
+        onToggle: @escaping (Bool) -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label(label, systemImage: icon)
+                    .font(.caption.weight(.semibold))
+                if isEnabled == nil {
+                    Text("Mixed")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                }
+                Spacer()
+                Button {
+                    onToggle(!(isEnabled ?? true))
+                } label: {
+                    Image(systemName: (isEnabled ?? false) ? "minus" : "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isEnabled ?? false {
+                content()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+    }
+
+    private func mixableNumberField(_ label: String, value: Int?, onChange: @escaping (Int) -> Void)
+        -> some View
+    {
+        HStack(spacing: 0) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .font(.caption)
+                .padding(.leading, 4)
+                .padding(.trailing, 4)
+            TextField(
+                label,
+                text: Binding(
+                    get: { value.map { String($0) } ?? "" },
+                    set: { newValue in
+                        if let intVal = Int(newValue) {
+                            onChange(intVal)
+                        }
+                    }
+                ),
+                prompt: value == nil ? Text("—") : nil
+            )
+            .textFieldStyle(.plain)
+            .frame(width: 48)
+        }
+        .frame(height: 22)
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    private func mixableStrokeStylePicker(
+        selected: StrokeStyle?,
+        onChange: @escaping (StrokeStyle) -> Void
+    ) -> some View {
+        HStack(spacing: 0) {
+            ForEach(StrokeStyle.allCases, id: \.self) { style in
+                if style != StrokeStyle.allCases.first {
+                    Divider()
+                        .frame(height: 16)
+                }
+                alignmentIconButton(
+                    isSelected: selected == style,
+                    action: { onChange(style) }
+                ) {
+                    let (size, offset) = strokeGlyphMetrics(for: style)
+                    Text(String(style.topLeft))
+                        .font(.system(size: size, design: .monospaced))
+                        .offset(x: 1, y: offset)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func mixableShadowStylePicker(
+        selected: RectangleShadowStyle?,
+        onChange: @escaping (RectangleShadowStyle) -> Void
+    ) -> some View {
+        HStack(spacing: 0) {
+            ForEach(RectangleShadowStyle.allCases, id: \.self) { style in
+                if style != RectangleShadowStyle.allCases.first {
+                    Divider()
+                        .frame(height: 16)
+                }
+                alignmentIconButton(
+                    isSelected: selected == style,
+                    action: { onChange(style) }
+                ) {
+                    Text(String(style.character))
+                        .font(.system(size: 14, design: .monospaced))
+                        .offset(y: -1)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func mixableBorderLineStylePicker(
+        selected: RectangleBorderLineStyle?,
+        onChange: @escaping (RectangleBorderLineStyle) -> Void
+    ) -> some View {
+        let cellWidth: CGFloat = 56
+        return HStack(spacing: 0) {
+            Button(action: { onChange(.solid) }) {
+                ZStack {
+                    Rectangle()
+                        .fill(selected == .solid ? Color.accentColor.opacity(0.16) : Color.clear)
+                    Text("Solid")
+                        .font(.caption)
+                }
+                .frame(width: cellWidth, height: 24)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Divider()
+                .frame(height: 16)
+            Button(action: { onChange(.dashed) }) {
+                ZStack {
+                    Rectangle()
+                        .fill(selected == .dashed ? Color.accentColor.opacity(0.16) : Color.clear)
+                    Text("Dashed")
+                        .font(.caption)
+                }
+                .frame(width: cellWidth, height: 24)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func multiSelectBorderSidesPicker() -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+            GridRow {
+                multiSelectBorderSideCell(.top)
+                multiSelectBorderSideCell(.right)
+            }
+            GridRow {
+                multiSelectBorderSideCell(.left)
+                multiSelectBorderSideCell(.bottom)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+        .fixedSize()
+    }
+
+    private func multiSelectBorderSideCell(_ side: RectangleBorderSide) -> some View {
+        let uniform = viewModel.multiSelectRectBorderSideUniform(side)
+        let isVisible = uniform ?? false
+        let isMixed = viewModel.isMultiSelectRectBorderSideMixed(side)
+        return Button {
+            viewModel.updateMultiSelectRectBorderSide(side, isVisible: !isVisible)
+        } label: {
+            ZStack {
+                Rectangle()
+                    .fill(isVisible ? Color.accentColor.opacity(0.16) : Color.clear)
+                BorderSideIcon(side: side)
+                    .frame(width: 14, height: 14)
+                    .opacity(isMixed ? 0.4 : 1.0)
+            }
+            .frame(width: 32, height: 24)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(width: 32, height: 24)
+        .contentShape(Rectangle())
     }
 
     private func shadowStylePicker(
