@@ -406,6 +406,7 @@ struct InspectorPanel: View {
                             horizontalAlignmentIcon(.right)
                         }
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
                     .background(
                         RoundedRectangle(cornerRadius: 7)
                             .fill(Color(NSColor.controlBackgroundColor))
@@ -451,6 +452,7 @@ struct InspectorPanel: View {
                             verticalAlignmentIcon(.bottom)
                         }
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
                     .background(
                         RoundedRectangle(cornerRadius: 7)
                             .fill(Color(NSColor.controlBackgroundColor))
@@ -811,6 +813,7 @@ struct InspectorPanel: View {
                     .buttonStyle(.plain)
                 }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 7))
             .background(
                 RoundedRectangle(cornerRadius: 7)
                     .fill(Color(NSColor.controlBackgroundColor))
@@ -879,6 +882,7 @@ struct InspectorPanel: View {
                     .buttonStyle(.plain)
                 }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 7))
             .background(
                 RoundedRectangle(cornerRadius: 7)
                     .fill(Color(NSColor.controlBackgroundColor))
@@ -965,6 +969,7 @@ struct InspectorPanel: View {
             .textFieldStyle(.plain)
             .frame(width: 48)
         }
+        .frame(height: 22)
         .overlay(
             RoundedRectangle(cornerRadius: 5)
                 .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
@@ -1077,6 +1082,7 @@ struct InspectorPanel: View {
                 }
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(Color(NSColor.controlBackgroundColor))
@@ -1107,6 +1113,7 @@ struct InspectorPanel: View {
                 }
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(Color(NSColor.controlBackgroundColor))
@@ -1148,6 +1155,7 @@ struct InspectorPanel: View {
             }
             .buttonStyle(.plain)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(Color(NSColor.controlBackgroundColor))
@@ -1172,6 +1180,7 @@ struct InspectorPanel: View {
                 borderSideCell(.bottom, in: rectangle, onToggle: onToggle)
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
         .background(
             RoundedRectangle(cornerRadius: 7)
                 .fill(Color(NSColor.controlBackgroundColor))
