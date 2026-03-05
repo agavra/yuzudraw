@@ -6,3 +6,12 @@
   --color-brand: #F7CE1A;
   --color-brand-light: #f9d84e;
 }
+
+/* YuzuDraw-style canvas grid background */
+.canvas-grid {
+  background-color: #fcfcfc;
+  background-image:
+    linear-gradient(to right, #f0f0f0 1px, transparent 1px),
+    linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
+  background-size: 24px 24px;
+}

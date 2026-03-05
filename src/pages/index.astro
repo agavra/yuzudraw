@@ -2,12 +2,12 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="YuzuDraw — ASCII Diagram Editor for macOS">
+<Layout title="YuzuDraw">
   <!-- Topbar -->
   <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100">
     <div class="px-6 h-14 flex items-center">
       <a href="/" class="flex items-center gap-2 text-gray-700 no-underline text-xl tracking-tight">
-        <img src="/logo.svg" alt="" class="w-7 h-7 rounded-md" />
+        <img src="/yuzudraw-icon.svg" alt="" class="h-7" />
         <span><span class="font-extralight">yuzu</span><span class="font-bold">draw</span></span>
       </a>
     </div>
@@ -51,7 +51,7 @@ import Layout from '../layouts/Layout.astro';
           <div class="md:w-1/3 shrink-0">
             <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">&#8598; &#9633; &#8600;</div>
             <h3 class="inline-block text-xl font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Visual Canvas</h3>
-            <p class="text-sm text-gray-500 leading-relaxed">Drag, resize, and connect shapes on an infinite canvas. Organize with layers and groups. Refine what AI generates, or start from scratch.</p>
+            <p class="text-sm text-gray-500 leading-relaxed">Drag, resize, and connect shapes on an infinite canvas. Refine what AI generates, or start from scratch.</p>
           </div>
           <div class="md:w-2/3 rounded-xl overflow-hidden">
             <img src="/screenshot-overview.png" alt="YuzuDraw visual canvas" class="block w-full h-auto" />
@@ -62,18 +62,32 @@ import Layout from '../layouts/Layout.astro';
     </section>
 
     <!-- Secondary features grid -->
-    <section class="py-24 px-6 border-t border-gray-100">
-      <div class="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-12 text-center">
-        <div>
-          <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">.txt .png .svg</div>
-          <h3 class="inline-block text-lg font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Multiple Export Formats</h3>
-          <p class="text-sm text-gray-500 leading-relaxed">Export as plain ASCII text, PNG, or SVG — or copy straight to your clipboard.</p>
-        </div>
-        <div>
-          <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">&#8984; &#8997; &#8679;</div>
-          <h3 class="inline-block text-lg font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Native macOS</h3>
-          <p class="text-sm text-gray-500 leading-relaxed">Built with SwiftUI. Fast, lightweight, and feels right at home on your Mac.</p>
-        </div>
+    <section class="relative border-t border-gray-100 overflow-hidden">
+      <div class="absolute inset-0 canvas-grid"></div>
+      <div class="relative py-28 px-6">
+          <div class="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-x-20 gap-y-16 text-center">
+            <div class="border border-gray-300 bg-white p-8">
+              <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">.txt .png .svg</div>
+              <h3 class="inline-block text-lg font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Multiple Export Formats</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Export as plain ASCII text, PNG, or SVG — or copy straight to your clipboard.</p>
+            </div>
+            <div class="border border-gray-300 bg-white p-8">
+              <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">&#9638; &#9637; &#9636;</div>
+              <h3 class="inline-block text-lg font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Layers & Grouping</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Organize shapes with a hierarchical layer panel. Toggle visibility, lock layers, reorder with drag-and-drop, and group with &#8984;G.</p>
+            </div>
+            <div class="border border-gray-300 bg-white p-8">
+              <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">DSL ↔ ASCII</div>
+              <h3 class="inline-block text-lg font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">AI-Friendly DSL</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">A lightweight, human-readable language for describing diagrams. Token-efficient and easy for LLMs to generate.</p>
+            </div>
+            <div class="border border-gray-300 bg-white p-8">
+              <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">&#8984; &#8997; &#8679;</div>
+              <h3 class="inline-block text-lg font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Native macOS</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Built with SwiftUI. Fast, lightweight, and feels right at home on your Mac.</p>
+            </div>
+          </div>
+          </div>
       </div>
     </section>
 
