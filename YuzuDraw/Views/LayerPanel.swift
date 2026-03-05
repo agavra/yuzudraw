@@ -323,6 +323,7 @@ private struct GroupRow: View {
                     return
                 }
                 let groupIDs = Set(group.allShapeIDs)
+                viewModel.enteredGroupID = nil
                 if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
                     viewModel.selectedShapeIDs.formSymmetricDifference(groupIDs)
                 } else {
@@ -460,6 +461,20 @@ private struct ShapeRow: View {
                 return
             }
             let extending = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
+            // If the shape is inside a group, set enteredGroupID to the innermost containing group
+            if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }),
+               let rootGroup = viewModel.document.layers[layerIndex].findRootGroup(containingShape: shape.id)
+            {
+                let ancestry = viewModel.document.layers[layerIndex].findGroupAncestry(containingShape: shape.id)
+                // Set to the innermost group that directly contains this shape
+                if let innermostGroup = ancestry.last(where: { $0.shapeIDs.contains(shape.id) }) {
+                    viewModel.enteredGroupID = innermostGroup.id
+                } else {
+                    viewModel.enteredGroupID = rootGroup.id
+                }
+            } else {
+                viewModel.enteredGroupID = nil
+            }
             viewModel.selectShapeFromPanel(shape.id, extending: extending)
         }
         .onTapGesture(count: 2) {

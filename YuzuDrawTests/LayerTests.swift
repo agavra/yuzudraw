@@ -157,4 +157,70 @@ struct LayerTests {
         #expect(found != nil)
         #expect(found?.id == rectangle.id)
     }
+
+    @Test func should_find_root_group_containing_shape() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 5, height: 3))
+        let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 5, height: 3))
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        layer.addShape(.rectangle(rect3))
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
+        layer.groups.append(group)
+
+        // when/then
+        #expect(layer.findRootGroup(containingShape: rect1.id)?.id == group.id)
+        #expect(layer.findRootGroup(containingShape: rect2.id)?.id == group.id)
+        #expect(layer.findRootGroup(containingShape: rect3.id) == nil)
+    }
+
+    @Test func should_find_root_group_for_nested_shape() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 5, height: 3))
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
+        let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
+        layer.groups.append(outerGroup)
+
+        // when/then
+        #expect(layer.findRootGroup(containingShape: rect1.id)?.id == outerGroup.id)
+    }
+
+    @Test func should_find_group_ancestry_for_nested_shape() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 5, height: 3))
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
+        let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
+        layer.groups.append(outerGroup)
+
+        // when
+        let ancestry = layer.findGroupAncestry(containingShape: rect1.id)
+
+        // then
+        #expect(ancestry.count == 2)
+        #expect(ancestry[0].id == outerGroup.id)
+        #expect(ancestry[1].id == innerGroup.id)
+    }
+
+    @Test func should_return_empty_ancestry_for_ungrouped_shape() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
+        layer.addShape(.rectangle(rect1))
+
+        // when
+        let ancestry = layer.findGroupAncestry(containingShape: rect1.id)
+
+        // then
+        #expect(ancestry.isEmpty)
+    }
 }

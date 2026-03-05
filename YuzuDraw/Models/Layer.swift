@@ -34,6 +34,32 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         return ids
     }
 
+    func containsShape(_ shapeID: UUID) -> Bool {
+        if shapeIDs.contains(shapeID) { return true }
+        return children.contains { $0.containsShape(shapeID) }
+    }
+
+    func childGroup(containingShape shapeID: UUID) -> ShapeGroup? {
+        for child in children {
+            if child.containsShape(shapeID) {
+                return child
+            }
+        }
+        return nil
+    }
+
+    func ancestryPath(to shapeID: UUID) -> [ShapeGroup]? {
+        if shapeIDs.contains(shapeID) {
+            return []
+        }
+        for child in children {
+            if let subPath = child.ancestryPath(to: shapeID) {
+                return [child] + subPath
+            }
+        }
+        return nil
+    }
+
     mutating func removeShapeRecursively(id shapeID: UUID) {
         shapeIDs.removeAll { $0 == shapeID }
         for index in children.indices {
@@ -146,6 +172,24 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         for index in groups.indices {
             groups[index].removeShapesRecursively(ids: ids)
         }
+    }
+
+    func findRootGroup(containingShape shapeID: UUID) -> ShapeGroup? {
+        for group in groups {
+            if group.containsShape(shapeID) {
+                return group
+            }
+        }
+        return nil
+    }
+
+    func findGroupAncestry(containingShape shapeID: UUID) -> [ShapeGroup] {
+        for group in groups {
+            if let path = group.ancestryPath(to: shapeID) {
+                return [group] + path
+            }
+        }
+        return []
     }
 
     mutating func renameGroup(id groupID: UUID, to newName: String) -> Bool {

@@ -40,7 +40,13 @@ final class EditorViewModel {
         }
     }
     var selectedLayerID: UUID?
-    var activeToolType: ToolType = .select
+    var activeToolType: ToolType = .select {
+        didSet {
+            if activeToolType != oldValue {
+                enteredGroupID = nil
+            }
+        }
+    }
     var activeLayerIndex: Int = 0
     var expandedItemIDs: Set<UUID> = []
     var isEditingText: Bool = false
@@ -51,6 +57,7 @@ final class EditorViewModel {
     var hoverGridPoint: GridPoint?
     var isOptionKeyPressed: Bool = false
     var isShiftKeyPressed: Bool = false
+    var enteredGroupID: UUID?
 
     // MARK: - Undo/Redo
     private var undoStack: [Document] = []
@@ -71,6 +78,7 @@ final class EditorViewModel {
         redoStack.append(document)
         document = previous
         selectedShapeIDs = []
+        enteredGroupID = nil
         rerender()
     }
 
@@ -79,6 +87,7 @@ final class EditorViewModel {
         undoStack.append(document)
         document = next
         selectedShapeIDs = []
+        enteredGroupID = nil
         rerender()
     }
 
@@ -206,7 +215,12 @@ final class EditorViewModel {
 
         let action = activeTool.mouseDown(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
-        applyAction(action)
+
+        if activeToolType == .select {
+            applyGroupAwareAction(action)
+        } else {
+            applyAction(action)
+        }
     }
 
     func handleDoubleClick(at point: GridPoint) {
@@ -217,6 +231,44 @@ final class EditorViewModel {
               !document.layers[layerIndex].isLocked
         else { return }
 
+        let layer = document.layers[layerIndex]
+
+        // Group handling: if shape is in a group, double-click enters the group
+        if let rootGroup = layer.findRootGroup(containingShape: shape.id) {
+            if enteredGroupID == nil {
+                // Not entered yet — enter the root group, select the shape (or sub-group)
+                enteredGroupID = rootGroup.id
+                let resolved = resolveGroupSelection(forShapeID: shape.id)
+                selectedShapeIDs = resolved.shapeIDs
+                // If resolved to a single shape, start text editing
+                if resolved.groupID == nil {
+                    startTextEditForShape(shape)
+                }
+                return
+            }
+
+            // Already entered — check if we can drill deeper
+            let ancestry = layer.findGroupAncestry(containingShape: shape.id)
+            if let enteredIndex = ancestry.firstIndex(where: { $0.id == enteredGroupID }) {
+                let enteredGroup = ancestry[enteredIndex]
+                if let childGroup = enteredGroup.childGroup(containingShape: shape.id) {
+                    // Drill into sub-group
+                    enteredGroupID = childGroup.id
+                    let resolved = resolveGroupSelection(forShapeID: shape.id)
+                    selectedShapeIDs = resolved.shapeIDs
+                    if resolved.groupID == nil {
+                        startTextEditForShape(shape)
+                    }
+                    return
+                }
+            }
+        }
+
+        // At individual shape level (or ungrouped) — start text editing
+        startTextEditForShape(shape)
+    }
+
+    private func startTextEditForShape(_ shape: AnyShape) {
         let editPoint: GridPoint
         let content: String
 
@@ -257,7 +309,12 @@ final class EditorViewModel {
         selectionTool.isShiftKeyPressed = isShiftKeyPressed
         let action = activeTool.mouseUp(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
-        applyAction(action)
+
+        if activeToolType == .select {
+            applyGroupAwareAction(action)
+        } else {
+            applyAction(action)
+        }
 
         isInDragOperation = false
         // Pop the undo snapshot if the drag didn't actually change the document
@@ -320,6 +377,241 @@ final class EditorViewModel {
         case .addShapesToSelection(let ids):
             selectedShapeIDs.formUnion(ids)
         }
+    }
+
+    // MARK: - Group-aware selection
+
+    private func activeLayer() -> Layer? {
+        guard document.layers.indices.contains(activeLayerIndex) else { return nil }
+        return document.layers[activeLayerIndex]
+    }
+
+    func resolveGroupSelection(forShapeID shapeID: UUID) -> (shapeIDs: Set<UUID>, groupID: UUID?) {
+        guard let layer = activeLayer() else {
+            return ([shapeID], nil)
+        }
+        guard let rootGroup = layer.findRootGroup(containingShape: shapeID) else {
+            return ([shapeID], nil)
+        }
+        guard let enteredGroupID else {
+            return (rootGroup.allShapeIDs, rootGroup.id)
+        }
+
+        // Walk the ancestry to find the entered group, then resolve within it
+        let ancestry = layer.findGroupAncestry(containingShape: shapeID)
+        guard let enteredIndex = ancestry.firstIndex(where: { $0.id == enteredGroupID }) else {
+            // Shape is not inside the entered group — select the root group
+            return (rootGroup.allShapeIDs, rootGroup.id)
+        }
+
+        let enteredGroup = ancestry[enteredIndex]
+        if let childGroup = enteredGroup.childGroup(containingShape: shapeID) {
+            return (childGroup.allShapeIDs, childGroup.id)
+        }
+        return ([shapeID], nil)
+    }
+
+    private func isGroupSelected() -> ShapeGroup? {
+        guard !selectedShapeIDs.isEmpty, let layer = activeLayer() else { return nil }
+        for group in layer.groups {
+            let groupIDs = group.allShapeIDs
+            if !groupIDs.isEmpty, groupIDs == selectedShapeIDs {
+                return group
+            }
+        }
+        // Also check nested groups
+        return findSelectedGroupRecursive(in: layer.groups)
+    }
+
+    private func findSelectedGroupRecursive(in groups: [ShapeGroup]) -> ShapeGroup? {
+        for group in groups {
+            let groupIDs = group.allShapeIDs
+            if !groupIDs.isEmpty, groupIDs == selectedShapeIDs {
+                return group
+            }
+            if let found = findSelectedGroupRecursive(in: group.children) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func applyGroupAwareAction(_ action: ToolAction) {
+        switch action {
+        case .selectShape(nil):
+            // Click on empty canvas: exit group, deselect
+            enteredGroupID = nil
+            applyAction(action)
+
+        case .selectShape(let id?):
+            guard let layer = activeLayer(),
+                  let rootGroup = layer.findRootGroup(containingShape: id)
+            else {
+                // Ungrouped shape — clear group state, select normally
+                enteredGroupID = nil
+                applyAction(action)
+                return
+            }
+
+            if enteredGroupID != nil, isAncestor(groupID: enteredGroupID!, of: id, in: layer) {
+                // Already inside entered group — check if current selection matches a sub-group
+                if let selectedSubGroup = findSelectedSubGroup(within: enteredGroupID!, in: layer),
+                   selectedSubGroup.containsShape(id) {
+                    // Selection matches a sub-group and we clicked inside it — drill into it
+                    enteredGroupID = selectedSubGroup.id
+                    let resolved = resolveGroupSelection(forShapeID: id)
+                    selectedShapeIDs = resolved.shapeIDs
+                } else {
+                    // Resolve within the entered group
+                    let resolved = resolveGroupSelection(forShapeID: id)
+                    selectedShapeIDs = resolved.shapeIDs
+                }
+            } else if let currentGroup = isGroupSelected(), currentGroup.id == rootGroup.id || isAncestor(group: currentGroup, of: id, in: layer) {
+                // Group (or ancestor) is already selected — enter group, select inner target
+                enteredGroupID = currentGroup.id
+                let resolved = resolveGroupSelection(forShapeID: id)
+                selectedShapeIDs = resolved.shapeIDs
+            } else {
+                // Group not selected — select entire root group
+                enteredGroupID = nil
+                selectedShapeIDs = rootGroup.allShapeIDs
+            }
+
+        case .addShapeToSelection(let id):
+            guard let layer = activeLayer(),
+                  let rootGroup = layer.findRootGroup(containingShape: id)
+            else {
+                applyAction(action)
+                return
+            }
+            if enteredGroupID != nil {
+                // Inside entered group, shift+click adds individual shape or sub-group
+                let resolved = resolveGroupSelection(forShapeID: id)
+                selectedShapeIDs.formUnion(resolved.shapeIDs)
+            } else {
+                selectedShapeIDs.formUnion(rootGroup.allShapeIDs)
+            }
+
+        case .removeShapeFromSelection(let id):
+            guard let layer = activeLayer(),
+                  let rootGroup = layer.findRootGroup(containingShape: id)
+            else {
+                applyAction(action)
+                return
+            }
+            if enteredGroupID != nil {
+                let resolved = resolveGroupSelection(forShapeID: id)
+                selectedShapeIDs.subtract(resolved.shapeIDs)
+            } else {
+                selectedShapeIDs.subtract(rootGroup.allShapeIDs)
+            }
+
+        default:
+            // For all other actions (updateShape, updateShapes, addShapesToSelection, etc.)
+            applyAction(action)
+        }
+    }
+
+    private func isAncestor(group: ShapeGroup, of shapeID: UUID, in layer: Layer) -> Bool {
+        let ancestry = layer.findGroupAncestry(containingShape: shapeID)
+        return ancestry.contains { $0.id == group.id }
+    }
+
+    private func findSelectedSubGroup(within parentGroupID: UUID, in layer: Layer) -> ShapeGroup? {
+        guard !selectedShapeIDs.isEmpty else { return nil }
+        // Find the parent group, then check if selection matches any of its child groups
+        func findGroup(id: UUID, in groups: [ShapeGroup]) -> ShapeGroup? {
+            for group in groups {
+                if group.id == id { return group }
+                if let found = findGroup(id: id, in: group.children) { return found }
+            }
+            return nil
+        }
+        guard let parentGroup = findGroup(id: parentGroupID, in: layer.groups) else { return nil }
+        for child in parentGroup.children {
+            if child.allShapeIDs == selectedShapeIDs {
+                return child
+            }
+        }
+        return nil
+    }
+
+    private func isAncestor(groupID: UUID, of shapeID: UUID, in layer: Layer) -> Bool {
+        let ancestry = layer.findGroupAncestry(containingShape: shapeID)
+        return ancestry.contains { $0.id == groupID }
+    }
+
+    var selectedGroupBoundingRect: GridRect? {
+        guard enteredGroupID == nil, !selectedShapeIDs.isEmpty else { return nil }
+        guard let layer = activeLayer() else { return nil }
+
+        // Check if the selection matches a group's allShapeIDs
+        let matchesGroup = layer.groups.contains { group in
+            let ids = group.allShapeIDs
+            return !ids.isEmpty && ids == selectedShapeIDs
+        } || findSelectedGroupRecursive(in: layer.groups) != nil
+
+        guard matchesGroup else { return nil }
+
+        let shapes = selectedShapeIDs.compactMap { document.findShape(id: $0) }
+        guard !shapes.isEmpty else { return nil }
+
+        var minCol = Int.max
+        var minRow = Int.max
+        var maxCol = Int.min
+        var maxRow = Int.min
+        for shape in shapes {
+            let rect = shape.boundingRect
+            minCol = min(minCol, rect.minColumn)
+            minRow = min(minRow, rect.minRow)
+            maxCol = max(maxCol, rect.maxColumn)
+            maxRow = max(maxRow, rect.maxRow)
+        }
+
+        return GridRect(
+            origin: GridPoint(column: minCol, row: minRow),
+            size: GridSize(width: maxCol - minCol + 1, height: maxRow - minRow + 1)
+        )
+    }
+
+    func handleEscape() -> Bool {
+        if let enteredGroupID {
+            // Exit entered group and re-select the group as a whole
+            if let layer = activeLayer() {
+                let ancestry = findGroupContaining(groupID: enteredGroupID, in: layer.groups)
+                if let parentGroup = ancestry {
+                    // Re-select the parent group
+                    selectedShapeIDs = parentGroup.allShapeIDs
+                    self.enteredGroupID = nil
+                } else {
+                    // enteredGroupID is a root group — find it and select it
+                    if let group = layer.groups.first(where: { $0.id == enteredGroupID }) {
+                        selectedShapeIDs = group.allShapeIDs
+                    }
+                    self.enteredGroupID = nil
+                }
+            } else {
+                self.enteredGroupID = nil
+                selectedShapeIDs = []
+            }
+            return true
+        } else if !selectedShapeIDs.isEmpty {
+            selectedShapeIDs = []
+            return true
+        }
+        return false
+    }
+
+    private func findGroupContaining(groupID: UUID, in groups: [ShapeGroup]) -> ShapeGroup? {
+        for group in groups {
+            if group.children.contains(where: { $0.id == groupID }) {
+                return group
+            }
+            if let found = findGroupContaining(groupID: groupID, in: group.children) {
+                return found
+            }
+        }
+        return nil
     }
 
     // MARK: - Text editing
@@ -1864,6 +2156,7 @@ final class EditorViewModel {
             document.removeShape(id: id)
         }
         selectedShapeIDs = []
+        enteredGroupID = nil
         rerender()
     }
 
@@ -2025,6 +2318,7 @@ final class EditorViewModel {
     }
 
     func groupSelectedShapes() {
+        enteredGroupID = nil
         recordSnapshot()
         guard canGroupSelectedShapes(),
             let firstSelectedShapeID = selectedShapeIDs.first,
@@ -2065,6 +2359,7 @@ final class EditorViewModel {
     }
 
     func ungroupSelectedShapes() {
+        enteredGroupID = nil
         recordSnapshot()
         guard !selectedShapeIDs.isEmpty else { return }
 

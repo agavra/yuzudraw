@@ -251,6 +251,210 @@ struct EditorViewModelGroupingTests {
         #expect(viewModel.document.canvasSize.height == 50)
     }
 
+    // MARK: - Group selection behavior
+
+    @Test func should_select_entire_group_when_clicking_grouped_shape() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        let rect3 = RectangleShape(origin: GridPoint(column: 40, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect3), toLayerAt: 0)
+        document.layers[0].groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+
+        // when — click on rect1 which is in the group
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+
+        // then — entire group should be selected
+        #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id])
+        #expect(viewModel.enteredGroupID == nil)
+    }
+
+    @Test func should_enter_group_on_second_click() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
+        document.layers[0].groups.append(group)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+
+        // First click — select group
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+        #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id])
+
+        // when — second click on rect1 (group already selected)
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+
+        // then — entered group, individual shape selected
+        #expect(viewModel.enteredGroupID == group.id)
+        #expect(viewModel.selectedShapeIDs == [rect1.id])
+    }
+
+    @Test func should_drill_into_nested_groups_progressively() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
+        let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
+        document.layers[0].groups.append(outerGroup)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+
+        // First click — select outer group
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+        #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id])
+        #expect(viewModel.enteredGroupID == nil)
+
+        // Second click — enter outer group, select inner group
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+        #expect(viewModel.enteredGroupID == outerGroup.id)
+        #expect(viewModel.selectedShapeIDs == [rect1.id])
+
+        // Third click — enter inner group, select individual shape
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+        #expect(viewModel.enteredGroupID == innerGroup.id)
+        #expect(viewModel.selectedShapeIDs == [rect1.id])
+    }
+
+    @Test func should_exit_group_on_escape_and_reselect_parent() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
+        document.layers[0].groups.append(group)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+
+        // Enter group: select group then click again
+        viewModel.selectedShapeIDs = [rect1.id, rect2.id]
+        viewModel.enteredGroupID = group.id
+        viewModel.selectedShapeIDs = [rect1.id]
+
+        // when — press escape
+        let handled = viewModel.handleEscape()
+
+        // then — exit group, re-select group
+        #expect(handled)
+        #expect(viewModel.enteredGroupID == nil)
+        #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id])
+    }
+
+    @Test func should_deselect_on_empty_canvas_click() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id])
+        document.layers[0].groups.append(group)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+        viewModel.selectedShapeIDs = [rect1.id]
+        viewModel.enteredGroupID = group.id
+
+        // when — click on empty canvas
+        viewModel.mouseDown(at: GridPoint(column: 60, row: 60))
+        viewModel.mouseUp(at: GridPoint(column: 60, row: 60))
+
+        // then
+        #expect(viewModel.selectedShapeIDs.isEmpty)
+        #expect(viewModel.enteredGroupID == nil)
+    }
+
+    @Test func should_add_entire_group_on_shift_click() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        let rect3 = RectangleShape(origin: GridPoint(column: 40, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect3), toLayerAt: 0)
+        document.layers[0].groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+        viewModel.selectedShapeIDs = [rect3.id]
+
+        // when — shift+click on rect1 (in group)
+        viewModel.isShiftKeyPressed = true
+        viewModel.mouseDown(at: GridPoint(column: 4, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 4, row: 4))
+
+        // then — entire group should be added to selection
+        #expect(viewModel.selectedShapeIDs.contains(rect1.id))
+        #expect(viewModel.selectedShapeIDs.contains(rect2.id))
+        #expect(viewModel.selectedShapeIDs.contains(rect3.id))
+    }
+
+    @Test func should_select_another_shape_within_entered_group() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
+        document.layers[0].groups.append(group)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+
+        // Enter group and select rect1
+        viewModel.enteredGroupID = group.id
+        viewModel.selectedShapeIDs = [rect1.id]
+
+        // when — click on rect2 (also in the entered group)
+        viewModel.mouseDown(at: GridPoint(column: 22, row: 4))
+        viewModel.mouseUp(at: GridPoint(column: 22, row: 4))
+
+        // then — should select rect2 individually, not the whole group
+        #expect(viewModel.selectedShapeIDs == [rect2.id])
+        #expect(viewModel.enteredGroupID == group.id)
+    }
+
+    @Test func should_double_click_enter_group() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect1 = RectangleShape(
+            origin: GridPoint(column: 2, row: 2),
+            size: GridSize(width: 8, height: 5),
+            label: "Hello"
+        )
+        let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
+        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
+        document.layers[0].groups.append(group)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+
+        // when — double-click on rect1
+        viewModel.handleDoubleClick(at: GridPoint(column: 4, row: 4))
+
+        // then — should enter group and start text editing
+        #expect(viewModel.enteredGroupID == group.id)
+        #expect(viewModel.selectedShapeIDs == [rect1.id])
+        #expect(viewModel.isEditingText)
+    }
+
     @Test func should_not_shrink_canvas_below_shape_bounds_plus_padding() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])

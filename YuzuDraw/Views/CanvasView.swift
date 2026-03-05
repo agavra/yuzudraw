@@ -109,9 +109,7 @@ struct CanvasView: View {
             }
             .onKeyPress(.escape) {
                 guard !viewModel.isEditingText else { return .ignored }
-                guard !viewModel.selectedShapeIDs.isEmpty else { return .ignored }
-                viewModel.selectedShapeIDs = []
-                return .handled
+                return viewModel.handleEscape() ? .handled : .ignored
             }
             .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow]) { press in
                 guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
@@ -289,7 +287,26 @@ struct CanvasView: View {
 
     private var selectionOverlay: some View {
         ZStack(alignment: .topLeading) {
-            if viewModel.selectedShapes.count <= 1 {
+            if let groupRect = viewModel.selectedGroupBoundingRect {
+                // Group selected but not entered — show dashed bounding box
+                Rectangle()
+                    .fill(Color.accentColor.opacity(0.05))
+                    .overlay(
+                        Rectangle()
+                            .strokeBorder(
+                                style: SwiftUI.StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                            )
+                            .foregroundStyle(Color.accentColor)
+                    )
+                    .frame(
+                        width: CGFloat(groupRect.size.width) * charSize.width,
+                        height: CGFloat(groupRect.size.height) * charSize.height
+                    )
+                    .offset(
+                        x: CGFloat(groupRect.origin.column) * charSize.width,
+                        y: CGFloat(groupRect.origin.row) * charSize.height
+                    )
+            } else if viewModel.selectedShapes.count <= 1 {
                 ForEach(viewModel.selectedShapes) { shape in
                     if case .arrow(let arrow) = shape {
                         ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
