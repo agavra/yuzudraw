@@ -320,6 +320,9 @@ struct CanvasView: View {
                                 )
 
                             ForEach(shape.resizeHandlePlacements, id: \.self) { placement in
+                                let handlePosition = rectHandlePixelPosition(
+                                    placement: placement, rect: rect, charSize: charSize
+                                )
                                 Circle()
                                     .fill(Color.accentColor)
                                     .overlay(
@@ -328,8 +331,8 @@ struct CanvasView: View {
                                     )
                                     .frame(width: 8, height: 8)
                                     .offset(
-                                        x: CGFloat(placement.point.column) * charSize.width - 4,
-                                        y: CGFloat(placement.point.row) * charSize.height - 4
+                                        x: handlePosition.x - 4,
+                                        y: handlePosition.y - 4
                                     )
                             }
                         }
@@ -355,6 +358,28 @@ struct CanvasView: View {
                 }
             }
             marqueeOverlay
+        }
+    }
+
+    private func rectHandlePixelPosition(
+        placement: ResizeHandlePlacement, rect: GridRect, charSize: CGSize
+    ) -> CGPoint {
+        let minX = CGFloat(rect.minColumn) * charSize.width
+        let maxX = CGFloat(rect.maxColumn + 1) * charSize.width
+        let minY = CGFloat(rect.minRow) * charSize.height
+        let maxY = CGFloat(rect.maxRow + 1) * charSize.height
+        let midX = (minX + maxX) / 2
+        let midY = (minY + maxY) / 2
+        switch placement.handle {
+        case .topLeft: return CGPoint(x: minX, y: minY)
+        case .top: return CGPoint(x: midX, y: minY)
+        case .topRight: return CGPoint(x: maxX, y: minY)
+        case .right: return CGPoint(x: maxX, y: midY)
+        case .bottomRight: return CGPoint(x: maxX, y: maxY)
+        case .bottom: return CGPoint(x: midX, y: maxY)
+        case .bottomLeft: return CGPoint(x: minX, y: maxY)
+        case .left: return CGPoint(x: minX, y: midY)
+        default: return CGPoint(x: CGFloat(placement.point.column) * charSize.width, y: CGFloat(placement.point.row) * charSize.height)
         }
     }
 
