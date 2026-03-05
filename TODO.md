@@ -2,9 +2,11 @@
 
 ## Bugs
 
-- [ ] Small rectangles have should not have midpoint selectors
+- [x] Small rectangles have should not have midpoint selectors
 - [x] The edit menu is all sorts of weird
-- [ ] Attach points for destination aren't showing (they are snapping)
+- [x] Attach points for destination aren't showing (they are snapping)
+- [x] highlighted options in inspector panel show square corners on rounded pills
+- [ ] dragging color takes up too many undo/redo slots
 
 ## Core Features
 
@@ -12,10 +14,9 @@
 - [x] add copy-cut-paste support (shorctus)
 - [x] update keyboard shortcuts in general
 - [ ] configurable attachment points
-- [ ] Shift+Click to edit properties of multiple items (use the same mechanism as group layer selection)
+- [x] Shift+Click to edit properties of multiple items (use the same mechanism as group layer selection)
 - [ ] Eraser functionality for when drawing with pencils
-- [ ] SVG export
-- [ ] intersecting objects (esp rectangles) should draw the proper box drawing elements
+- [x] SVG export
 - [ ] Add hand tool to move around canvas (as drop down)
 - [ ] Export should compute bounding boxes so that it doesnt have too mcuh padding.
 - [ ] Cmd+R to rename selected shape (needs focus management for inline rename)
