@@ -16,6 +16,7 @@ struct InspectorPanel: View {
 
     private enum LayerExportFormat: String, CaseIterable {
         case png = "PNG"
+        case svg = "SVG"
     }
 
     var body: some View {
@@ -427,6 +428,7 @@ struct InspectorPanel: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .fixedSize()
+                    .disabled(exportFormat == .svg)
 
                     Picker("", selection: $exportFormat) {
                         ForEach(LayerExportFormat.allCases, id: \.self) { format in
@@ -436,6 +438,11 @@ struct InspectorPanel: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .fixedSize()
+                    .onChange(of: exportFormat) {
+                        if exportFormat == .svg {
+                            exportScale = 1
+                        }
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -458,6 +465,10 @@ struct InspectorPanel: View {
                         case .png:
                             viewModel.exportSelectedLayerAsPNG(
                                 scale: exportScale,
+                                backgroundColor: exportBackgroundColor
+                            )
+                        case .svg:
+                            viewModel.exportSelectedLayerAsSVG(
                                 backgroundColor: exportBackgroundColor
                             )
                         }

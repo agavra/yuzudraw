@@ -2149,6 +2149,88 @@ final class EditorViewModel {
         return bitmap.representation(using: .png, properties: [:])
     }
 
+    func exportSelectedLayerAsSVG(backgroundColor: ShapeColor?) {
+        guard let layer = selectedLayer,
+            let canvas = selectedLayerExportCanvas(),
+            let data = svgData(from: canvas, backgroundColor: backgroundColor)
+        else { return }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "svg")!]
+        panel.nameFieldStringValue = "\(layer.name).svg"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try data.write(to: url)
+        } catch {
+            print("Failed to export layer SVG: \(error)")
+        }
+    }
+
+    private func svgData(from canvas: Canvas, backgroundColor: ShapeColor?) -> Data? {
+        let font = NSFont.monospacedSystemFont(ofSize: 16, weight: .regular)
+        let charSize = ("M" as NSString).size(withAttributes: [.font: font])
+        let cellWidth = charSize.width
+        let cellHeight = charSize.height
+        let width = CGFloat(canvas.columns) * cellWidth
+        let height = CGFloat(canvas.rows) * cellHeight
+        let fontSize = 16.0
+
+        var svg = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        svg += "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"\(Int(ceil(width)))\" height=\"\(Int(ceil(height)))\">\n"
+
+        if let bg = backgroundColor {
+            svg += "  <rect width=\"100%\" height=\"100%\" fill=\"\(bg.svgColorString)\"/>\n"
+        }
+
+        // Background color rects
+        var bgRects = ""
+        for row in 0..<canvas.rows {
+            for column in 0..<canvas.columns {
+                guard let cell = canvas.cell(atColumn: column, row: row),
+                    let background = cell.backgroundColor
+                else { continue }
+                let x = CGFloat(column) * cellWidth
+                let y = CGFloat(row) * cellHeight
+                bgRects +=
+                    "    <rect x=\"\(Int(x))\" y=\"\(Int(y))\" width=\"\(Int(ceil(cellWidth)))\" height=\"\(Int(ceil(cellHeight)))\" fill=\"\(background.svgColorString)\"/>\n"
+            }
+        }
+        if !bgRects.isEmpty {
+            svg += "  <g>\n\(bgRects)  </g>\n"
+        }
+
+        // Foreground text
+        var texts = ""
+        for row in 0..<canvas.rows {
+            for column in 0..<canvas.columns {
+                guard let cell = canvas.cell(atColumn: column, row: row),
+                    cell.character != " "
+                else { continue }
+                let x = CGFloat(column) * cellWidth
+                let y = CGFloat(row) * cellHeight + cellHeight * 0.8
+                let color = (cell.foregroundColor ?? .black).svgColorString
+                let escaped = svgEscape(String(cell.character))
+                texts +=
+                    "    <text x=\"\(Int(x))\" y=\"\(Int(y))\" fill=\"\(color)\" font-family=\"monospace\" font-size=\"\(fontSize)\">\(escaped)</text>\n"
+            }
+        }
+        if !texts.isEmpty {
+            svg += "  <g>\n\(texts)  </g>\n"
+        }
+
+        svg += "</svg>\n"
+        return svg.data(using: .utf8)
+    }
+
+    private func svgEscape(_ text: String) -> String {
+        text.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+    }
+
     func deleteSelectedShapes() {
         recordSnapshot()
         for id in selectedShapeIDs {

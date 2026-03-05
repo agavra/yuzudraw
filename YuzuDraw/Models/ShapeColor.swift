@@ -103,6 +103,16 @@ struct ShapeColor: Codable, Equatable, Hashable, Sendable {
         return (hue: hue, saturation: saturation, brightness: brightness)
     }
 
+    var svgColorString: String {
+        let r = UInt8(clamping: Int((red * 255).rounded()))
+        let g = UInt8(clamping: Int((green * 255).rounded()))
+        let b = UInt8(clamping: Int((blue * 255).rounded()))
+        if alpha < 1.0 {
+            return "rgba(\(r),\(g),\(b),\(String(format: "%.2f", alpha)))"
+        }
+        return "rgb(\(r),\(g),\(b))"
+    }
+
     // MARK: - Presets
 
     static let black = ShapeColor(red: 0, green: 0, blue: 0)
