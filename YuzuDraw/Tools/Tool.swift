@@ -17,6 +17,9 @@ enum ToolAction: Equatable, Sendable {
     case updateShape(AnyShape)
     case updateShapes([AnyShape])
     case selectShapes(Set<UUID>)
+    case addShapeToSelection(UUID)
+    case removeShapeFromSelection(UUID)
+    case addShapesToSelection(Set<UUID>)
 }
 
 protocol Tool: AnyObject, Sendable {

@@ -128,7 +128,12 @@ struct LayerPanel: View {
                     return
                 }
                 viewModel.activeLayerIndex = index
-                viewModel.selectedShapeIDs = Set(layer.shapes.map(\.id))
+                let layerShapeIDs = Set(layer.shapes.map(\.id))
+                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                    viewModel.selectedShapeIDs.formSymmetricDifference(layerShapeIDs)
+                } else {
+                    viewModel.selectedShapeIDs = layerShapeIDs
+                }
                 viewModel.selectedLayerID = layer.id
             }
             .onDrag {
@@ -317,7 +322,12 @@ private struct GroupRow: View {
                     ignoreNextRowTap = false
                     return
                 }
-                viewModel.selectedShapeIDs = Set(group.allShapeIDs)
+                let groupIDs = Set(group.allShapeIDs)
+                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                    viewModel.selectedShapeIDs.formSymmetricDifference(groupIDs)
+                } else {
+                    viewModel.selectedShapeIDs = groupIDs
+                }
                 if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layer.id }) {
                     viewModel.activeLayerIndex = layerIndex
                 }
@@ -449,7 +459,8 @@ private struct ShapeRow: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
                 return
             }
-            viewModel.selectShapeFromPanel(shape.id)
+            let extending = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
+            viewModel.selectShapeFromPanel(shape.id, extending: extending)
         }
         .onTapGesture(count: 2) {
             beginRename()

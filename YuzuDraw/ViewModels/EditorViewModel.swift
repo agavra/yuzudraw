@@ -50,6 +50,7 @@ final class EditorViewModel {
     var viewportSize: CGSize = .zero
     var hoverGridPoint: GridPoint?
     var isOptionKeyPressed: Bool = false
+    var isShiftKeyPressed: Bool = false
 
     // MARK: - Undo/Redo
     private var undoStack: [Document] = []
@@ -185,6 +186,7 @@ final class EditorViewModel {
         }
         arrowTool.suppressAttachment = isOptionKeyPressed
         selectionTool.selectedShapeIDs = selectedShapeIDs
+        selectionTool.isShiftKeyPressed = isShiftKeyPressed
 
         // When pencil tool is active and a pencil shape is selected, append to it
         if activeToolType == .pencil {
@@ -252,6 +254,7 @@ final class EditorViewModel {
 
     func mouseUp(at point: GridPoint) {
         arrowTool.suppressAttachment = isOptionKeyPressed
+        selectionTool.isShiftKeyPressed = isShiftKeyPressed
         let action = activeTool.mouseUp(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
         applyAction(action)
@@ -310,6 +313,12 @@ final class EditorViewModel {
                 updateShapeAndAttachments(shape)
             }
             rerender()
+        case .addShapeToSelection(let id):
+            selectedShapeIDs.insert(id)
+        case .removeShapeFromSelection(let id):
+            selectedShapeIDs.remove(id)
+        case .addShapesToSelection(let ids):
+            selectedShapeIDs.formUnion(ids)
         }
     }
 
@@ -2207,8 +2216,16 @@ final class EditorViewModel {
         }
     }
 
-    func selectShapeFromPanel(_ shapeID: UUID) {
-        selectedShapeIDs = [shapeID]
+    func selectShapeFromPanel(_ shapeID: UUID, extending: Bool = false) {
+        if extending {
+            if selectedShapeIDs.contains(shapeID) {
+                selectedShapeIDs.remove(shapeID)
+            } else {
+                selectedShapeIDs.insert(shapeID)
+            }
+        } else {
+            selectedShapeIDs = [shapeID]
+        }
         for (index, layer) in document.layers.enumerated() {
             if layer.findShape(id: shapeID) != nil {
                 activeLayerIndex = index

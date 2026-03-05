@@ -90,6 +90,7 @@ struct CanvasView: View {
             .onAppear {
                 flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
                     viewModel.isOptionKeyPressed = event.modifierFlags.contains(.option)
+                    viewModel.isShiftKeyPressed = event.modifierFlags.contains(.shift)
                     return event
                 }
             }

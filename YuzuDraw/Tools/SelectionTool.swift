@@ -9,6 +9,10 @@ final class SelectionTool: Tool, @unchecked Sendable {
     /// hit testing on already-selected pencil shapes.
     var selectedShapeIDs: Set<UUID> = []
 
+    /// Set by the view model before mouse events so the tool can handle
+    /// additive (shift+click) selection.
+    var isShiftKeyPressed: Bool = false
+
     private enum Mode {
         case none
         case draggingShape(shapeID: UUID, offset: GridPoint)
@@ -56,6 +60,12 @@ final class SelectionTool: Tool, @unchecked Sendable {
                     row: point.row - rect.origin.row
                 )
             )
+            if isShiftKeyPressed {
+                if selectedShapeIDs.contains(pencilShape.id) {
+                    return .none  // Will toggle off on mouseUp if no drag
+                }
+                return .addShapeToSelection(pencilShape.id)
+            }
             if selectedShapeIDs.count > 1, selectedShapeIDs.contains(pencilShape.id) {
                 return .none
             }
@@ -71,13 +81,19 @@ final class SelectionTool: Tool, @unchecked Sendable {
                     row: point.row - rect.origin.row
                 )
             )
+            if isShiftKeyPressed {
+                if selectedShapeIDs.contains(shape.id) {
+                    return .none  // Will toggle off on mouseUp if no drag
+                }
+                return .addShapeToSelection(shape.id)
+            }
             if selectedShapeIDs.count > 1, selectedShapeIDs.contains(shape.id) {
                 return .none
             }
             return .selectShape(shape.id)
         } else {
             mode = .marquee(start: point, current: point)
-            return .selectShape(nil)
+            return isShiftKeyPressed ? .none : .selectShape(nil)
         }
     }
 
@@ -251,16 +267,22 @@ final class SelectionTool: Tool, @unchecked Sendable {
             if rect.size.width > 1 || rect.size.height > 1 {
                 let shapes = document.shapesInRect(rect, excludingLockedLayers: true)
                 let ids = Set(shapes.map(\.id))
-                return .selectShapes(ids)
+                return isShiftKeyPressed ? .addShapesToSelection(ids) : .selectShapes(ids)
             }
             return .none
 
         case .draggingShape(let shapeID, _):
             mode = .none
             arrowAttachmentPreviewPointsStorage = []
-            // Click without drag on a multi-selected shape: narrow to just that shape.
-            if !didDragMove, selectedShapeIDs.count > 1, selectedShapeIDs.contains(shapeID) {
-                return .selectShape(shapeID)
+            if !didDragMove {
+                // Shift+click without drag on selected shape: deselect it.
+                if isShiftKeyPressed, selectedShapeIDs.contains(shapeID) {
+                    return .removeShapeFromSelection(shapeID)
+                }
+                // Click without drag on a multi-selected shape: narrow to just that shape.
+                if selectedShapeIDs.count > 1, selectedShapeIDs.contains(shapeID) {
+                    return .selectShape(shapeID)
+                }
             }
             return .none
 
