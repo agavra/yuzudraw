@@ -24,7 +24,7 @@ import Layout from '../layouts/Layout.astro';
           A MacOS native diagram editor with a built-in MCP server.
           Let Claude generate your diagrams, then refine them on a visual canvas.
         </p>
-        <a href="#waitlist" class="inline-block px-8 py-3.5 bg-black text-white font-semibold rounded-none shadow-sm hover:bg-brand-light hover:-translate-y-0.5 transition-all duration-200">
+        <a href="#waitlist" id="cta-waitlist" class="inline-block px-8 py-3.5 bg-black text-white font-semibold rounded-none shadow-sm hover:bg-brand-light hover:-translate-y-0.5 transition-all duration-200">
           Join the Waitlist
         </a>
       </div>
@@ -39,7 +39,7 @@ import Layout from '../layouts/Layout.astro';
           <div class="md:w-1/3 shrink-0">
             <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">&gt;=&gt;</div>
             <h3 class="inline-block text-xl font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Built-in MCP Server</h3>
-            <p class="text-sm text-gray-500 leading-relaxed">Claude connects directly to YuzuDraw. Describe your architecture and get a diagram — no copy-paste needed.</p>
+            <p class="text-sm text-gray-500 leading-relaxed">Your favorite agent connects directly to YuzuDraw. Ask it to draw a diagram, and it will.</p>
           </div>
           <div class="md:w-2/3 rounded-xl overflow-hidden">
             <img src="/screenshot-claude.png" alt="Claude generating a diagram via MCP" class="block w-full h-auto" />
@@ -51,7 +51,7 @@ import Layout from '../layouts/Layout.astro';
           <div class="md:w-1/3 shrink-0">
             <div class="font-mono text-sm font-bold text-brand mb-2 tracking-wide">&#8598; &#9633; &#8600;</div>
             <h3 class="inline-block text-xl font-mono font-semibold mb-3 border border-dashed border-gray-300 px-3 py-1">Visual Canvas</h3>
-            <p class="text-sm text-gray-500 leading-relaxed">Drag, resize, and connect shapes on an infinite canvas. Refine what AI generates, or start from scratch.</p>
+            <p class="text-sm text-gray-500 leading-relaxed">Drag, resize, and connect shapes on an infinite canvas. Refine what AI generates or start from scratch.</p>
           </div>
           <div class="md:w-2/3 rounded-xl overflow-hidden">
             <img src="/screenshot-overview.png" alt="YuzuDraw visual canvas" class="block w-full h-auto" />
@@ -106,7 +106,9 @@ import Layout from '../layouts/Layout.astro';
               placeholder="you@example.com"
               required
               autocomplete="email"
-              class="flex-1 px-4 py-3 text-base bg-white border border-gray-200 rounded-none outline-none focus:border-brand transition-colors"
+              id="waitlist-email"
+              data-1p-ignore
+              class="flex-1 px-4 py-3 text-base bg-white border-2 border-gray-200 rounded-none outline-none focus:border-brand transition-colors"
             />
             <button type="submit" class="px-6 py-3 text-base font-semibold bg-brand text-gray-900 rounded-none hover:bg-brand-light hover:-translate-y-0.5 transition-all duration-200 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0">
               Join Waitlist
@@ -128,6 +130,11 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
+  document.getElementById('cta-waitlist')!.addEventListener('click', () => {
+    const emailInput = document.getElementById('waitlist-email') as HTMLInputElement;
+    setTimeout(() => emailInput.focus(), 600);
+  });
+
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyYWolDZnabjc4jIjh1yVWhcEAVVUpIbmPKVG4C3EPlY4LXLTErG_ns5qQ8NJfkurkb/exec';
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
