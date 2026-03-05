@@ -14,6 +14,8 @@ struct CanvasView: View {
     @State private var lastMouseDownPoint: GridPoint?
     @State private var lastScrollOrigin: CGPoint?
     @State private var flagsMonitor: Any?
+    @State private var clipView: NSClipView?
+    @State private var handPreviousMouseLocation: CGPoint?
     private let rulerGutterLeft: CGFloat = 30
     private let rulerGutterTop: CGFloat = 16
     private static let diagonalNWSECursor = NSCursor(
@@ -61,9 +63,14 @@ struct CanvasView: View {
                     arrowAttachmentOverlay
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)
 
-                    ScrollViewBoundsObserver { origin in
-                        handleScrollOffsetChange(origin)
-                    }
+                    ScrollViewBoundsObserver(
+                        onOffsetChange: { origin in
+                            handleScrollOffsetChange(origin)
+                        },
+                        onClipViewFound: { cv in
+                            clipView = cv
+                        }
+                    )
                     .frame(width: 0, height: 0)
                 }
                 .frame(
@@ -129,7 +136,7 @@ struct CanvasView: View {
                 }
                 return .handled
             }
-            .onKeyPress(characters: .init(charactersIn: "vVrRlLtTpP")) { press in
+            .onKeyPress(characters: .init(charactersIn: "vVrRlLtTpPhH")) { press in
                 guard !viewModel.isEditingText else { return .ignored }
                 switch press.characters.lowercased() {
                 case "v":
@@ -149,6 +156,8 @@ struct CanvasView: View {
                     if !hasSelectedPencil {
                         viewModel.selectedShapeIDs = []
                     }
+                case "h":
+                    viewModel.activeToolType = .hand
                 default:
                     return .ignored
                 }
@@ -546,6 +555,22 @@ struct CanvasView: View {
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
+                if viewModel.activeToolType == .hand {
+                    let mouseLocation = NSEvent.mouseLocation
+                    if let previous = handPreviousMouseLocation, let clipView {
+                        let dx = mouseLocation.x - previous.x
+                        let dy = -(mouseLocation.y - previous.y)
+                        let origin = clipView.bounds.origin
+                        let newOrigin = CGPoint(x: origin.x - dx, y: origin.y - dy)
+                        clipView.scroll(to: newOrigin)
+                        clipView.enclosingScrollView?.reflectScrolledClipView(clipView)
+                    } else {
+                        NSCursor.closedHand.set()
+                    }
+                    handPreviousMouseLocation = mouseLocation
+                    return
+                }
+
                 let adjusted = CGPoint(
                     x: value.location.x - rulerGutterLeft,
                     y: value.location.y - rulerGutterTop
@@ -573,6 +598,12 @@ struct CanvasView: View {
                 }
             }
             .onEnded { value in
+                if viewModel.activeToolType == .hand {
+                    handPreviousMouseLocation = nil
+                    NSCursor.openHand.set()
+                    return
+                }
+
                 let adjusted = CGPoint(
                     x: value.location.x - rulerGutterLeft,
                     y: value.location.y - rulerGutterTop
@@ -614,6 +645,9 @@ struct CanvasView: View {
             let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
 
             switch viewModel.activeToolType {
+            case .hand:
+                viewModel.updateHoverGridPoint(nil)
+                NSCursor.openHand.set()
             case .arrow:
                 viewModel.updateHoverGridPoint(point)
                 NSCursor.crosshair.set()
@@ -656,9 +690,10 @@ struct CanvasView: View {
 
 struct ScrollViewBoundsObserver: NSViewRepresentable {
     let onOffsetChange: (CGPoint) -> Void
+    var onClipViewFound: ((NSClipView) -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onOffsetChange: onOffsetChange)
+        Coordinator(onOffsetChange: onOffsetChange, onClipViewFound: onClipViewFound)
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -671,6 +706,7 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.onOffsetChange = onOffsetChange
+        context.coordinator.onClipViewFound = onClipViewFound
         DispatchQueue.main.async {
             context.coordinator.attachIfNeeded(to: nsView)
         }
@@ -679,11 +715,13 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
     @MainActor
     final class Coordinator {
         var onOffsetChange: (CGPoint) -> Void
+        var onClipViewFound: ((NSClipView) -> Void)?
         private weak var clipView: NSClipView?
         private var observer: NSObjectProtocol?
 
-        init(onOffsetChange: @escaping (CGPoint) -> Void) {
+        init(onOffsetChange: @escaping (CGPoint) -> Void, onClipViewFound: ((NSClipView) -> Void)?) {
             self.onOffsetChange = onOffsetChange
+            self.onClipViewFound = onClipViewFound
         }
 
         func attachIfNeeded(to view: NSView) {
@@ -704,6 +742,7 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
                 }
             }
             clipView = clip
+            onClipViewFound?(clip)
             onOffsetChange(clip.bounds.origin)
         }
 

@@ -134,6 +134,7 @@ final class EditorViewModel {
     var activeTool: any Tool {
         switch activeToolType {
         case .select: return selectionTool
+        case .hand: return selectionTool
         case .rectangle: return rectangleTool
         case .arrow: return arrowTool
         case .text: return textTool
@@ -147,7 +148,7 @@ final class EditorViewModel {
             return arrowTool.attachmentPreviewPoints(near: hoverGridPoint, in: document)
         case .select:
             return selectionTool.arrowAttachmentPreviewPoints
-        case .rectangle, .text, .pencil:
+        case .hand, .rectangle, .text, .pencil:
             return []
         }
     }
@@ -597,6 +598,9 @@ final class EditorViewModel {
             return true
         } else if !selectedShapeIDs.isEmpty {
             selectedShapeIDs = []
+            return true
+        } else if activeToolType != .select {
+            activeToolType = .select
             return true
         }
         return false

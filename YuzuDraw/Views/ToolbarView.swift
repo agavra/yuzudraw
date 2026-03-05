@@ -6,6 +6,7 @@ struct ToolbarView: View {
     var body: some View {
         HStack(spacing: 6) {
             toolButton(type: .select, icon: "cursorarrow", tooltip: "Select (V)")
+            toolButton(type: .hand, icon: "hand.raised", tooltip: "Hand (H)")
             toolButton(type: .rectangle, icon: "rectangle", tooltip: "Rectangle (R)")
             toolButton(type: .arrow, icon: "arrow.right", tooltip: "Line (L)")
             toolButton(type: .text, icon: "textformat", tooltip: "Text (T)")
