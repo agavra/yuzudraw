@@ -17,6 +17,9 @@ Package.resolved
 # Xcode derived data (custom path)
 .xcode-derived/
 
+# Build artifacts
+build/
+
 # OS files
 .DS_Store
 *.swp

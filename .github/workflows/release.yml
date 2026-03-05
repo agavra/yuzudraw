@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build universal archive
+        run: |
+          xcodebuild archive \
+            -scheme YuzuDraw \
+            -destination 'generic/platform=macOS' \
+            -archivePath build/YuzuDraw.xcarchive \
+            -configuration Release \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Create DMG
+        run: |
+          mkdir -p build/dmg
+          cp -R build/YuzuDraw.xcarchive/Products/Applications/YuzuDraw.app build/dmg/
+          ln -s /Applications build/dmg/Applications
+          VERSION="${GITHUB_REF_NAME#v}"
+          hdiutil create \
+            -volname YuzuDraw \
+            -srcfolder build/dmg \
+            -ov \
+            -format UDZO \
+            "build/YuzuDraw-${VERSION}-universal.dmg"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/YuzuDraw-*-universal.dmg
+          generate_release_notes: true
