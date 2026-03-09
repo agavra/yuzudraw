@@ -86,7 +86,16 @@ jobs:
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" \
-            --wait
+            --wait || {
+              echo "==> Notarization failed, fetching log..."
+              xcrun notarytool log \
+                --apple-id "$APPLE_ID" \
+                --team-id "$APPLE_TEAM_ID" \
+                --password "$APPLE_APP_PASSWORD" \
+                "$(xcrun notarytool history --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" 2>/dev/null | grep -m1 'id:' | awk '{print $2}')" \
+                developer_log.json 2>/dev/null && cat developer_log.json || true
+              exit 1
+            }
           xcrun stapler staple build/YuzuDraw-*.dmg
 
       - name: Clean up keychain
