@@ -4,13 +4,14 @@
 
 <p align="center">
   <b>A native macOS editor for creating ASCII diagrams.</b><br/>
-  Draw boxes, arrows, and text on a character grid — export as plain text.
+  Draw boxes, arrows, and text on a character grid — export as plain text.<br/>
+  <a href="https://www.yuzudraw.com">www.yuzudraw.com</a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS_14%2B-blue" alt="macOS 14+" />
   <img src="https://img.shields.io/badge/swift-6.0-orange" alt="Swift 6" />
-  <img src="https://img.shields.io/badge/license-PolyForm_Noncommercial-green" alt="License" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
 </p>
 
 ---
@@ -153,10 +154,12 @@ YuzuDraw/
 └── Resources/       # Assets, entitlements, Info.plist
 ```
 
+## Support YuzuDraw
+
+YuzuDraw is free and open source. If you find it useful, please consider [sponsoring the project](https://github.com/sponsors/agavra) — it helps cover the Apple Developer license and keeps development going.
+
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) — free for non-commercial use.
-
-For commercial licensing, contact [hello@yuzudraw.com](mailto:hello@yuzudraw.com).
+[MIT](LICENSE)
 
 Copyright &copy; 2026 Almog Gavra
