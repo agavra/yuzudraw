@@ -90,6 +90,15 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
+    var float: Bool {
+        switch self {
+        case .rectangle(let shape): return shape.float
+        case .arrow(let shape): return shape.float
+        case .text(let shape): return shape.float
+        case .pencil: return true
+        }
+    }
+
     func renamedForPanel(_ name: String) -> AnyShape {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedName = trimmed.isEmpty ? nil : trimmed

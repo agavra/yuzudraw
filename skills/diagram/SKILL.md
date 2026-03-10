@@ -43,6 +43,7 @@ Optional rectangle properties (append after the basics):
 - `borderColor #RRGGBB` — border color
 - `fillColor #RRGGBB` — fill color
 - `textColor #RRGGBB` — text color
+- `float` — disable border merging (borders overwrite instead of producing intersection glyphs)
 
 ### Arrow
 
@@ -68,6 +69,7 @@ arrow from col,row to col,row [style single|double|heavy] [label "text"]
 Optional arrow properties:
 - `strokeColor #RRGGBB`
 - `labelColor #RRGGBB`
+- `float` — disable border merging (lines overwrite instead of producing intersection glyphs)
 
 ### Text
 ```

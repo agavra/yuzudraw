@@ -214,6 +214,10 @@ struct InspectorPanel: View {
                         }
                     }
                 }
+                Toggle("Float", isOn: Binding(
+                    get: { viewModel.multiSelectRectFloat ?? false },
+                    set: { viewModel.updateMultiSelectRectFloat($0) }
+                ))
             }
         }
 
@@ -765,6 +769,10 @@ struct InspectorPanel: View {
                         }
                     }
                 }
+                Toggle("Float", isOn: Binding(
+                    get: { rectangle.float },
+                    set: { viewModel.updateSelectedRectangleFloat($0) }
+                ))
             }
         }
 
@@ -896,6 +904,11 @@ struct InspectorPanel: View {
                 }
                 .pickerStyle(.menu)
             }
+
+            Toggle("Float", isOn: Binding(
+                get: { arrow.float },
+                set: { viewModel.updateSelectedArrowFloat($0) }
+            ))
         }
 
         // Attachments

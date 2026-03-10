@@ -308,6 +308,8 @@ enum DSLParser {
         let fillColor = parseColorKeyword("fillColor", in: line)
         let textColor = parseColorKeyword("textColor", in: line)
 
+        let float = line.contains(" float")
+
         return RectangleShape(
             origin: GridPoint(column: col, row: row),
             size: GridSize(width: width, height: height),
@@ -333,7 +335,8 @@ enum DSLParser {
             shadowOffsetY: shadowOffsetY,
             borderColor: borderColor,
             fillColor: fillColor,
-            textColor: textColor
+            textColor: textColor,
+            float: float
         )
     }
 
@@ -417,6 +420,8 @@ enum DSLParser {
         let strokeColor = parseColorKeyword("strokeColor", in: line)
         let labelColor = parseColorKeyword("labelColor", in: line)
 
+        let float = line.contains(" float")
+
         return ArrowShape(
             start: startPoint,
             end: endPoint,
@@ -425,7 +430,8 @@ enum DSLParser {
             startAttachment: startAttachment,
             endAttachment: endAttachment,
             strokeColor: strokeColor,
-            labelColor: labelColor
+            labelColor: labelColor,
+            float: float
         )
     }
 

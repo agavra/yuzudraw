@@ -143,7 +143,8 @@ layer "Layer 1" visible
 
 ## Key Details
 
-- Title bottom border and container top border overlap (same row) for a connected look
+- Title bottom border and container top border overlap (same row) — borders merge automatically with intersection glyphs
+- Add `float` to a rectangle to disable border merging (borders overwrite instead of producing intersection glyphs)
 - Bars use `fill solid char "▓"` (or `"▒"`) and `border hidden` — height is always 1
 - The pencil separator draws `│` at each data row to divide labels from bars
 - Value text is placed 1 char after the last bar segment

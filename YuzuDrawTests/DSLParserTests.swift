@@ -266,4 +266,58 @@ struct DSLParserTests {
         #expect(doc.layers.count == 1)
         #expect(doc.layers[0].name == "Layer 1")
     }
+
+    @Test func should_parse_rectangle_with_float() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              rectangle "Box" at 5,3 size 20x5 style single float
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.float == true)
+        } else {
+            Issue.record("Expected rectangle shape")
+        }
+    }
+
+    @Test func should_parse_rectangle_without_float_defaults_false() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              rectangle "Box" at 5,3 size 20x5 style single
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+            #expect(rectangle.float == false)
+        } else {
+            Issue.record("Expected rectangle shape")
+        }
+    }
+
+    @Test func should_parse_arrow_with_float() throws {
+        // given
+        let dsl = """
+            layer "Layer 1" visible
+              arrow from 0,0 to 10,0 style single float
+            """
+
+        // when
+        let doc = try DSLParser.parse(dsl)
+
+        // then
+        if case .arrow(let arrow) = doc.layers[0].shapes[0] {
+            #expect(arrow.float == true)
+        } else {
+            Issue.record("Expected arrow shape")
+        }
+    }
 }

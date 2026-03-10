@@ -240,4 +240,60 @@ struct DSLSerializerTests {
         #expect(dsl.contains("rectangle \"A\""))
         #expect(dsl.contains("rectangle \"B\""))
     }
+
+    @Test func should_serialize_rectangle_with_float() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 10, height: 5),
+            float: true
+        )
+        doc.layers[0].shapes.append(.rectangle(rectangle))
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(dsl.contains(" float"))
+    }
+
+    @Test func should_not_serialize_float_when_false() {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 10, height: 5),
+            float: false
+        )
+        doc.layers[0].shapes.append(.rectangle(rectangle))
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+
+        // then
+        #expect(!dsl.contains(" float"))
+    }
+
+    @Test func should_roundtrip_float_property() throws {
+        // given
+        var doc = Document(layers: [Layer(name: "Layer 1")])
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 10, height: 5),
+            float: true
+        )
+        doc.layers[0].shapes.append(.rectangle(rectangle))
+
+        // when
+        let dsl = DSLSerializer.serialize(doc)
+        let parsed = try DSLParser.parse(dsl)
+
+        // then
+        if case .rectangle(let parsedRect) = parsed.layers[0].shapes[0] {
+            #expect(parsedRect.float == true)
+        } else {
+            Issue.record("Expected rectangle shape")
+        }
+    }
 }

@@ -91,6 +91,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     var endHeadStyle: ArrowHeadStyle
     var strokeColor: ShapeColor?
     var labelColor: ShapeColor?
+    var float: Bool
 
     init(
         id: UUID = UUID(),
@@ -105,7 +106,8 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         startHeadStyle: ArrowHeadStyle = .none,
         endHeadStyle: ArrowHeadStyle = .filled,
         strokeColor: ShapeColor? = nil,
-        labelColor: ShapeColor? = nil
+        labelColor: ShapeColor? = nil,
+        float: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -120,6 +122,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         self.endHeadStyle = endHeadStyle
         self.strokeColor = strokeColor
         self.labelColor = labelColor
+        self.float = float
     }
 
     var boundingRect: GridRect {
@@ -308,8 +311,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     private func mergeGlyph(existing: Character, adding: LineConnections) -> Character {
-        let base = connections(for: existing) ?? []
-        return glyph(for: base.union(adding), style: strokeStyle)
+        GlyphMerge.mergeGlyph(existing: existing, adding: adding, style: strokeStyle)
     }
 
     private func endHeadCharacter(for segment: ArrowSegment) -> Character {
@@ -349,15 +351,17 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         guard let attachment = startAttachment else { return }
 
         let existing = canvas.character(atColumn: start.column, row: start.row) ?? " "
-        var connections = connections(for: existing) ?? baseConnections(for: attachment.side)
+        let parsed = GlyphMerge.connections(for: existing)
+        var connections = parsed?.directions ?? baseConnections(for: attachment.side)
 
         let inward = inwardConnection(for: attachment.side)
         let outward = outwardConnection(for: attachment.side)
         connections.remove(inward)
         connections.insert(outward)
 
+        let merged = GlyphMerge.mergeGlyph(existing: " ", adding: connections, style: strokeStyle)
         canvas.setCharacter(
-            glyph(for: connections, style: strokeStyle),
+            merged,
             foreground: strokeColor,
             background: nil,
             atColumn: start.column, row: start.row
@@ -391,73 +395,6 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
-    private func connections(for char: Character) -> LineConnections? {
-        switch char {
-        case "─", "═", "━":
-            return [.left, .right]
-        case "│", "║", "┃":
-            return [.up, .down]
-        case "┌", "╭", "╔", "┏":
-            return [.right, .down]
-        case "┐", "╮", "╗", "┓":
-            return [.left, .down]
-        case "└", "╰", "╚", "┗":
-            return [.right, .up]
-        case "┘", "╯", "╝", "┛":
-            return [.left, .up]
-        case "├", "╠", "┣":
-            return [.up, .right, .down]
-        case "┤", "╣", "┫":
-            return [.up, .left, .down]
-        case "┬", "╦", "┳":
-            return [.left, .right, .down]
-        case "┴", "╩", "┻":
-            return [.left, .right, .up]
-        case "┼", "╬", "╋":
-            return [.up, .left, .right, .down]
-        case "▶": return [.left]
-        case "◀": return [.right]
-        case "▲": return [.down]
-        case "▼": return [.up]
-        default:
-            return nil
-        }
-    }
-
-    private func glyph(for connections: LineConnections, style: StrokeStyle) -> Character {
-        switch connections {
-        case [.left, .right]:
-            return style.horizontal
-        case [.up, .down]:
-            return style.vertical
-        case [.right, .down]:
-            return style.topLeft
-        case [.left, .down]:
-            return style.topRight
-        case [.right, .up]:
-            return style.bottomLeft
-        case [.left, .up]:
-            return style.bottomRight
-        case [.up, .right, .down]:
-            return style.teeRight
-        case [.up, .left, .down]:
-            return style.teeLeft
-        case [.left, .right, .down]:
-            return style.teeDown
-        case [.left, .right, .up]:
-            return style.teeUp
-        case [.up, .left, .right, .down]:
-            return style.cross
-        default:
-            if connections.contains(.left) || connections.contains(.right) {
-                return style.horizontal
-            }
-            if connections.contains(.up) || connections.contains(.down) {
-                return style.vertical
-            }
-            return "+"
-        }
-    }
 
     // MARK: - Codable
 
@@ -475,6 +412,7 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
         case endHeadStyle
         case strokeColor
         case labelColor
+        case float
     }
 
     init(from decoder: any Decoder) throws {
@@ -496,6 +434,27 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
             try container.decodeIfPresent(ArrowHeadStyle.self, forKey: .endHeadStyle) ?? .filled
         strokeColor = try container.decodeIfPresent(ShapeColor.self, forKey: .strokeColor)
         labelColor = try container.decodeIfPresent(ShapeColor.self, forKey: .labelColor)
+        float = try container.decodeIfPresent(Bool.self, forKey: .float) ?? false
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(name, forKey: .name)
+        try container.encode(start, forKey: .start)
+        try container.encode(end, forKey: .end)
+        try container.encode(label, forKey: .label)
+        try container.encode(strokeStyle, forKey: .strokeStyle)
+        try container.encode(bendDirection, forKey: .bendDirection)
+        try container.encodeIfPresent(startAttachment, forKey: .startAttachment)
+        try container.encodeIfPresent(endAttachment, forKey: .endAttachment)
+        try container.encode(startHeadStyle, forKey: .startHeadStyle)
+        try container.encode(endHeadStyle, forKey: .endHeadStyle)
+        try container.encodeIfPresent(strokeColor, forKey: .strokeColor)
+        try container.encodeIfPresent(labelColor, forKey: .labelColor)
+        if float {
+            try container.encode(float, forKey: .float)
+        }
     }
 }
 
@@ -625,10 +584,3 @@ struct ArrowSegment: Equatable, Sendable {
     }
 }
 
-struct LineConnections: OptionSet, Sendable {
-    let rawValue: Int
-    static let up = LineConnections(rawValue: 1 << 0)
-    static let right = LineConnections(rawValue: 1 << 1)
-    static let down = LineConnections(rawValue: 1 << 2)
-    static let left = LineConnections(rawValue: 1 << 3)
-}

@@ -107,6 +107,9 @@ enum DSLSerializer {
         if let textColor = rectangle.textColor {
             result += " textColor \(textColor.hexString)"
         }
+        if rectangle.float {
+            result += " float"
+        }
         return result
     }
 
@@ -126,6 +129,9 @@ enum DSLSerializer {
         }
         if let labelColor = arrow.labelColor {
             result += " labelColor \(labelColor.hexString)"
+        }
+        if arrow.float {
+            result += " float"
         }
         return result
     }

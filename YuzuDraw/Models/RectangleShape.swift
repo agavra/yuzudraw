@@ -102,6 +102,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
     var borderColor: ShapeColor?
     var fillColor: ShapeColor?
     var textColor: ShapeColor?
+    var float: Bool
 
     init(
         id: UUID = UUID(),
@@ -130,7 +131,8 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         shadowOffsetY: Int = 1,
         borderColor: ShapeColor? = nil,
         fillColor: ShapeColor? = nil,
-        textColor: ShapeColor? = nil
+        textColor: ShapeColor? = nil,
+        float: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -159,6 +161,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         self.borderColor = borderColor
         self.fillColor = fillColor
         self.textColor = textColor
+        self.float = float
     }
 
     var boundingRect: GridRect {
@@ -282,102 +285,121 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         }
 
         if hasBorder, w >= 2, h >= 2 {
+            let hasFillArea = fillMode == .solid && fillAreaWidth > 0 && fillAreaHeight > 0
             if drawTop {
                 for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(
-                        style.horizontal,
-                        foreground: borderColor,
-                        background: nil,
-                        atColumn: c, row: row
+                    setBorderChar(
+                        style.horizontal, connections: [.left, .right],
+                        occludedDirection: hasFillArea ? [.down] : [],
+                        into: &canvas, col: c, row: row
                     )
                 }
             }
             if drawBottom {
                 for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(
-                        style.horizontal,
-                        foreground: borderColor,
-                        background: nil,
-                        atColumn: c, row: row + h - 1
+                    setBorderChar(
+                        style.horizontal, connections: [.left, .right],
+                        occludedDirection: hasFillArea ? [.up] : [],
+                        into: &canvas, col: c, row: row + h - 1
                     )
                 }
             }
             if drawLeft {
                 for (index, r) in ((row + 1)..<(row + h - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(
-                        style.vertical,
-                        foreground: borderColor,
-                        background: nil,
-                        atColumn: col, row: r
+                    setBorderChar(
+                        style.vertical, connections: [.up, .down],
+                        occludedDirection: hasFillArea ? [.right] : [],
+                        into: &canvas, col: col, row: r
                     )
                 }
             }
             if drawRight {
                 for (index, r) in ((row + 1)..<(row + h - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
-                    canvas.setCharacter(
-                        style.vertical,
-                        foreground: borderColor,
-                        background: nil,
-                        atColumn: col + w - 1, row: r
+                    setBorderChar(
+                        style.vertical, connections: [.up, .down],
+                        occludedDirection: hasFillArea ? [.left] : [],
+                        into: &canvas, col: col + w - 1, row: r
                     )
                 }
             }
 
             // Corners adapt to enabled adjacent sides.
-            if let topLeftCharacter = cornerCharacter(
+            // Occlude directions into fill only when the adjacent border is absent
+            // (when both borders are drawn, the corner's connections go along borders, not into fill).
+            if let cornerConns = cornerConnections(
                 horizontalEnabled: drawTop,
                 verticalEnabled: drawLeft,
-                corner: style.topLeft,
-                style: style
+                horizontalDir: .right,
+                verticalDir: .down
             ) {
-                canvas.setCharacter(
-                    topLeftCharacter,
-                    foreground: borderColor,
-                    background: nil,
-                    atColumn: col, row: row
+                var occluded: LineConnections = []
+                if hasFillArea {
+                    if !drawTop { occluded.insert(.right) }
+                    if !drawLeft { occluded.insert(.down) }
+                }
+                setBorderChar(
+                    cornerCharacter(horizontalEnabled: drawTop, verticalEnabled: drawLeft, corner: style.topLeft, style: style) ?? style.topLeft,
+                    connections: cornerConns,
+                    occludedDirection: occluded,
+                    into: &canvas, col: col, row: row
                 )
             }
-            if let topRightCharacter = cornerCharacter(
+            if let cornerConns = cornerConnections(
                 horizontalEnabled: drawTop,
                 verticalEnabled: drawRight,
-                corner: style.topRight,
-                style: style
+                horizontalDir: .left,
+                verticalDir: .down
             ) {
-                canvas.setCharacter(
-                    topRightCharacter,
-                    foreground: borderColor,
-                    background: nil,
-                    atColumn: col + w - 1, row: row
+                var occluded: LineConnections = []
+                if hasFillArea {
+                    if !drawTop { occluded.insert(.left) }
+                    if !drawRight { occluded.insert(.down) }
+                }
+                setBorderChar(
+                    cornerCharacter(horizontalEnabled: drawTop, verticalEnabled: drawRight, corner: style.topRight, style: style) ?? style.topRight,
+                    connections: cornerConns,
+                    occludedDirection: occluded,
+                    into: &canvas, col: col + w - 1, row: row
                 )
             }
-            if let bottomLeftCharacter = cornerCharacter(
+            if let cornerConns = cornerConnections(
                 horizontalEnabled: drawBottom,
                 verticalEnabled: drawLeft,
-                corner: style.bottomLeft,
-                style: style
+                horizontalDir: .right,
+                verticalDir: .up
             ) {
-                canvas.setCharacter(
-                    bottomLeftCharacter,
-                    foreground: borderColor,
-                    background: nil,
-                    atColumn: col, row: row + h - 1
+                var occluded: LineConnections = []
+                if hasFillArea {
+                    if !drawBottom { occluded.insert(.right) }
+                    if !drawLeft { occluded.insert(.up) }
+                }
+                setBorderChar(
+                    cornerCharacter(horizontalEnabled: drawBottom, verticalEnabled: drawLeft, corner: style.bottomLeft, style: style) ?? style.bottomLeft,
+                    connections: cornerConns,
+                    occludedDirection: occluded,
+                    into: &canvas, col: col, row: row + h - 1
                 )
             }
-            if let bottomRightCharacter = cornerCharacter(
+            if let cornerConns = cornerConnections(
                 horizontalEnabled: drawBottom,
                 verticalEnabled: drawRight,
-                corner: style.bottomRight,
-                style: style
+                horizontalDir: .left,
+                verticalDir: .up
             ) {
-                canvas.setCharacter(
-                    bottomRightCharacter,
-                    foreground: borderColor,
-                    background: nil,
-                    atColumn: col + w - 1, row: row + h - 1
+                var occluded: LineConnections = []
+                if hasFillArea {
+                    if !drawBottom { occluded.insert(.left) }
+                    if !drawRight { occluded.insert(.up) }
+                }
+                setBorderChar(
+                    cornerCharacter(horizontalEnabled: drawBottom, verticalEnabled: drawRight, corner: style.bottomRight, style: style) ?? style.bottomRight,
+                    connections: cornerConns,
+                    occludedDirection: occluded,
+                    into: &canvas, col: col + w - 1, row: row + h - 1
                 )
             }
         }
@@ -467,6 +489,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         case borderColor
         case fillColor
         case textColor
+        case float
         // Legacy keys
         case shadowDirection
         case shadowOffset
@@ -541,6 +564,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         borderColor = try container.decodeIfPresent(ShapeColor.self, forKey: .borderColor)
         fillColor = try container.decodeIfPresent(ShapeColor.self, forKey: .fillColor)
         textColor = try container.decodeIfPresent(ShapeColor.self, forKey: .textColor)
+        float = try container.decodeIfPresent(Bool.self, forKey: .float) ?? false
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -572,6 +596,9 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         try container.encodeIfPresent(borderColor, forKey: .borderColor)
         try container.encodeIfPresent(fillColor, forKey: .fillColor)
         try container.encodeIfPresent(textColor, forKey: .textColor)
+        if float {
+            try container.encode(float, forKey: .float)
+        }
     }
 
     private func shouldDraw(_ side: RectangleBorderSide) -> Bool {
@@ -582,6 +609,50 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         guard borderLineStyle == .dashed else { return true }
         let cycleLength = max(1, borderDashLength + borderGapLength)
         return (index % cycleLength) < borderDashLength
+    }
+
+    private func setBorderChar(
+        _ char: Character,
+        connections: LineConnections,
+        occludedDirection: LineConnections = [],
+        into canvas: inout Canvas,
+        col: Int,
+        row: Int
+    ) {
+        if float {
+            canvas.setCharacter(char, foreground: borderColor, background: nil, atColumn: col, row: row)
+        } else {
+            let existing = canvas.character(atColumn: col, row: row) ?? " "
+            var base = GlyphMerge.connections(for: existing) ?? StyledLineConnections(up: nil, right: nil, down: nil, left: nil)
+            // Strip connections that point into our filled interior — those paths
+            // have been overwritten by fill and should not produce junction glyphs.
+            if fillMode == .solid, !occludedDirection.isEmpty {
+                if occludedDirection.contains(.up) { base.up = nil }
+                if occludedDirection.contains(.down) { base.down = nil }
+                if occludedDirection.contains(.left) { base.left = nil }
+                if occludedDirection.contains(.right) { base.right = nil }
+            }
+            let merged = base.adding(connections, style: strokeStyle)
+            canvas.setCharacter(GlyphMerge.glyph(for: merged), foreground: borderColor, background: nil, atColumn: col, row: row)
+        }
+    }
+
+    private func cornerConnections(
+        horizontalEnabled: Bool,
+        verticalEnabled: Bool,
+        horizontalDir: LineConnections,
+        verticalDir: LineConnections
+    ) -> LineConnections? {
+        if horizontalEnabled && verticalEnabled {
+            return horizontalDir.union(verticalDir)
+        }
+        if horizontalEnabled {
+            return [.left, .right]
+        }
+        if verticalEnabled {
+            return [.up, .down]
+        }
+        return nil
     }
 
     private func cornerCharacter(
