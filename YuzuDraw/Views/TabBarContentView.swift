@@ -121,6 +121,7 @@ private struct TabItemView: View {
     @State private var isHovering = false
     @State private var isEditing = false
     @State private var editText = ""
+    @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
         Group {
@@ -208,13 +209,17 @@ private struct TabItemView: View {
         .textFieldStyle(.plain)
         .font(.system(size: 12))
         .frame(minWidth: 60, maxWidth: 160)
+        .focused($isTextFieldFocused)
         .onExitCommand {
             isEditing = false
         }
         .onAppear {
-            // Select all text when editing begins
-            DispatchQueue.main.async {
-                NSApp.keyWindow?.makeFirstResponder(nil)
+            isTextFieldFocused = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                if let window = NSApp.keyWindow,
+                   let fieldEditor = window.fieldEditor(false, for: nil) as? NSTextView {
+                    fieldEditor.selectAll(nil)
+                }
             }
         }
     }
