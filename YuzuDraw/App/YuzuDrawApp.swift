@@ -49,6 +49,14 @@ struct YuzuDrawApp: App {
             }
 
             CommandGroup(after: .newItem) {
+                Button("New Tab") {
+                    workspace.openStartPageTab()
+                }
+                .keyboardShortcut("t", modifiers: .command)
+                .disabled(workspace.activeTab?.isStartPage == true)
+
+                Divider()
+
                 Button("Close Tab") {
                     if let activeTabID = workspace.activeTabID {
                         workspace.closeTab(id: activeTabID)

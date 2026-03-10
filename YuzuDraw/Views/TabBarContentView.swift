@@ -44,18 +44,20 @@ struct TabBarContentView: View {
                         )
                     }
 
-                    // New tab button right after last tab
-                    Button {
-                        workspace.openStartPageTab()
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 30, height: 30)
-                            .contentShape(Rectangle())
+                    if shouldShowNewTabButton {
+                        // New tab button right after last tab
+                        Button {
+                            workspace.openStartPageTab()
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 30, height: 30)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .focusable(false)
                     }
-                    .buttonStyle(.plain)
-                    .focusable(false)
                 }
             }
 
@@ -103,6 +105,10 @@ struct TabBarContentView: View {
     private func iconSystemName(for tab: ProjectTab) -> String {
         guard tab.isStartPage else { return "pencil.tip" }
         return workspace.tabs.count == 1 ? "house" : "square.and.pencil"
+    }
+
+    private var shouldShowNewTabButton: Bool {
+        workspace.activeTab?.isStartPage != true
     }
 }
 
