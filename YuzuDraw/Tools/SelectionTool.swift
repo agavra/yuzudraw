@@ -130,6 +130,8 @@ final class SelectionTool: Tool, @unchecked Sendable {
                 return updates.isEmpty ? .none : .updateShapes(updates)
             }
 
+            let currentOrigin = shape.boundingRect.origin
+            guard newOrigin != currentOrigin else { return .none }
             didDragMove = true
             let movedShape: AnyShape
             switch shape {

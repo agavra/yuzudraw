@@ -10,6 +10,8 @@ struct CanvasView: View {
     }()
 
     @State private var didMouseDown = false
+    @State private var dragStartLocation: CGPoint?
+    @State private var dragThresholdMet = false
     @State private var lastMouseDownTime: Date?
     @State private var lastMouseDownPoint: GridPoint?
     @State private var lastScrollOrigin: CGPoint?
@@ -580,6 +582,8 @@ struct CanvasView: View {
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
                 if !didMouseDown {
                     didMouseDown = true
+                    dragStartLocation = value.location
+                    dragThresholdMet = false
                     let now = Date()
                     if let lastTime = lastMouseDownTime,
                        let lastPoint = lastMouseDownPoint,
@@ -596,6 +600,12 @@ struct CanvasView: View {
                         viewModel.mouseDown(at: point)
                     }
                 } else {
+                    if !dragThresholdMet {
+                        let dx = value.location.x - (dragStartLocation?.x ?? 0)
+                        let dy = value.location.y - (dragStartLocation?.y ?? 0)
+                        if dx * dx + dy * dy < 16.0 { return }
+                        dragThresholdMet = true
+                    }
                     viewModel.mouseDragged(to: point)
                 }
             }
