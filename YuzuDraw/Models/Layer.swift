@@ -65,6 +65,7 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         for index in children.indices {
             children[index].removeShapeRecursively(id: shapeID)
         }
+        children.removeAll { $0.allShapeIDs.isEmpty }
     }
 
     mutating func removeShapesRecursively(ids: Set<UUID>) {
@@ -72,6 +73,7 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         for index in children.indices {
             children[index].removeShapesRecursively(ids: ids)
         }
+        children.removeAll { $0.allShapeIDs.isEmpty }
     }
 
     mutating func renameGroupRecursively(id groupID: UUID, to newName: String) -> Bool {
@@ -166,12 +168,14 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         for index in groups.indices {
             groups[index].removeShapeRecursively(id: shapeID)
         }
+        groups.removeAll { $0.allShapeIDs.isEmpty }
     }
 
     mutating func removeShapesFromGroups(ids: Set<UUID>) {
         for index in groups.indices {
             groups[index].removeShapesRecursively(ids: ids)
         }
+        groups.removeAll { $0.allShapeIDs.isEmpty }
     }
 
     func findRootGroup(containingShape shapeID: UUID) -> ShapeGroup? {

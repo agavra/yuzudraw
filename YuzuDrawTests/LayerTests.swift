@@ -62,7 +62,7 @@ struct LayerTests {
         layer.removeShape(id: rectangle.id)
 
         // then
-        #expect(layer.groups[0].shapeIDs.isEmpty)
+        #expect(layer.groups.isEmpty)
     }
 
     @Test func should_remove_shape_from_nested_groups_when_removed_from_layer() {
@@ -88,8 +88,28 @@ struct LayerTests {
 
         // then
         #expect(layer.shapes.count == 1)
-        #expect(layer.groups[0].children[0].shapeIDs.isEmpty)
+        #expect(layer.groups[0].children.isEmpty)
         #expect(layer.groups[0].shapeIDs == [rect2.id])
+    }
+
+    @Test func should_remove_group_when_all_nested_shapes_are_removed() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rect1 = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 5, height: 3)
+        )
+        layer.addShape(.rectangle(rect1))
+        let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
+        let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [], children: [innerGroup])
+        layer.groups.append(outerGroup)
+
+        // when
+        layer.removeShape(id: rect1.id)
+
+        // then
+        #expect(layer.shapes.isEmpty)
+        #expect(layer.groups.isEmpty)
     }
 
     @Test func should_compute_ungrouped_shapes() {
@@ -118,6 +138,28 @@ struct LayerTests {
         // then
         #expect(ungrouped.count == 1)
         #expect(ungrouped[0].id == rect3.id)
+    }
+
+    @Test func should_remove_group_when_removeShapesFromGroups_removes_all_members() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rect1 = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 5, height: 3)
+        )
+        let rect2 = RectangleShape(
+            origin: GridPoint(column: 10, row: 0),
+            size: GridSize(width: 5, height: 3)
+        )
+        layer.addShape(.rectangle(rect1))
+        layer.addShape(.rectangle(rect2))
+        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+
+        // when
+        layer.removeShapesFromGroups(ids: [rect1.id, rect2.id])
+
+        // then
+        #expect(layer.groups.isEmpty)
     }
 
     @Test func should_compute_allShapeIDs_recursively() {

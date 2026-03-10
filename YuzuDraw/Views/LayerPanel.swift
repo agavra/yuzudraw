@@ -151,7 +151,7 @@ struct LayerPanel: View {
                 )
             )
             .contextMenu {
-                LayerReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
+                LayerRowContextMenu(viewModel: viewModel, layerIndex: index)
             }
 
             if viewModel.expandedItemIDs.contains(layer.id) {
@@ -585,6 +585,22 @@ private struct LayerReorderContextMenu: View {
         }
         .keyboardShortcut("[", modifiers: .command)
         .disabled(!canMoveBack)
+    }
+}
+
+private struct LayerRowContextMenu: View {
+    @Bindable var viewModel: EditorViewModel
+    let layerIndex: Int
+
+    private var canDeleteLayer: Bool {
+        viewModel.document.layers.count > 1
+    }
+
+    var body: some View {
+        Button("Delete Layer", role: .destructive) {
+            viewModel.removeLayer(at: layerIndex)
+        }
+        .disabled(!canDeleteLayer)
     }
 }
 
