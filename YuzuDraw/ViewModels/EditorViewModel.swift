@@ -2488,7 +2488,7 @@ final class EditorViewModel {
     }
 
     func canGroupSelectedShapes() -> Bool {
-        guard selectedShapeIDs.count > 1 else { return false }
+        guard !selectedShapeIDs.isEmpty else { return false }
 
         var selectedLayerIndex: Int?
         for shapeID in selectedShapeIDs {
@@ -2521,7 +2521,7 @@ final class EditorViewModel {
         layer.removeShapesFromGroups(ids: selectedIDs)
 
         let orderedShapeIDs = layer.shapes.map(\.id).filter { selectedIDs.contains($0) }
-        guard orderedShapeIDs.count > 1 else { return }
+        guard !orderedShapeIDs.isEmpty else { return }
 
         let group = ShapeGroup(name: nextGroupName(in: layer), shapeIDs: orderedShapeIDs)
         layer.groups.append(group)

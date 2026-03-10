@@ -4,6 +4,22 @@ import Testing
 
 @MainActor
 struct EditorViewModelGroupingTests {
+    @Test func should_group_single_selected_shape() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rect), toLayerAt: 0)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rect.id]
+
+        // when
+        viewModel.groupSelectedShapes()
+
+        // then
+        #expect(viewModel.document.layers[0].groups.count == 1)
+        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [rect.id])
+    }
+
     @Test func should_group_selected_shapes_in_same_layer() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])
