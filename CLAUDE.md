@@ -32,22 +32,24 @@ When modifying any of the following, **you must also update the corresponding co
 | Change | Also update |
 |--------|-------------|
 | DSL syntax (parser/serializer) | `skills/diagram/SKILL.md` DSL reference section |
-| MCP tool signatures or behavior | `skills/diagram/SKILL.md` workflow section |
+| MCP tool signatures or behavior | `skills/diagram/SKILL.md` and `skills/bar-chart/SKILL.md` workflow sections |
 | MCP tool names or arguments | `MCPRouter.swift` tool schemas + `MCPTools.swift` handlers |
-| New shape types or properties | `DSLParser.swift`, `DSLSerializer.swift`, and `skills/diagram/SKILL.md` |
+| New shape types or properties | `DSLParser.swift`, `DSLSerializer.swift`, `skills/diagram/SKILL.md`, and `skills/bar-chart/SKILL.md` |
 | Port or endpoint changes | `.mcp.json` and `MCPServer.swift` |
 
-## Claude Code Skill (`skills/diagram/`)
-The `/diagram` skill teaches Claude how to create ASCII diagrams via the MCP server. It lives in `skills/diagram/SKILL.md` and contains:
-- DSL syntax reference
-- Layout heuristics (rectangle sizing, spacing, arrow endpoints)
-- Common diagram patterns
-- MCP tool usage instructions
+## Claude Code Skills (`skills/`)
 
-To install the skill for Claude Code, symlink or copy it:
+### `/diagram` (`skills/diagram/SKILL.md`)
+General-purpose diagramming skill for flowcharts, architecture diagrams, and other box-and-arrow layouts. Contains DSL syntax reference, layout heuristics, and common patterns.
+
+### `/bar-chart` (`skills/bar-chart/SKILL.md`)
+Specialized skill for horizontal bar charts (simple, stacked, multi-section with legends). Contains bar chart layout variables, bar styles, and examples.
+
+To install skills for Claude Code, copy them:
 ```sh
-mkdir -p ~/.claude/skills/diagram
-ln -sf "$(pwd)/skills/diagram/SKILL.md" ~/.claude/skills/diagram/SKILL.md
+mkdir -p ~/.claude/skills/diagram ~/.claude/skills/bar-chart
+cp skills/diagram/SKILL.md ~/.claude/skills/diagram/SKILL.md
+cp skills/bar-chart/SKILL.md ~/.claude/skills/bar-chart/SKILL.md
 ```
 
 ## MCP Configuration
