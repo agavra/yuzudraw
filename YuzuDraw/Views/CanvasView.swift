@@ -39,7 +39,7 @@ struct CanvasView: View {
             let contentWidth = max(gridWidth(for: geo.size), CGFloat(viewModel.canvas.columns) * charSize.width)
             let contentHeight = max(gridHeight(for: geo.size), CGFloat(viewModel.canvas.rows) * charSize.height)
 
-            ScrollView([.horizontal, .vertical]) {
+            ScrollView([.horizontal, .vertical], showsIndicators: false) {
                 ZStack(alignment: .topLeading) {
                     gridBackground(width: contentWidth, height: contentHeight)
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)
@@ -560,7 +560,10 @@ struct CanvasView: View {
                         let dx = mouseLocation.x - previous.x
                         let dy = -(mouseLocation.y - previous.y)
                         let origin = clipView.bounds.origin
-                        let newOrigin = CGPoint(x: origin.x - dx, y: origin.y - dy)
+                        let newOrigin = CGPoint(
+                            x: max(0, origin.x - dx),
+                            y: max(0, origin.y - dy)
+                        )
                         clipView.scroll(to: newOrigin)
                         clipView.enclosingScrollView?.reflectScrolledClipView(clipView)
                     } else {
@@ -722,6 +725,8 @@ struct ScrollViewBoundsObserver: NSViewRepresentable {
 
         func attachIfNeeded(to view: NSView) {
             guard let scrollView = view.enclosingScrollView else { return }
+            scrollView.horizontalScrollElasticity = .none
+            scrollView.verticalScrollElasticity = .none
             let clip = scrollView.contentView
             guard clipView !== clip else { return }
 
