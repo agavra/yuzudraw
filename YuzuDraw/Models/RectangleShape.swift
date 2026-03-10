@@ -168,6 +168,21 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         GridRect(origin: origin, size: size)
     }
 
+    var renderBoundingRect: GridRect {
+        guard hasShadow else { return boundingRect }
+        let baseRect = boundingRect
+        let shadowMaxColumn = baseRect.origin.column + shadowOffsetX + size.width - 1
+        let shadowMaxRow = baseRect.origin.row + shadowOffsetY + size.height - 1
+        let minColumn = min(baseRect.minColumn, baseRect.origin.column + shadowOffsetX)
+        let minRow = min(baseRect.minRow, baseRect.origin.row + shadowOffsetY)
+        let maxColumn = max(baseRect.maxColumn, shadowMaxColumn)
+        let maxRow = max(baseRect.maxRow, shadowMaxRow)
+        return GridRect(
+            origin: GridPoint(column: minColumn, row: minRow),
+            size: GridSize(width: maxColumn - minColumn + 1, height: maxRow - minRow + 1)
+        )
+    }
+
     func contains(point: GridPoint) -> Bool {
         boundingRect.contains(point)
     }

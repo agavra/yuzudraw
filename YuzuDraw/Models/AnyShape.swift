@@ -37,6 +37,15 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
+    var renderBoundingRect: GridRect {
+        switch self {
+        case .rectangle(let shape): return shape.renderBoundingRect
+        case .arrow(let shape): return shape.boundingRect
+        case .text(let shape): return shape.boundingRect
+        case .pencil(let shape): return shape.boundingRect
+        }
+    }
+
     func contains(point: GridPoint) -> Bool {
         switch self {
         case .rectangle(let shape): return shape.contains(point: point)

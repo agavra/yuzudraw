@@ -2112,9 +2112,9 @@ final class EditorViewModel {
     private func plainText(for shapes: [AnyShape]) -> String? {
         guard !shapes.isEmpty else { return nil }
 
-        let first = shapes[0].boundingRect
+        let first = shapes[0].renderBoundingRect
         let bounds = shapes.dropFirst().reduce(first) { result, shape in
-            let rect = shape.boundingRect
+            let rect = shape.renderBoundingRect
             let minColumn = min(result.minColumn, rect.minColumn)
             let minRow = min(result.minRow, rect.minRow)
             let maxColumn = max(result.maxColumn, rect.maxColumn)
@@ -2165,9 +2165,9 @@ final class EditorViewModel {
     }
 
     private func layerBounds(for layer: Layer) -> GridRect {
-        let first = layer.shapes[0].boundingRect
+        let first = layer.shapes[0].renderBoundingRect
         return layer.shapes.dropFirst().reduce(first) { result, shape in
-            let rect = shape.boundingRect
+            let rect = shape.renderBoundingRect
             let minColumn = min(result.minColumn, rect.minColumn)
             let minRow = min(result.minRow, rect.minRow)
             let maxColumn = max(result.maxColumn, rect.maxColumn)

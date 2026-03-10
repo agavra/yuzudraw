@@ -217,4 +217,26 @@ struct EditorViewModelLayerExportTests {
         // then
         #expect(text == "┌──┐\n│  │\n└──┘")
     }
+
+    @Test func should_include_shadow_in_plain_text_copy() {
+        // given
+        var document = Document(layers: [Layer(name: "Layer 1")])
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 5, row: 5),
+            size: GridSize(width: 4, height: 3),
+            hasShadow: true,
+            shadowStyle: .light,
+            shadowOffsetX: 1,
+            shadowOffsetY: 1
+        )
+        document.addShape(.rectangle(rectangle), toLayerAt: 0)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rectangle.id]
+
+        // when
+        let text = viewModel.selectionOrCanvasPlainText()
+
+        // then
+        #expect(text == "┌──┐ \n│  │░\n└──┘░\n ░░░░")
+    }
 }
