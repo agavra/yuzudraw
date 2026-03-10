@@ -204,4 +204,31 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         }
         return false
     }
+
+    mutating func appendShapesToGroup(ids: [UUID], groupID: UUID) -> Bool {
+        guard !ids.isEmpty else { return false }
+        for index in groups.indices {
+            if groups[index].appendShapesRecursively(ids: ids, groupID: groupID) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+private extension ShapeGroup {
+    mutating func appendShapesRecursively(ids: [UUID], groupID: UUID) -> Bool {
+        if id == groupID {
+            shapeIDs.append(contentsOf: ids)
+            return true
+        }
+
+        for index in children.indices {
+            if children[index].appendShapesRecursively(ids: ids, groupID: groupID) {
+                return true
+            }
+        }
+
+        return false
+    }
 }

@@ -127,6 +127,82 @@ struct EditorViewModelLayerExportTests {
         #expect(pastedTexts.contains { $0.origin == GridPoint(column: 9, row: 7) })
     }
 
+    @Test func should_paste_shapes_into_same_group_they_were_copied_from() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
+        layer.shapes = [.rectangle(rectA), .rectangle(rectB)]
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rectA.id, rectB.id])
+        layer.groups = [group]
+
+        let viewModel = EditorViewModel(document: Document(layers: [layer]))
+        viewModel.selectedShapeIDs = [rectA.id, rectB.id]
+
+        guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.layers[0].shapes.count == 4)
+
+        let pastedIDs = Set(viewModel.selectedShapeIDs)
+        #expect(pastedIDs.count == 2)
+        #expect(pastedIDs.isDisjoint(with: [rectA.id, rectB.id]))
+
+        guard let pastedIntoGroup = viewModel.document.layers[0].groups.first(where: { $0.id == group.id }) else {
+            Issue.record("Expected original group to exist")
+            return
+        }
+        #expect(Set(pastedIntoGroup.shapeIDs).isSuperset(of: pastedIDs))
+    }
+
+    @Test func should_paste_shapes_into_top_most_selected_group_when_multiple_groups_selected() {
+        // given
+        var layer = Layer(name: "Layer 1")
+        let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
+        layer.shapes = [.rectangle(rectA), .rectangle(rectB)]
+        let topGroup = ShapeGroup(name: "Group 1", shapeIDs: [rectA.id])
+        let secondGroup = ShapeGroup(name: "Group 2", shapeIDs: [rectB.id])
+        layer.groups = [topGroup, secondGroup]
+
+        let viewModel = EditorViewModel(document: Document(layers: [layer]))
+        viewModel.selectedShapeIDs = [rectA.id, rectB.id]
+
+        guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.layers[0].shapes.count == 4)
+
+        let pastedIDs = Set(viewModel.selectedShapeIDs)
+        #expect(pastedIDs.count == 2)
+
+        guard let pastedTopGroup = viewModel.document.layers[0].groups.first(where: { $0.id == topGroup.id }) else {
+            Issue.record("Expected top-most group to exist")
+            return
+        }
+        guard let untouchedSecondGroup = viewModel.document.layers[0].groups.first(where: { $0.id == secondGroup.id }) else {
+            Issue.record("Expected second group to exist")
+            return
+        }
+
+        #expect(Set(pastedTopGroup.shapeIDs).isSuperset(of: pastedIDs))
+        #expect(Set(untouchedSecondGroup.shapeIDs).isDisjoint(with: pastedIDs))
+    }
+
     @Test func should_copy_selected_shapes_as_normalized_plain_text() {
         // given
         var document = Document(layers: [Layer(name: "Layer 1")])

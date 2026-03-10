@@ -27,6 +27,7 @@ enum ColorTarget: Hashable {
 final class EditorViewModel {
     private struct ShapeClipboardPayload: Codable, Sendable {
         var shapes: [AnyShape]
+        var sourceGroupID: UUID?
     }
 
     private static let shapeClipboardType = NSPasteboard.PasteboardType("com.yuzudraw.shapes+json")
@@ -924,6 +925,8 @@ final class EditorViewModel {
     var multiSelectRectHasBorder: Bool? { uniformValue(selectedRectangles.map(\.hasBorder)) }
     var isMultiSelectRectHasBorderMixed: Bool { isMixed(selectedRectangles.map(\.hasBorder)) }
 
+    var multiSelectRectFloat: Bool? { uniformValue(selectedRectangles.map(\.float)) }
+
     var multiSelectRectBorderColor: ShapeColor? { uniformOptionalValue(selectedRectangles.map(\.borderColor)) }
     var isMultiSelectRectBorderColorMixed: Bool { isMixed(selectedRectangles.map(\.borderColor)) }
 
@@ -1068,6 +1071,17 @@ final class EditorViewModel {
         for shape in selectedShapes {
             if case .rectangle(var rectangle) = shape {
                 rectangle.hasBorder = hasBorder
+                updateShapeAndAttachments(.rectangle(rectangle))
+            }
+        }
+        rerender()
+    }
+
+    func updateMultiSelectRectFloat(_ float: Bool) {
+        recordSnapshot()
+        for shape in selectedShapes {
+            if case .rectangle(var rectangle) = shape {
+                rectangle.float = float
                 updateShapeAndAttachments(.rectangle(rectangle))
             }
         }
@@ -1439,6 +1453,16 @@ final class EditorViewModel {
         rerender()
     }
 
+    func updateSelectedRectangleFloat(_ float: Bool) {
+        recordSnapshot()
+        guard let shape = selectedShape,
+            case .rectangle(var rectangle) = shape
+        else { return }
+        rectangle.float = float
+        updateShapeAndAttachments(.rectangle(rectangle))
+        rerender()
+    }
+
     func updateSelectedRectangleHasShadow(_ hasShadow: Bool) {
         recordSnapshot()
         guard let shape = selectedShape,
@@ -1575,6 +1599,16 @@ final class EditorViewModel {
             case .arrow(var arrow) = shape
         else { return }
         arrow.strokeStyle = style
+        document.updateShape(.arrow(arrow))
+        rerender()
+    }
+
+    func updateSelectedArrowFloat(_ float: Bool) {
+        recordSnapshot()
+        guard let shape = selectedShape,
+            case .arrow(var arrow) = shape
+        else { return }
+        arrow.float = float
         document.updateShape(.arrow(arrow))
         rerender()
     }
@@ -1846,6 +1880,7 @@ final class EditorViewModel {
 
         let idMap = Dictionary(uniqueKeysWithValues: payload.shapes.map { ($0.id, UUID()) })
         var pastedShapeIDs: Set<UUID> = []
+        var pastedShapeIDsInOrder: [UUID] = []
 
         for shape in payload.shapes {
             guard let newID = idMap[shape.id] else { continue }
@@ -1853,6 +1888,11 @@ final class EditorViewModel {
             let translated = translatedShape(remappedShape, dx: dx, dy: dy)
             document.addShape(translated, toLayerAt: activeLayerIndex)
             pastedShapeIDs.insert(translated.id)
+            pastedShapeIDsInOrder.append(translated.id)
+        }
+
+        if let sourceGroupID = payload.sourceGroupID {
+            _ = document.layers[activeLayerIndex].appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
         }
 
         selectedShapeIDs = pastedShapeIDs
@@ -1864,9 +1904,60 @@ final class EditorViewModel {
     func selectedShapesClipboardPayloadData() -> Data? {
         let shapes = selectedShapesInDocumentOrder()
         guard !shapes.isEmpty else { return nil }
-        let payload = ShapeClipboardPayload(shapes: shapes)
+        let payload = ShapeClipboardPayload(
+            shapes: shapes,
+            sourceGroupID: selectedShapesSourceGroupID()
+        )
         let encoder = JSONEncoder()
         return try? encoder.encode(payload)
+    }
+
+    private func selectedShapesSourceGroupID() -> UUID? {
+        guard let layerIndex = layerIndexForSelectedShapes() else { return nil }
+        let layer = document.layers[layerIndex]
+        let selectedIDs = selectedShapeIDs
+
+        if let selectedGroupID = topMostSelectedGroupID(in: layer, selectedIDs: selectedIDs) {
+            return selectedGroupID
+        }
+
+        let orderedShapes = selectedShapesInDocumentOrder()
+        guard let firstShapeID = orderedShapes.first?.id else { return nil }
+        return layer.findGroupAncestry(containingShape: firstShapeID).last?.id
+    }
+
+    private func layerIndexForSelectedShapes() -> Int? {
+        var selectedLayerIndex: Int?
+
+        for shape in selectedShapesInDocumentOrder() {
+            guard let layerIndex = document.layerIndex(containingShape: shape.id) else {
+                return nil
+            }
+
+            if let selectedLayerIndex {
+                guard selectedLayerIndex == layerIndex else { return nil }
+            } else {
+                selectedLayerIndex = layerIndex
+            }
+        }
+
+        return selectedLayerIndex
+    }
+
+    private func topMostSelectedGroupID(in layer: Layer, selectedIDs: Set<UUID>) -> UUID? {
+        func visit(_ groups: [ShapeGroup]) -> UUID? {
+            for group in groups {
+                let memberIDs = group.allShapeIDs
+                if !memberIDs.isEmpty, memberIDs.isSubset(of: selectedIDs) {
+                    return group.id
+                }
+                if let found = visit(group.children) {
+                    return found
+                }
+            }
+            return nil
+        }
+        return visit(layer.groups)
     }
 
     func copySelectionAsPlainTextToClipboard() {

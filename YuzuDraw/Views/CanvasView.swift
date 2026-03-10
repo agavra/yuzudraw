@@ -108,11 +108,10 @@ struct CanvasView: View {
                 }
             }
             .onKeyPress(keys: [.delete, .deleteForward]) { _ in
-                guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
-                    return .ignored
-                }
-                viewModel.deleteSelectedShapes()
-                return .handled
+                handleDeleteKeyPress()
+            }
+            .onKeyPress(characters: .init(charactersIn: "\u{8}\u{7f}")) { _ in
+                handleDeleteKeyPress()
             }
             .onKeyPress(.escape) {
                 guard !viewModel.isEditingText else { return .ignored }
@@ -676,6 +675,13 @@ struct CanvasView: View {
         return nil
     }
 
+    private func handleDeleteKeyPress() -> KeyPress.Result {
+        guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
+            return .ignored
+        }
+        viewModel.deleteSelectedShapes()
+        return .handled
+    }
 }
 
 struct ScrollViewBoundsObserver: NSViewRepresentable {
