@@ -14,11 +14,13 @@ enum DSLParser {
     }
 
     static func parse(_ input: String) throws -> Document {
+        let expanded = DSLPreprocessor.expand(input)
+
         var layers: [Layer] = []
         var currentLayer: Layer?
         var groupStack: [GroupStackEntry] = []
 
-        let lines = input.components(separatedBy: "\n")
+        let lines = expanded.components(separatedBy: "\n")
 
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -53,7 +55,8 @@ enum DSLParser {
                     groupStack[groupStack.count - 1].shapeIDs.append(shape.id)
                 }
                 currentLayer?.addShape(shape)
-            } else if trimmed.hasPrefix("rectangle ") || trimmed.hasPrefix("box ")
+            } else if trimmed.hasPrefix("rectangle ") || trimmed.hasPrefix("rect ")
+                || trimmed.hasPrefix("box ")
                 || trimmed.hasPrefix("text ") || trimmed.hasPrefix("pencil ")
             {
                 // Pop groups whose indent is >= this shape's indent
@@ -126,7 +129,7 @@ enum DSLParser {
     }
 
     private static func parseShape(_ line: String) throws -> AnyShape {
-        if line.hasPrefix("rectangle ") || line.hasPrefix("box ") {
+        if line.hasPrefix("rectangle ") || line.hasPrefix("rect ") || line.hasPrefix("box ") {
             return try .rectangle(parseRectangle(line))
         } else if line.hasPrefix("text ") {
             return try .text(parseText(line))
@@ -138,7 +141,14 @@ enum DSLParser {
 
     private static func parseRectangle(_ line: String) throws -> RectangleShape {
         // rectangle "label" at col,row size WxH [style|stroke styleName] [fill transparent|solid [char "x"]]
-        let keyword = line.hasPrefix("box ") ? "box " : "rectangle "
+        let keyword: String
+        if line.hasPrefix("box ") {
+            keyword = "box "
+        } else if line.hasPrefix("rect ") {
+            keyword = "rect "
+        } else {
+            keyword = "rectangle "
+        }
         guard let rawLabel = try? parseQuotedString(from: line, after: keyword) else {
             throw DSLParserError.invalidSyntax("Expected rectangle label: \(line)")
         }
@@ -182,8 +192,20 @@ enum DSLParser {
             fillMode = .transparent
         }
 
+        // Parse optional name/ID
+        var name: String?
+        if let idRange = line.range(of: " id ") {
+            let afterId = String(line[idRange.upperBound...])
+            let idValue = String(afterId.prefix(while: { !$0.isWhitespace }))
+            if !idValue.isEmpty {
+                name = idValue
+            }
+        }
+
         var hasBorder = true
-        if line.contains(" border hidden") {
+        if line.contains(" noborder") {
+            hasBorder = false
+        } else if line.contains(" border hidden") {
             hasBorder = false
         }
         var visibleBorders = Set(RectangleBorderSide.allCases)
@@ -239,6 +261,9 @@ enum DSLParser {
             let value = String(
                 line[textOnBorderRange.upperBound...].prefix(while: { !$0.isWhitespace }))
             allowTextOnBorder = value == "true"
+        } else if line.contains(" textOnBorder") {
+            // Bare textOnBorder flag (no value) means true
+            allowTextOnBorder = true
         }
 
         var textPaddingLeft = 0
@@ -311,6 +336,7 @@ enum DSLParser {
         let float = line.contains(" float")
 
         return RectangleShape(
+            name: name,
             origin: GridPoint(column: col, row: row),
             size: GridSize(width: width, height: height),
             strokeStyle: strokeStyle,
@@ -399,7 +425,7 @@ enum DSLParser {
         // Parse remaining properties (style, label, colors)
         var label = ""
         if line.contains(" label ") {
-            label = (try? parseQuotedString(from: line, after: "label ")) ?? ""
+            label = (try? parseQuotedString(from: line, after: "label "))?.replacingOccurrences(of: "\\n", with: "\n") ?? ""
         }
 
         var strokeStyle = StrokeStyle.single
@@ -454,8 +480,16 @@ enum DSLParser {
         return NamedEndpoint(label: label, side: side)
     }
 
-    /// Find the first rectangle with a matching label across all shapes.
+    /// Find the first rectangle with a matching name (ID) or label across all shapes.
+    /// Name (ID) takes priority over label.
     private static func findRectangleByLabel(_ label: String, in shapes: [AnyShape]) -> RectangleShape? {
+        // First try to find by name (ID)
+        for shape in shapes {
+            if case .rectangle(let rectangle) = shape, rectangle.name == label {
+                return rectangle
+            }
+        }
+        // Fall back to label
         for shape in shapes {
             if case .rectangle(let rectangle) = shape, rectangle.label == label {
                 return rectangle

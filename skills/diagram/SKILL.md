@@ -26,130 +26,144 @@ layer "Layer Name" visible|hidden [locked]
 
 ### Rectangle
 ```
-rectangle "Label" at col,row size WxH [style single|double|rounded|heavy] [fill transparent|solid] [border visible|hidden]
+rect "Label" [id NAME] [at POSITION] [size WxH] [PROPERTIES...]
 ```
 
-Optional rectangle properties (append after the basics):
-- `style single|double|rounded|heavy` — border stroke style
-- `fill transparent|solid [char "x"]` — fill mode; solid can specify fill character
-- `border visible|hidden` — show/hide border
+Also accepts `rectangle` and `box` as aliases.
+
+**Positioning** (pick one — prefer relative for simpler DSL):
+- `at col,row` — absolute coordinates
+- `at REF.SIDE+colOffset,rowOffset` — relative to another rect's edge
+- `right-of REF [gap N]` — default gap 4
+- `below REF [gap N]` — default gap 2
+- `left-of REF [gap N]` — accounts for self width
+- `above REF [gap N]` — accounts for self height
+- Omitted → defaults to `0,0`
+
+Where `REF` is a `"quoted label"` or unquoted `id`. Side is `right|bottom|left|top`.
+
+**Auto-sizing** (when `size` is omitted):
+- `width = max(longestLine + 4, 10)`, `height = lineCount + 2`
+
+**Properties** (all optional, omit for defaults):
+- `style single|double|rounded|heavy` — border stroke (default: single, omit)
+- `fill solid char "x"` — fill mode (default: transparent, omit)
+- `noborder` — hide border (default: visible, omit)
 - `borders top,bottom,left,right` — selective border sides
 - `line dashed dash N gap N` — dashed border
-- `halign left|center|right` — text horizontal alignment (default: center)
-- `valign top|middle|bottom` — text vertical alignment (default: middle)
-- `textOnBorder true|false` — allow text to render on border
-- `padding L,R,T,B` — text padding (left,right,top,bottom)
+- `halign left|center|right` — text horizontal alignment (default: center, omit)
+- `valign top|middle|bottom` — text vertical alignment (default: middle, omit)
+- `textOnBorder` — bare flag, allow text on border (default: false, omit)
+- `padding L,R,T,B` — text padding (default: 0,0,0,0, omit)
 - `shadow light|medium|dark|full x N y N` — drop shadow
-- `borderColor #RRGGBB` — border color
-- `fillColor #RRGGBB` — fill color
-- `textColor #RRGGBB` — text color
-- `float` — disable border merging (borders overwrite instead of producing intersection glyphs)
+- `borderColor #RRGGBB` / `fillColor #RRGGBB` / `textColor #RRGGBB`
+- `float` — disable border merging
+
+### Element IDs
+```
+rect "Server" id srv1                  # named for reference
+rect "Server" id srv2                  # disambiguates duplicate label
+rect "" id bar1 size 50x1 fill solid char "▓" noborder  # empty label needs ID
+```
 
 ### Arrow
 
-**Always use named attachments** to connect arrows to rectangles. This ensures arrows are properly attached and will follow boxes when they move:
-
+**Prefer bare references** — sides are auto-inferred from relative positions:
 ```
-arrow from "RectangleLabel".side to "RectangleLabel".side [style single|double|heavy] [label "text"]
-```
-
-Where `side` is one of: `left`, `right`, `top`, `bottom`.
-
-The arrow automatically computes the correct coordinates from the rectangle's edge center point:
-- `.left` — center of the left edge
-- `.right` — center of the right edge
-- `.top` — center of the top edge
-- `.bottom` — center of the bottom edge
-
-Raw coordinate syntax is also supported but should be avoided when connecting to rectangles:
-```
-arrow from col,row to col,row [style single|double|heavy] [label "text"]
+arrow from "A" to "B" [label "text"]
+arrow from srv1 to srv2 [label "text"]
 ```
 
-Optional arrow properties:
-- `strokeColor #RRGGBB`
-- `labelColor #RRGGBB`
-- `float` — disable border merging (lines overwrite instead of producing intersection glyphs)
+Explicit sides also work:
+```
+arrow from "A".right to "B".left [style double] [label "text"]
+```
+
+Optional properties:
+- `style single|double|heavy` (default: single, omit)
+- `strokeColor #RRGGBB` / `labelColor #RRGGBB`
+- `float`
 
 ### Text
 ```
 text "content" at col,row [textColor #RRGGBB]
 ```
-Use `\n` for newlines in text content.
+Use `\n` for newlines. Supports reference coordinates: `text "$1.00" at bar1.right+1,0`
 
 ### Pencil (freeform characters)
 ```
 pencil at col,row cells [col,row,"char";col,row,"char",#color;...]
 ```
+Supports reference coordinates: `pencil at container.left+9,0 cells [...]`
 
 ### Groups
 ```
 layer "Layer 1" visible
   group "Group Name"
-    rectangle "A" at 0,0 size 10x3 style single fill transparent
-    rectangle "B" at 14,0 size 10x3 style single fill transparent
+    rect "A"
+    rect "B" right-of "A"
 ```
-Groups use indent-based nesting (2-space indent per level).
 
 ## Layout Heuristics
 
 ### Rectangle sizing
-- Width = `max(label.length + 4, 10)` (minimum 10 for readability)
-- Height = 3 for single-line labels, add 1 per extra line
-- For multi-word labels, consider wrapping: width = longest_word + 4
+- Auto-size handles most cases — just omit `size`
+- Override with `size WxH` for non-standard dimensions (bars, containers)
 
 ### Spacing
-- Horizontal gap between rectangles: 4 characters minimum (arrows need space)
-- Vertical gap between rectangles: 2 rows minimum
-- Named attachments auto-compute arrow coordinates, so you only need to position boxes
+- `right-of` / `left-of` default gap: 4 characters
+- `below` / `above` default gap: 2 rows
+- Custom gap: `right-of "A" gap 8`
 
 ### Common patterns
 
-**Horizontal flow (3 rectangles with arrows):**
+**Horizontal flow:**
 ```
 layer "Diagram" visible
-  rectangle "Input" at 0,0 size 12x3 style single fill transparent
-  rectangle "Process" at 16,0 size 12x3 style single fill transparent
-  rectangle "Output" at 32,0 size 12x3 style single fill transparent
-  arrow from "Input".right to "Process".left style single
-  arrow from "Process".right to "Output".left style single
+  rect "Input"
+  rect "Process" right-of "Input"
+  rect "Output" right-of "Process"
+  arrow from "Input" to "Process"
+  arrow from "Process" to "Output"
 ```
 
 **Vertical stack:**
 ```
 layer "Diagram" visible
-  rectangle "Top" at 5,0 size 12x3 style single fill transparent
-  rectangle "Middle" at 5,5 size 12x3 style single fill transparent
-  rectangle "Bottom" at 5,10 size 12x3 style single fill transparent
-  arrow from "Top".bottom to "Middle".top style single
-  arrow from "Middle".bottom to "Bottom".top style single
+  rect "Frontend" style rounded
+  rect "API" below "Frontend"
+  rect "Database" below "API" style double
+  arrow from "Frontend" to "API" label "HTTP"
+  arrow from "API" to "Database" label "SQL"
 ```
 
 **Architecture diagram:**
 ```
 layer "Diagram" visible
-  rectangle "Frontend" at 0,0 size 14x3 style rounded fill transparent
-  rectangle "API" at 0,5 size 14x3 style single fill transparent
-  rectangle "Database" at 0,10 size 14x3 style double fill transparent
-  arrow from "Frontend".bottom to "API".top style single label "HTTP"
-  arrow from "API".bottom to "Database".top style single label "SQL"
+  rect "Client" style rounded
+  rect "Server" right-of "Client"
+  rect "Cache" at "Server".bottom+0,2
+  arrow from "Client" to "Server" label "request"
+  arrow from "Server" to "Cache" label "read"
 ```
 
-**Bidirectional / complex connections:**
+**Bidirectional connections:**
 ```
 layer "Diagram" visible
-  rectangle "Client" at 0,0 size 12x3 style rounded fill transparent
-  rectangle "Server" at 20,0 size 12x3 style single fill transparent
-  rectangle "Cache" at 20,5 size 12x3 style single fill transparent
-  arrow from "Client".right to "Server".left style single label "request"
-  arrow from "Server".bottom to "Cache".top style single label "read"
+  rect "Client" style rounded
+  rect "Server" right-of "Client"
+  rect "Cache" at "Server".bottom+0,2
+  arrow from "Client".right to "Server".left label "request"
+  arrow from "Server".bottom to "Cache".top label "read"
 ```
 
 ## Tips
-- **Always use named attachments** (`"RectangleLabel".side`) for arrows connecting to rectangles — never manually compute arrow coordinates
-- Rectangles must be defined before arrows that reference them in the DSL
-- Use `render_ascii` to preview before creating (doesn't save)
-- Use `list_diagrams` to see what's open
+- **Omit defaults** — don't write `style single`, `fill transparent`, `border visible`, etc.
+- **Use auto-sizing** — omit `size` for label-based rectangles
+- **Use relative positioning** — `right-of`, `below`, reference coords
+- **Use bare arrow refs** — `from "A" to "B"` instead of `from "A".right to "B".left`
+- **Use IDs for empty/duplicate labels** — `rect "" id bar1 size 50x1 fill solid char "▓" noborder`
+- Rectangles must be defined before arrows that reference them
+- Use `render_ascii` to preview before creating
 - Use `get_diagram` to read back user edits before updating
-- Keep diagrams simple — ASCII art has limited resolution
-- Prefer `style rounded` for UI components, `style double` for databases/storage, `style single` for general rectangles
+- Prefer `style rounded` for UI components, `style double` for databases/storage

@@ -68,32 +68,66 @@ enum DSLSerializer {
 
     private static func serializeRectangle(_ rectangle: RectangleShape) -> String {
         let escapedLabel = rectangle.label.replacingOccurrences(of: "\n", with: "\\n")
-        var result =
-            "rectangle \"\(escapedLabel)\" at \(rectangle.origin.column),\(rectangle.origin.row) size \(rectangle.size.width)x\(rectangle.size.height) style \(rectangle.strokeStyle.rawValue)"
-        let fill = " fill \(rectangle.fillMode.rawValue)"
+        var result = "rect \"\(escapedLabel)\""
+
+        // Emit ID if set
+        if let name = rectangle.name {
+            result += " id \(name)"
+        }
+
+        result +=
+            " at \(rectangle.origin.column),\(rectangle.origin.row) size \(rectangle.size.width)x\(rectangle.size.height)"
+
+        // Style: omit when default (single)
+        if rectangle.strokeStyle != .single {
+            result += " style \(rectangle.strokeStyle.rawValue)"
+        }
+
+        // Fill: omit when default (transparent)
         if rectangle.fillMode == .solid {
-            result += "\(fill) char \"\(String(rectangle.fillCharacter))\""
+            result += " fill solid char \"\(String(rectangle.fillCharacter))\""
+        }
+
+        // Border: omit when default (visible), use noborder shorthand
+        if !rectangle.hasBorder {
+            result += " noborder"
         } else {
-            result += fill
+            if rectangle.visibleBorders != Set(RectangleBorderSide.allCases) {
+                let sideOrder: [RectangleBorderSide] = [.top, .bottom, .right, .left]
+                let encodedSides = sideOrder
+                    .filter { rectangle.visibleBorders.contains($0) }
+                    .map(\.rawValue)
+                    .joined(separator: ",")
+                result += " borders \(encodedSides)"
+            }
         }
-        result += rectangle.hasBorder ? " border visible" : " border hidden"
-        if rectangle.hasBorder && rectangle.visibleBorders != Set(RectangleBorderSide.allCases) {
-            let sideOrder: [RectangleBorderSide] = [.top, .bottom, .right, .left]
-            let encodedSides = sideOrder
-                .filter { rectangle.visibleBorders.contains($0) }
-                .map(\.rawValue)
-                .joined(separator: ",")
-            result += " borders \(encodedSides)"
-        }
+
         if rectangle.borderLineStyle == .dashed {
-            result += " line dashed dash \(rectangle.borderDashLength) gap \(rectangle.borderGapLength)"
+            result +=
+                " line dashed dash \(rectangle.borderDashLength) gap \(rectangle.borderGapLength)"
         }
-        result +=
-            " halign \(rectangle.textHorizontalAlignment.rawValue) valign \(rectangle.textVerticalAlignment.rawValue)"
-        result +=
-            " textOnBorder \(rectangle.allowTextOnBorder ? "true" : "false")"
-        result +=
-            " padding \(rectangle.textPaddingLeft),\(rectangle.textPaddingRight),\(rectangle.textPaddingTop),\(rectangle.textPaddingBottom)"
+
+        // Alignment: omit when default (center/middle)
+        if rectangle.textHorizontalAlignment != .center {
+            result += " halign \(rectangle.textHorizontalAlignment.rawValue)"
+        }
+        if rectangle.textVerticalAlignment != .middle {
+            result += " valign \(rectangle.textVerticalAlignment.rawValue)"
+        }
+
+        // textOnBorder: omit when false (default), emit bare flag when true
+        if rectangle.allowTextOnBorder {
+            result += " textOnBorder"
+        }
+
+        // Padding: omit when all zeros
+        if rectangle.textPaddingLeft != 0 || rectangle.textPaddingRight != 0
+            || rectangle.textPaddingTop != 0 || rectangle.textPaddingBottom != 0
+        {
+            result +=
+                " padding \(rectangle.textPaddingLeft),\(rectangle.textPaddingRight),\(rectangle.textPaddingTop),\(rectangle.textPaddingBottom)"
+        }
+
         if rectangle.hasShadow {
             result +=
                 " shadow \(rectangle.shadowStyle.rawValue) x \(rectangle.shadowOffsetX) y \(rectangle.shadowOffsetY)"
@@ -120,9 +154,15 @@ enum DSLSerializer {
             point: arrow.end, attachment: arrow.endAttachment, allShapes: allShapes)
 
         var result = "arrow from \(startStr) to \(endStr)"
-        result += " style \(arrow.strokeStyle.rawValue)"
+
+        // Style: omit when default (single)
+        if arrow.strokeStyle != .single {
+            result += " style \(arrow.strokeStyle.rawValue)"
+        }
+
         if !arrow.label.isEmpty {
-            result += " label \"\(arrow.label)\""
+            let escapedLabel = arrow.label.replacingOccurrences(of: "\n", with: "\\n")
+            result += " label \"\(escapedLabel)\""
         }
         if let strokeColor = arrow.strokeColor {
             result += " strokeColor \(strokeColor.hexString)"
@@ -142,7 +182,8 @@ enum DSLSerializer {
         if let attachment,
             let rectangle = findRectangleByID(attachment.shapeID, in: allShapes)
         {
-            return "\"\(rectangle.label)\".\(attachment.side.rawValue)"
+            let ref = rectangle.name ?? rectangle.label.replacingOccurrences(of: "\n", with: "\\n")
+            return "\"\(ref)\".\(attachment.side.rawValue)"
         }
         return "\(point.column),\(point.row)"
     }
