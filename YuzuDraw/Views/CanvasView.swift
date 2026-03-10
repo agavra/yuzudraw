@@ -667,14 +667,10 @@ struct CanvasView: View {
     }
 
     private func cursorForHandle(at point: GridPoint) -> NSCursor? {
-        guard viewModel.selectedShapes.count == 1 else { return nil }
+        guard viewModel.selectedShapes.count <= 1 else { return nil }
         for shape in viewModel.selectedShapes {
-            for placement in shape.resizeHandlePlacements {
-                let dx = abs(placement.point.column - point.column)
-                let dy = abs(placement.point.row - point.row)
-                if dx <= 1, dy <= 1 {
-                    return cursor(for: placement.handle)
-                }
+            if let handle = shape.resizeHandle(at: point) {
+                return cursor(for: handle)
             }
         }
         return nil
