@@ -24,12 +24,15 @@ struct ColorPickerPopover: View {
     let onDismiss: () -> Void
     let onAddToPalette: (ShapeColor) -> Void
     let onRemoveFromPalette: (UUID) -> Void
+    var onDragStarted: () -> Void = {}
+    var onDragEnded: () -> Void = {}
 
     @State private var hue: Double
     @State private var saturation: Double
     @State private var brightness: Double
     @State private var hexText: String
     @State private var selectedTab: PaletteTab = .page
+    @State private var isDragging = false
 
     init(
         customPalette: ColorPalette,
@@ -39,7 +42,9 @@ struct ColorPickerPopover: View {
         onColorSelected: @escaping (ShapeColor?) -> Void,
         onDismiss: @escaping () -> Void,
         onAddToPalette: @escaping (ShapeColor) -> Void,
-        onRemoveFromPalette: @escaping (UUID) -> Void
+        onRemoveFromPalette: @escaping (UUID) -> Void,
+        onDragStarted: @escaping () -> Void = {},
+        onDragEnded: @escaping () -> Void = {}
     ) {
         self.customPalette = customPalette
         self.pageColors = pageColors
@@ -49,6 +54,8 @@ struct ColorPickerPopover: View {
         self.onDismiss = onDismiss
         self.onAddToPalette = onAddToPalette
         self.onRemoveFromPalette = onRemoveFromPalette
+        self.onDragStarted = onDragStarted
+        self.onDragEnded = onDragEnded
 
         let color = currentColor ?? .black
         let hsb = color.hsbComponents
@@ -108,9 +115,17 @@ struct ColorPickerPopover: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        if !isDragging {
+                            isDragging = true
+                            onDragStarted()
+                        }
                         saturation = min(max(value.location.x / size, 0), 1)
                         brightness = 1 - min(max(value.location.y / size, 0), 1)
                         syncHexAndEmit()
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                        onDragEnded()
                     }
             )
         }
@@ -150,8 +165,16 @@ struct ColorPickerPopover: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        if !isDragging {
+                            isDragging = true
+                            onDragStarted()
+                        }
                         hue = min(max(value.location.x / width, 0), 1)
                         syncHexAndEmit()
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                        onDragEnded()
                     }
             )
         }

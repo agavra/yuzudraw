@@ -117,6 +117,12 @@ struct ContentView: View {
                 },
                 onRemoveFromPalette: { id in
                     viewModel.removePaletteColor(id: id)
+                },
+                onDragStarted: {
+                    viewModel.beginColorPickerDrag()
+                },
+                onDragEnded: {
+                    viewModel.endColorPickerDrag()
                 }
             )
         }

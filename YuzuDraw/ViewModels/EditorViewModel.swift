@@ -94,6 +94,18 @@ final class EditorViewModel {
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
 
+    func beginColorPickerDrag() {
+        recordSnapshot()
+        isInDragOperation = true
+    }
+
+    func endColorPickerDrag() {
+        isInDragOperation = false
+        if undoStack.last == document {
+            undoStack.removeLast()
+        }
+    }
+
     // MARK: - Color picker state
     var activeColorTarget: ColorTarget?
     var colorPickerCurrentColor: ShapeColor?
