@@ -182,33 +182,33 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
 
             switch handle {
             case .topLeft:
-                newLeft = max(0, min(point.column, right - 1))
-                newTop = max(0, min(point.row, bottom - 1))
+                newLeft = max(0, min(point.column, right))
+                newTop = max(0, min(point.row, bottom))
             case .top:
-                newTop = max(0, min(point.row, bottom - 1))
+                newTop = max(0, min(point.row, bottom))
             case .topRight:
-                newRight = max(left + 1, point.column)
-                newTop = max(0, min(point.row, bottom - 1))
+                newRight = max(left, point.column)
+                newTop = max(0, min(point.row, bottom))
             case .right:
-                newRight = max(left + 1, point.column)
+                newRight = max(left, point.column)
             case .bottomLeft:
-                newLeft = max(0, min(point.column, right - 1))
-                newBottom = max(top + 1, point.row)
+                newLeft = max(0, min(point.column, right))
+                newBottom = max(top, point.row)
             case .bottom:
-                newBottom = max(top + 1, point.row)
+                newBottom = max(top, point.row)
             case .bottomRight:
-                newRight = max(left + 1, point.column)
-                newBottom = max(top + 1, point.row)
+                newRight = max(left, point.column)
+                newBottom = max(top, point.row)
             case .left:
-                newLeft = max(0, min(point.column, right - 1))
+                newLeft = max(0, min(point.column, right))
             case .start, .end:
                 return self
             }
 
             shape.origin = GridPoint(column: newLeft, row: newTop)
             shape.size = GridSize(
-                width: max(2, newRight - newLeft + 1),
-                height: max(2, newBottom - newTop + 1)
+                width: max(1, newRight - newLeft + 1),
+                height: max(1, newBottom - newTop + 1)
             )
             return .rectangle(shape)
 

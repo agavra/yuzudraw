@@ -261,10 +261,12 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
             }
         }
 
-        let fillAreaStartCol = col + (drawLeft ? 1 : 0)
-        let fillAreaStartRow = row + (drawTop ? 1 : 0)
-        let fillAreaWidth = w - (drawLeft ? 1 : 0) - (drawRight ? 1 : 0)
-        let fillAreaHeight = h - (drawTop ? 1 : 0) - (drawBottom ? 1 : 0)
+        let bordersWillRender = hasBorder && w >= 2 && h >= 2
+        let fillAreaStartCol = col + (bordersWillRender && drawLeft ? 1 : 0)
+        let fillAreaStartRow = row + (bordersWillRender && drawTop ? 1 : 0)
+        let fillAreaWidth = w - (bordersWillRender && drawLeft ? 1 : 0) - (bordersWillRender && drawRight ? 1 : 0)
+        let fillAreaHeight =
+            h - (bordersWillRender && drawTop ? 1 : 0) - (bordersWillRender && drawBottom ? 1 : 0)
 
         if fillMode == .solid, fillAreaWidth > 0, fillAreaHeight > 0 {
             for r in fillAreaStartRow..<(fillAreaStartRow + fillAreaHeight) {
@@ -381,7 +383,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         }
 
         // Text
-        let shouldInsetTextForBorders = hasBorder && !allowTextOnBorder
+        let shouldInsetTextForBorders = bordersWillRender && !allowTextOnBorder
         let baseTextAreaStartCol = shouldInsetTextForBorders ? col + (drawLeft ? 1 : 0) : col
         let baseTextAreaStartRow = shouldInsetTextForBorders ? row + (drawTop ? 1 : 0) : row
         let baseTextAreaWidth =
