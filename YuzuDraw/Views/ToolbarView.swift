@@ -26,7 +26,9 @@ struct ToolbarView: View {
     }
 
     private func toolButton(type: ToolType, icon: String, tooltip: String) -> some View {
-        Button {
+        let isSelected = viewModel.activeToolType == type
+
+        return Button {
             viewModel.activeToolType = type
             if type == .pencil {
                 let hasSelectedPencil = viewModel.selectedShapes.contains {
@@ -42,9 +44,18 @@ struct ToolbarView: View {
                 .font(.system(size: type == .pencil ? 14 : 12))
                 .frame(width: 24, height: 20)
         }
-        .controlSize(.small)
-        .buttonStyle(.bordered)
-        .tint(viewModel.activeToolType == type ? .accentColor : nil)
+        .buttonStyle(.plain)
+        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.2) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(isSelected ? Color.accentColor.opacity(0.8) : Color.clear, lineWidth: 1)
+        )
         .help(tooltip)
     }
 }

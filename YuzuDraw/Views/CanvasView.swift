@@ -648,9 +648,6 @@ struct CanvasView: View {
             case .hand:
                 viewModel.updateHoverGridPoint(nil)
                 NSCursor.openHand.set()
-            case .arrow:
-                viewModel.updateHoverGridPoint(point)
-                NSCursor.crosshair.set()
             case .select:
                 viewModel.updateHoverGridPoint(nil)
                 if let handleCursor = cursorForHandle(at: point) {
@@ -658,12 +655,9 @@ struct CanvasView: View {
                 } else {
                     NSCursor.arrow.set()
                 }
-            case .pencil:
+            case .rectangle, .arrow, .pencil, .text:
                 viewModel.updateHoverGridPoint(point)
                 NSCursor.crosshair.set()
-            case .rectangle, .text:
-                viewModel.updateHoverGridPoint(nil)
-                NSCursor.arrow.set()
             }
 
         case .ended:
