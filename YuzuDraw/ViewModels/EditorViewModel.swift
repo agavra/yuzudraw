@@ -357,7 +357,9 @@ final class EditorViewModel {
         case .none:
             break
         case .addShape(let shape, let layerIndex):
-            document.addShape(shape, toLayerAt: layerIndex)
+            let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: layerIndex)
+            document.addShape(shape, toLayerAt: targetLayerIndex)
+            activeLayerIndex = targetLayerIndex
             selectedShapeIDs = [shape.id]
             if case .pencil = shape {
                 // Stay in pencil mode so the user can keep drawing
@@ -672,7 +674,9 @@ final class EditorViewModel {
                 return
             }
             let textShape = TextShape(origin: point, text: textEditContent)
-            document.addShape(.text(textShape), toLayerAt: activeLayerIndex)
+            let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: activeLayerIndex)
+            document.addShape(.text(textShape), toLayerAt: targetLayerIndex)
+            activeLayerIndex = targetLayerIndex
             selectedShapeIDs = [textShape.id]
             activeToolType = .select
         }
@@ -1832,8 +1836,6 @@ final class EditorViewModel {
 
     func canPasteShapesFromClipboard() -> Bool {
         guard !isEditingText,
-            document.layers.indices.contains(activeLayerIndex),
-            !document.layers[activeLayerIndex].isLocked,
             let payloadData = clipboardPayloadData(from: NSPasteboard.general)
         else { return false }
         return decodeShapeClipboardPayload(from: payloadData) != nil
@@ -1860,8 +1862,6 @@ final class EditorViewModel {
     @discardableResult
     func pasteShapes(fromClipboardPayloadData payloadData: Data) -> Bool {
         guard !isEditingText,
-            document.layers.indices.contains(activeLayerIndex),
-            !document.layers[activeLayerIndex].isLocked,
             let payload = decodeShapeClipboardPayload(from: payloadData),
             !payload.shapes.isEmpty
         else { return false }
@@ -1875,6 +1875,7 @@ final class EditorViewModel {
 
         let dx = Self.pasteOffset.column * consecutivePasteCount
         let dy = Self.pasteOffset.row * consecutivePasteCount
+        let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: activeLayerIndex)
 
         recordSnapshot()
 
@@ -1886,16 +1887,17 @@ final class EditorViewModel {
             guard let newID = idMap[shape.id] else { continue }
             let remappedShape = remappedShapeForClipboardPaste(shape, newID: newID, idMap: idMap)
             let translated = translatedShape(remappedShape, dx: dx, dy: dy)
-            document.addShape(translated, toLayerAt: activeLayerIndex)
+            document.addShape(translated, toLayerAt: targetLayerIndex)
             pastedShapeIDs.insert(translated.id)
             pastedShapeIDsInOrder.append(translated.id)
         }
 
         if let sourceGroupID = payload.sourceGroupID {
-            _ = document.layers[activeLayerIndex].appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
+            _ = document.layers[targetLayerIndex].appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
         }
 
         selectedShapeIDs = pastedShapeIDs
+        activeLayerIndex = targetLayerIndex
         activeToolType = .select
         rerender()
         return true
@@ -2340,11 +2342,15 @@ final class EditorViewModel {
 
     func deleteSelectedShapes() {
         recordSnapshot()
-        for id in selectedShapeIDs {
+        let deletableIDs = selectedShapeIDs.filter { shapeID in
+            guard let layerIndex = document.layerIndex(containingShape: shapeID) else { return false }
+            return !document.layers[layerIndex].isLocked
+        }
+        for id in deletableIDs {
             detachArrows(referencing: id)
             document.removeShape(id: id)
         }
-        selectedShapeIDs = []
+        selectedShapeIDs.subtract(deletableIDs)
         enteredGroupID = nil
         rerender()
     }
@@ -2614,11 +2620,10 @@ final class EditorViewModel {
     func duplicateSelectedShapes() {
         guard let payloadData = selectedShapesClipboardPayloadData(),
             let payload = decodeShapeClipboardPayload(from: payloadData),
-            !payload.shapes.isEmpty,
-            document.layers.indices.contains(activeLayerIndex),
-            !document.layers[activeLayerIndex].isLocked
+            !payload.shapes.isEmpty
         else { return }
 
+        let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: activeLayerIndex)
         recordSnapshot()
 
         let idMap = Dictionary(uniqueKeysWithValues: payload.shapes.map { ($0.id, UUID()) })
@@ -2632,11 +2637,12 @@ final class EditorViewModel {
                 dx: Self.pasteOffset.column,
                 dy: Self.pasteOffset.row
             )
-            document.addShape(translated, toLayerAt: activeLayerIndex)
+            document.addShape(translated, toLayerAt: targetLayerIndex)
             duplicatedIDs.insert(translated.id)
         }
 
         selectedShapeIDs = duplicatedIDs
+        activeLayerIndex = targetLayerIndex
         activeToolType = .select
         rerender()
     }
@@ -2694,6 +2700,7 @@ final class EditorViewModel {
 
     func moveShapeToGroup(shapeID: UUID, groupID: UUID, in layerID: UUID) {
         guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
+              !document.layers[layerIndex].isLocked,
               document.layers[layerIndex].findShape(id: shapeID) != nil
         else { return }
         recordSnapshot()
@@ -2704,6 +2711,7 @@ final class EditorViewModel {
 
     func removeShapeFromGroup(shapeID: UUID, in layerID: UUID) {
         guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
+              !document.layers[layerIndex].isLocked,
               document.layers[layerIndex].findRootGroup(containingShape: shapeID) != nil
         else { return }
         recordSnapshot()
@@ -2987,5 +2995,19 @@ final class EditorViewModel {
             )
             return .pencil(pencil)
         }
+    }
+
+    private func writableLayerIndexForInsertion(preferredLayerIndex: Int) -> Int {
+        if document.layers.indices.contains(preferredLayerIndex),
+           !document.layers[preferredLayerIndex].isLocked
+        {
+            return preferredLayerIndex
+        }
+
+        let name = "Layer \(document.layers.count + 1)"
+        document.addLayer(name: name)
+        let newLayerIndex = document.layers.count - 1
+        expandedItemIDs.insert(document.layers[newLayerIndex].id)
+        return newLayerIndex
     }
 }

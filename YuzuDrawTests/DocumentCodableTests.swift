@@ -276,20 +276,26 @@ struct DocumentCodableTests {
 
     @Test func should_round_trip_multi_layer_document() throws {
         // given
-        var doc = Document(layers: [
-            Layer(name: "Layer 1"),
-            Layer(name: "Layer 2", isVisible: false, isLocked: true),
+        let doc = Document(layers: [
+            Layer(
+                name: "Layer 1",
+                shapes: [
+                    .rectangle(
+                        RectangleShape(
+                            origin: GridPoint(column: 0, row: 0),
+                            size: GridSize(width: 5, height: 3)
+                        ))
+                ]
+            ),
+            Layer(
+                name: "Layer 2",
+                isVisible: false,
+                isLocked: true,
+                shapes: [
+                    .text(TextShape(origin: GridPoint(column: 10, row: 10), text: "Hi"))
+                ]
+            ),
         ])
-        doc.addShape(
-            .rectangle(
-                RectangleShape(
-                    origin: GridPoint(column: 0, row: 0),
-                    size: GridSize(width: 5, height: 3)
-                )), toLayerAt: 0)
-        doc.addShape(
-            .text(TextShape(origin: GridPoint(column: 10, row: 10), text: "Hi")),
-            toLayerAt: 1
-        )
 
         // when
         let data = try DocumentCodable.encode(doc)

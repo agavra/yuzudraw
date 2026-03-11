@@ -239,4 +239,51 @@ struct EditorViewModelLayerExportTests {
         // then
         #expect(text == "┌──┐ \n│  │░\n└──┘░\n ░░░░")
     }
+
+    @Test func should_create_new_layer_when_pasting_into_locked_active_layer() {
+        // given
+        let lockedLayer = Layer(name: "Locked", isLocked: true)
+        var sourceDocument = Document(layers: [Layer(name: "Source")])
+        let text = TextShape(origin: GridPoint(column: 1, row: 1), text: "A")
+        sourceDocument.addShape(.text(text), toLayerAt: 0)
+        let sourceViewModel = EditorViewModel(document: sourceDocument)
+        sourceViewModel.selectedShapeIDs = [text.id]
+        guard let payloadData = sourceViewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        let viewModel = EditorViewModel(document: Document(layers: [lockedLayer]))
+        viewModel.activeLayerIndex = 0
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.layers.count == 2)
+        #expect(viewModel.document.layers[0].shapes.isEmpty)
+        #expect(viewModel.document.layers[1].shapes.count == 1)
+        #expect(viewModel.activeLayerIndex == 1)
+    }
+
+    @Test func should_not_delete_shapes_from_locked_layers() {
+        // given
+        let lockedRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let unlockedRect = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
+        let document = Document(layers: [
+            Layer(name: "Locked", isLocked: true, shapes: [.rectangle(lockedRect)]),
+            Layer(name: "Unlocked", shapes: [.rectangle(unlockedRect)]),
+        ])
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [lockedRect.id, unlockedRect.id]
+
+        // when
+        viewModel.deleteSelectedShapes()
+
+        // then
+        #expect(viewModel.document.findShape(id: lockedRect.id) != nil)
+        #expect(viewModel.document.findShape(id: unlockedRect.id) == nil)
+        #expect(viewModel.selectedShapeIDs == Set([lockedRect.id]))
+    }
 }

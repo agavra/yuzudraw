@@ -52,12 +52,13 @@ struct Document: Codable, Equatable, Sendable {
     // MARK: - Shape mutations
 
     mutating func addShape(_ shape: AnyShape, toLayerAt layerIndex: Int) {
-        guard layers.indices.contains(layerIndex) else { return }
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked else { return }
         layers[layerIndex].addShape(shape)
     }
 
     mutating func removeShape(id shapeID: UUID) {
         for index in layers.indices {
+            if layers[index].isLocked { continue }
             layers[index].removeShape(id: shapeID)
         }
     }
@@ -66,6 +67,7 @@ struct Document: Codable, Equatable, Sendable {
         for layerIndex in layers.indices {
             if let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shape.id })
             {
+                guard !layers[layerIndex].isLocked else { return }
                 layers[layerIndex].shapes[shapeIndex] = shape
                 return
             }
@@ -100,6 +102,7 @@ struct Document: Codable, Equatable, Sendable {
     @discardableResult
     mutating func moveShapeForward(id shapeID: UUID) -> Bool {
         guard let layerIndex = layerIndex(containingShape: shapeID),
+            !layers[layerIndex].isLocked,
             let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
             shapeIndex < layers[layerIndex].shapes.count - 1
         else { return false }
@@ -110,6 +113,7 @@ struct Document: Codable, Equatable, Sendable {
     @discardableResult
     mutating func moveShapeBackward(id shapeID: UUID) -> Bool {
         guard let layerIndex = layerIndex(containingShape: shapeID),
+            !layers[layerIndex].isLocked,
             let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
             shapeIndex > 0
         else { return false }
@@ -120,6 +124,7 @@ struct Document: Codable, Equatable, Sendable {
     @discardableResult
     mutating func moveShapeToFront(id shapeID: UUID) -> Bool {
         guard let layerIndex = layerIndex(containingShape: shapeID),
+            !layers[layerIndex].isLocked,
             let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
             shapeIndex < layers[layerIndex].shapes.count - 1
         else { return false }
@@ -132,6 +137,7 @@ struct Document: Codable, Equatable, Sendable {
     @discardableResult
     mutating func moveShapeToBack(id shapeID: UUID) -> Bool {
         guard let layerIndex = layerIndex(containingShape: shapeID),
+            !layers[layerIndex].isLocked,
             let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
             shapeIndex > 0
         else { return false }
@@ -158,17 +164,25 @@ struct Document: Codable, Equatable, Sendable {
     @discardableResult
     mutating func moveShape(id shapeID: UUID, before targetShapeID: UUID, in layerID: UUID) -> Bool {
         guard shapeID != targetShapeID,
-            let layerIndex = layers.firstIndex(where: { $0.id == layerID }),
-            let sourceIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
-            layers[layerIndex].shapes.contains(where: { $0.id == targetShapeID })
+            let targetLayerIndex = layers.firstIndex(where: { $0.id == layerID }),
+            !layers[targetLayerIndex].isLocked,
+            layers[targetLayerIndex].shapes.contains(where: { $0.id == targetShapeID })
         else { return false }
 
-        let shape = layers[layerIndex].shapes.remove(at: sourceIndex)
-        guard let targetIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == targetShapeID }) else {
+        guard let sourceLayerIndex = layerIndex(containingShape: shapeID),
+            !layers[sourceLayerIndex].isLocked,
+            let sourceShapeIndex = layers[sourceLayerIndex].shapes.firstIndex(where: { $0.id == shapeID })
+        else { return false }
+
+        let shape = layers[sourceLayerIndex].shapes.remove(at: sourceShapeIndex)
+        if sourceLayerIndex != targetLayerIndex {
+            layers[sourceLayerIndex].removeShapesFromGroups(ids: [shapeID])
+        }
+        guard let targetIndex = layers[targetLayerIndex].shapes.firstIndex(where: { $0.id == targetShapeID }) else {
             return false
         }
         let insertionIndex = targetIndex
-        layers[layerIndex].shapes.insert(shape, at: insertionIndex)
+        layers[targetLayerIndex].shapes.insert(shape, at: insertionIndex)
         return true
     }
 
@@ -188,16 +202,24 @@ struct Document: Codable, Equatable, Sendable {
     @discardableResult
     mutating func moveShape(id shapeID: UUID, after targetShapeID: UUID, in layerID: UUID) -> Bool {
         guard shapeID != targetShapeID,
-            let layerIndex = layers.firstIndex(where: { $0.id == layerID }),
-            let sourceIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
-            layers[layerIndex].shapes.contains(where: { $0.id == targetShapeID })
+            let targetLayerIndex = layers.firstIndex(where: { $0.id == layerID }),
+            !layers[targetLayerIndex].isLocked,
+            layers[targetLayerIndex].shapes.contains(where: { $0.id == targetShapeID })
         else { return false }
 
-        let shape = layers[layerIndex].shapes.remove(at: sourceIndex)
-        guard let targetIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == targetShapeID }) else {
+        guard let sourceLayerIndex = layerIndex(containingShape: shapeID),
+            !layers[sourceLayerIndex].isLocked,
+            let sourceShapeIndex = layers[sourceLayerIndex].shapes.firstIndex(where: { $0.id == shapeID })
+        else { return false }
+
+        let shape = layers[sourceLayerIndex].shapes.remove(at: sourceShapeIndex)
+        if sourceLayerIndex != targetLayerIndex {
+            layers[sourceLayerIndex].removeShapesFromGroups(ids: [shapeID])
+        }
+        guard let targetIndex = layers[targetLayerIndex].shapes.firstIndex(where: { $0.id == targetShapeID }) else {
             return false
         }
-        layers[layerIndex].shapes.insert(shape, at: targetIndex + 1)
+        layers[targetLayerIndex].shapes.insert(shape, at: targetIndex + 1)
         return true
     }
 
@@ -205,6 +227,8 @@ struct Document: Codable, Equatable, Sendable {
     mutating func moveShape(id shapeID: UUID, toLayer targetLayerID: UUID) -> Bool {
         guard let sourceLayerIndex = layerIndex(containingShape: shapeID),
             let targetLayerIndex = layers.firstIndex(where: { $0.id == targetLayerID }),
+            !layers[sourceLayerIndex].isLocked,
+            !layers[targetLayerIndex].isLocked,
             let shape = findShape(id: shapeID)
         else { return false }
 
@@ -215,6 +239,7 @@ struct Document: Codable, Equatable, Sendable {
 
     func canMoveShapeForward(id shapeID: UUID) -> Bool {
         guard let layerIndex = layerIndex(containingShape: shapeID),
+            !layers[layerIndex].isLocked,
             let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID })
         else { return false }
         return shapeIndex < layers[layerIndex].shapes.count - 1
@@ -222,6 +247,7 @@ struct Document: Codable, Equatable, Sendable {
 
     func canMoveShapeBackward(id shapeID: UUID) -> Bool {
         guard let layerIndex = layerIndex(containingShape: shapeID),
+            !layers[layerIndex].isLocked,
             let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID })
         else { return false }
         return shapeIndex > 0
@@ -246,10 +272,11 @@ struct Document: Codable, Equatable, Sendable {
     // MARK: - Hit testing
 
     /// Hit-test in reverse render order (top layer first, last shape first).
-    func hitTest(at point: GridPoint) -> AnyShape? {
+    func hitTest(at point: GridPoint, excludingLockedLayers: Bool = false) -> AnyShape? {
         // First, strict geometry hit-testing.
         for layer in layers.reversed() {
             guard layer.isVisible else { continue }
+            if excludingLockedLayers && layer.isLocked { continue }
             for shape in layer.shapes.reversed() {
                 if shape.contains(point: point) {
                     return shape
@@ -260,6 +287,7 @@ struct Document: Codable, Equatable, Sendable {
         // Then, allow a small proximity pick radius for arrows to make selecting thin lines easier.
         for layer in layers.reversed() {
             guard layer.isVisible else { continue }
+            if excludingLockedLayers && layer.isLocked { continue }
             for shape in layer.shapes.reversed() {
                 guard case .arrow(let arrow) = shape else { continue }
                 if isNearArrow(arrow, point: point, tolerance: 1.0) {

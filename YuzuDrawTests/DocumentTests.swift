@@ -304,4 +304,50 @@ struct DocumentTests {
         #expect(canvas.character(atColumn: 5, row: 0) == "┐")
         #expect(canvas.character(atColumn: 0, row: 2) == "└")
     }
+
+    @Test func should_move_shape_before_target_across_layers() {
+        // given
+        var doc = Document(layers: [
+            Layer(name: "Layer 1"),
+            Layer(name: "Layer 2"),
+        ])
+        let source = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let targetA = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        let targetB = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        doc.addShape(.rectangle(source), toLayerAt: 0)
+        doc.addShape(.rectangle(targetA), toLayerAt: 1)
+        doc.addShape(.rectangle(targetB), toLayerAt: 1)
+
+        // when
+        let moved = doc.moveShape(id: source.id, before: targetB.id, in: doc.layers[1].id)
+
+        // then
+        #expect(moved)
+        #expect(doc.layers[0].shapes.isEmpty)
+        #expect(doc.layers[1].shapes.map(\.id) == [targetA.id, source.id, targetB.id])
+    }
+
+    @Test func should_not_move_shape_to_or_from_locked_layer() {
+        // given
+        var doc = Document(layers: [
+            Layer(name: "Source"),
+            Layer(name: "Unlocked Target"),
+            Layer(name: "Locked Target", isLocked: true),
+        ])
+        let fromLocked = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let fromUnlocked = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        doc.addShape(.rectangle(fromLocked), toLayerAt: 0)
+        doc.layers[0].isLocked = true
+        doc.addShape(.rectangle(fromUnlocked), toLayerAt: 1)
+
+        // when
+        let movedFromLocked = doc.moveShape(id: fromLocked.id, toLayer: doc.layers[1].id)
+        let movedToLocked = doc.moveShape(id: fromUnlocked.id, toLayer: doc.layers[2].id)
+
+        // then
+        #expect(!movedFromLocked)
+        #expect(!movedToLocked)
+        #expect(doc.layerIndex(containingShape: fromLocked.id) == 0)
+        #expect(doc.layerIndex(containingShape: fromUnlocked.id) == 1)
+    }
 }
