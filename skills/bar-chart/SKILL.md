@@ -82,7 +82,7 @@ layer "Chart" visible
     text "AMER" at 2,5
     rect "" id bar3 at 10,5 size 22x1 fill solid char "▓" noborder
     text "$0.44" at bar3.right+1,0
-    pencil at container.left+9,3 cells [0,0,"│";0,1,"│";0,2,"│"]
+    pencil at container.left+9,1 cells [0,0,"│";0,1,"│";0,2,"│"]
 ```
 
 ### Stacked bar chart (2 rows)
@@ -99,7 +99,7 @@ layer "Chart" visible
     rect "" id s2a at 10,4 size 14x1 fill solid char "▓" noborder
     rect "" id s2b at 24,4 size 13x1 fill solid char "▒" noborder
     text "$0.63" at s2b.right+1,0
-    pencil at container.left+9,3 cells [0,0,"│";0,1,"│"]
+    pencil at container.left+9,1 cells [0,0,"│";0,1,"│"]
 ```
 
 ### Multi-section chart with legend and frame
@@ -119,7 +119,7 @@ layer "Layer 1" visible
     text "after" at 13,11
     text "$1.00" at c1s1b.right+1,0
     text "$0.88" at c1s2b.right+1,0
-    pencil at c1.left+9,10 cells [0,0,"│";0,1,"│"]
+    pencil at c1.left+9,1 cells [0,0,"│";0,1,"│"]
   group "Chart 2"
     rect "50% ops savings" at 11,14 size 24x3
     rect "" id c2 at 11,16 size 69x4
@@ -131,7 +131,7 @@ layer "Layer 1" visible
     text "after" at 13,18
     text "$1.00" at c2s1b.right+1,0
     text "$0.62" at c2s2b.right+1,0
-    pencil at c2.left+9,17 cells [0,0,"│";0,1,"│"]
+    pencil at c2.left+9,1 cells [0,0,"│";0,1,"│"]
   group "Legend"
     rect "" id legend at 55,4 size 26x4
     rect "" at 56,5 size 7x1 fill solid char "▓" noborder
