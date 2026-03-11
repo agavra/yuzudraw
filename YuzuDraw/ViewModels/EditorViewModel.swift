@@ -2692,6 +2692,25 @@ final class EditorViewModel {
         rerender()
     }
 
+    func moveShapeToGroup(shapeID: UUID, groupID: UUID, in layerID: UUID) {
+        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
+              document.layers[layerIndex].findShape(id: shapeID) != nil
+        else { return }
+        recordSnapshot()
+        document.layers[layerIndex].removeShapesFromGroups(ids: [shapeID])
+        _ = document.layers[layerIndex].appendShapesToGroup(ids: [shapeID], groupID: groupID)
+        rerender()
+    }
+
+    func removeShapeFromGroup(shapeID: UUID, in layerID: UUID) {
+        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
+              document.layers[layerIndex].findRootGroup(containingShape: shapeID) != nil
+        else { return }
+        recordSnapshot()
+        document.layers[layerIndex].removeShapesFromGroups(ids: [shapeID])
+        rerender()
+    }
+
     func toggleExpanded(_ itemID: UUID) {
         if expandedItemIDs.contains(itemID) {
             expandedItemIDs.remove(itemID)
