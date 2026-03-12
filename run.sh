@@ -28,9 +28,6 @@ if [[ -z "${LATEST_APP_PATH}" ]]; then
   exit 1
 fi
 
-echo "Launching: ${LATEST_APP_PATH}"
-if ! open "${LATEST_APP_PATH}"; then
-  executable="${LATEST_APP_PATH}/Contents/MacOS/YuzuDraw"
-  echo "open failed, running executable directly: ${executable}"
-  "${executable}" >/dev/null 2>&1 &
-fi
+EXECUTABLE="${LATEST_APP_PATH}/Contents/MacOS/YuzuDraw"
+echo "Launching: ${EXECUTABLE}"
+exec "${EXECUTABLE}" "$@"

@@ -336,6 +336,9 @@ final class EditorViewModel {
         if undoStack.last == document {
             undoStack.removeLast()
         }
+        // Force a view update so non-observed tool state (e.g. marquee rect)
+        // is picked up by SwiftUI.
+        rerender()
     }
 
     func updateHoverGridPoint(_ point: GridPoint?) {

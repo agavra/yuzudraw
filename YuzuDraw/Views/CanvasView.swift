@@ -10,6 +10,7 @@ struct CanvasView: View {
     }()
 
     @State private var didMouseDown = false
+    @State private var gestureStartLocation: CGPoint?
     @State private var dragStartLocation: CGPoint?
     @State private var dragThresholdMet = false
     @State private var lastMouseDownTime: Date?
@@ -616,6 +617,13 @@ struct CanvasView: View {
                     return
                 }
 
+                // If the previous gesture's onEnded never fired (e.g. scroll
+                // view stole the gesture), flush a cancel before starting fresh.
+                if didMouseDown, gestureStartLocation != value.startLocation {
+                    viewModel.activeTool.cancel()
+                    didMouseDown = false
+                }
+
                 let adjusted = CGPoint(
                     x: value.location.x - rulerGutterLeft,
                     y: value.location.y - rulerGutterTop
@@ -623,6 +631,7 @@ struct CanvasView: View {
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
                 if !didMouseDown {
                     didMouseDown = true
+                    gestureStartLocation = value.startLocation
                     dragStartLocation = value.location
                     dragThresholdMet = false
                     let now = Date()
@@ -664,6 +673,7 @@ struct CanvasView: View {
                 let point = viewModel.gridPoint(from: adjusted, charSize: charSize)
                 viewModel.mouseUp(at: point)
                 didMouseDown = false
+                gestureStartLocation = nil
             }
     }
 
