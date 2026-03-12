@@ -7,9 +7,16 @@ INSTALL_DIR="$HOME/.yuzudraw/bin"
 BIN_NAME="yuzudraw-cli"
 AGENT_SELECTION=""
 SKIP_SKILLS=0
+UNINSTALL=0
+DRAW_REFERENCE_FILES="architecture.md components.md flow.md bar-chart.md ascii-drawing.md"
 
 main() {
     parse_args "$@"
+    if [ "${UNINSTALL}" -eq 1 ]; then
+        uninstall
+        exit 0
+    fi
+
     check_macos
     ARCH=$(detect_arch)
     VERSION=$(fetch_latest_version)
@@ -40,7 +47,7 @@ main() {
     if [ "${SKIP_SKILLS}" -eq 1 ]; then
         echo "Skipped agent skill installation."
     elif [ -n "${AGENT_SELECTION}" ]; then
-        echo "Installed YuzuDraw skills for: $(format_agent_list "$AGENT_SELECTION")"
+        echo "Installed the YuzuDraw draw skill for: $(format_agent_list "$AGENT_SELECTION")"
     else
         echo "Skipped agent skill installation."
     fi
@@ -66,6 +73,9 @@ parse_args() {
             --skip-skills)
                 SKIP_SKILLS=1
                 ;;
+            --uninstall)
+                UNINSTALL=1
+                ;;
             --help|-h)
                 print_help
                 exit 0
@@ -82,9 +92,10 @@ parse_args() {
 
 print_help() {
     cat <<EOF
-Usage: install.sh [--agent codex|claude|both|none] [--skip-skills]
+Usage: install.sh [--agent codex|claude|both|none] [--skip-skills] [--uninstall]
 
-Installs the YuzuDraw CLI and optionally the YuzuDraw skills for Codex and/or Claude.
+Installs the YuzuDraw CLI and optionally the YuzuDraw draw skill for Codex and/or Claude.
+Use --uninstall to remove the CLI, the draw skill, and the PATH entry added by this installer.
 EOF
 }
 
@@ -122,123 +133,31 @@ resolve_agent_selection() {
         return
     fi
 
+    DETECTED_AGENTS=$(detect_installed_agents)
+    if [ -n "$DETECTED_AGENTS" ]; then
+        echo "Detected agent homes for: $(format_agent_list "$DETECTED_AGENTS")" >&2
+        printf '%s\n' "$DETECTED_AGENTS"
+        return
+    fi
+
     if [ -r /dev/tty ]; then
         prompt_agent_selection
         return
     fi
 
-    echo "No interactive terminal detected. Installing skills for both Codex and Claude."
-    printf '%s\n' "codex claude"
+    echo "No supported agent home detected. Installed CLI only." >&2
+    echo "To install the draw skill later, rerun with --agent codex or --agent claude." >&2
+    printf '\n'
 }
 
-prompt_agent_selection() {
-    current=0
-    selected_codex=1
-    selected_claude=1
-    ESC=$(printf '\033')
-    old_stty=$(stty -g < /dev/tty)
-
-    cleanup_prompt() {
-        printf '\033[?25h' > /dev/tty
-        stty "$old_stty" < /dev/tty
-        trap - INT TERM
-    }
-
-    trap 'cleanup_prompt; printf "\r\n" > /dev/tty; exit 1' INT TERM
-
-    printf '\n  Install YuzuDraw skills for:\n\n' > /dev/tty
-    printf '\033[?25l' > /dev/tty
-    stty raw -echo < /dev/tty
-
-    draw_prompt() {
-        if [ "$current" -eq 0 ]; then
-            prefix=$(printf '  \033[36m>\033[0m')
-        else
-            prefix='   '
-        fi
-        if [ "$selected_codex" -eq 1 ]; then
-            codex_box=$(printf '[\033[33m✓\033[0m]')
-        else
-            codex_box='[ ]'
-        fi
-        codex_label=$(printf '\033[34mCodex\033[0m')
-        printf '%s %s %s\033[K\r\n' "$prefix" "$codex_box" "$codex_label" > /dev/tty
-
-        if [ "$current" -eq 1 ]; then
-            prefix=$(printf '  \033[36m>\033[0m')
-        else
-            prefix='   '
-        fi
-        if [ "$selected_claude" -eq 1 ]; then
-            claude_box=$(printf '[\033[33m✓\033[0m]')
-        else
-            claude_box='[ ]'
-        fi
-        claude_label=$(printf '\033[32mClaude\033[0m')
-        printf '%s %s %s\033[K\r\n' "$prefix" "$claude_box" "$claude_label" > /dev/tty
-        printf '\033[K\r\n  \033[2mArrow keys to move, Space to toggle, Enter to confirm\033[0m\033[K' > /dev/tty
-    }
-
-    draw_prompt
-
-    while true; do
-        c=$(dd bs=1 count=1 2>/dev/null < /dev/tty; printf .)
-        c=${c%.}
-
-        if [ "$c" = "$(printf '\003')" ]; then
-            cleanup_prompt
-            printf '\r\n' > /dev/tty
-            exit 1
-        fi
-
-        if [ "$c" = "$(printf '\r')" ]; then
-            if [ "$selected_codex" -eq 0 ] && [ "$selected_claude" -eq 0 ]; then
-                selected_codex=1
-                selected_claude=1
-            fi
-            break
-        fi
-
-        if [ "$c" = " " ]; then
-            if [ "$current" -eq 0 ]; then
-                if [ "$selected_codex" -eq 1 ]; then
-                    selected_codex=0
-                else
-                    selected_codex=1
-                fi
-            else
-                if [ "$selected_claude" -eq 1 ]; then
-                    selected_claude=0
-                else
-                    selected_claude=1
-                fi
-            fi
-            printf '\033[3A\r' > /dev/tty
-            draw_prompt
-            continue
-        fi
-
-        if [ "$c" = "$ESC" ]; then
-            dd bs=1 count=1 2>/dev/null < /dev/tty > /dev/null 2>&1
-            c3=$(dd bs=1 count=1 2>/dev/null < /dev/tty; printf .)
-            c3=${c3%.}
-            case "$c3" in
-                A) [ "$current" -gt 0 ] && current=$((current - 1)) ;;
-                B) [ "$current" -lt 1 ] && current=$((current + 1)) ;;
-            esac
-            printf '\033[3A\r' > /dev/tty
-            draw_prompt
-        fi
-    done
-
-    cleanup_prompt
-    printf '\n\n' > /dev/tty
-
+detect_installed_agents() {
     RESULT=""
-    if [ "$selected_codex" -eq 1 ]; then
+
+    if [ -d "${CODEX_HOME:-$HOME/.codex}" ] || [ -f "$HOME/.codex/config.toml" ]; then
         RESULT="codex"
     fi
-    if [ "$selected_claude" -eq 1 ]; then
+
+    if [ -d "$HOME/.claude" ]; then
         if [ -n "$RESULT" ]; then
             RESULT="${RESULT} claude"
         else
@@ -247,6 +166,26 @@ prompt_agent_selection() {
     fi
 
     printf '%s\n' "$RESULT"
+}
+
+prompt_agent_selection() {
+    printf '\nInstall the YuzuDraw draw skill for:\n' > /dev/tty
+    printf '  1) Codex\n' > /dev/tty
+    printf '  2) Claude\n' > /dev/tty
+    printf '  3) Both\n' > /dev/tty
+    printf '  4) Skip skill installation\n' > /dev/tty
+    printf 'Selection [3]: ' > /dev/tty
+
+    if ! IFS= read -r SELECTION < /dev/tty; then
+        printf '\n'
+        return
+    fi
+
+    if [ -z "$SELECTION" ]; then
+        SELECTION="3"
+    fi
+
+    normalize_agent_selection "$SELECTION"
 }
 
 normalize_agent_selection() {
@@ -341,20 +280,87 @@ install_agent_skills() {
                 ;;
         esac
 
-        install_skill "$TARGET_ROOT" "diagram"
-        install_skill "$TARGET_ROOT" "bar-chart"
+        install_draw_skill "$TARGET_ROOT"
     done
 }
 
-install_skill() {
+install_draw_skill() {
     TARGET_ROOT=$1
-    SKILL_NAME=$2
-    TARGET_DIR="${TARGET_ROOT}/${SKILL_NAME}"
-    SKILL_URL="${RAW_BASE_URL}/skills/${SKILL_NAME}/SKILL.md"
+    TARGET_DIR="${TARGET_ROOT}/draw"
 
-    echo "Installing ${SKILL_NAME} skill to ${TARGET_DIR}..."
+    echo "Installing draw skill to ${TARGET_DIR}..."
     mkdir -p "$TARGET_DIR"
-    curl -fsSL "$SKILL_URL" -o "${TARGET_DIR}/SKILL.md"
+    mkdir -p "${TARGET_DIR}/references"
+
+    curl -fsSL "${RAW_BASE_URL}/skills/draw/SKILL.md" -o "${TARGET_DIR}/SKILL.md"
+
+    for REFERENCE_FILE in $DRAW_REFERENCE_FILES; do
+        curl -fsSL "${RAW_BASE_URL}/skills/draw/references/${REFERENCE_FILE}" \
+            -o "${TARGET_DIR}/references/${REFERENCE_FILE}"
+    done
+}
+
+uninstall() {
+    echo "Removing ${BIN_NAME}..."
+    remove_cli
+    remove_agent_skill "${CODEX_HOME:-$HOME/.codex}/skills"
+    remove_agent_skill "$HOME/.claude/skills"
+    remove_path_entry
+
+    echo ""
+    echo "YuzuDraw CLI and draw skill uninstalled."
+}
+
+remove_cli() {
+    CLI_PATH="${INSTALL_DIR}/${BIN_NAME}"
+
+    if [ -f "$CLI_PATH" ]; then
+        rm -f "$CLI_PATH"
+        echo "Removed ${CLI_PATH}"
+    else
+        echo "CLI not found at ${CLI_PATH}"
+    fi
+
+    if [ -d "$INSTALL_DIR" ] && [ -z "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
+        rmdir "$INSTALL_DIR" 2>/dev/null || true
+    fi
+}
+
+remove_agent_skill() {
+    TARGET_ROOT=$1
+    TARGET_DIR="${TARGET_ROOT}/draw"
+
+    if [ -d "$TARGET_DIR" ]; then
+        rm -rf "$TARGET_DIR"
+        echo "Removed ${TARGET_DIR}"
+    fi
+
+    if [ -d "$TARGET_ROOT" ] && [ -z "$(ls -A "$TARGET_ROOT" 2>/dev/null)" ]; then
+        rmdir "$TARGET_ROOT" 2>/dev/null || true
+    fi
+}
+
+remove_path_entry() {
+    SHELL_NAME=$(basename "${SHELL:-/bin/zsh}")
+    case "$SHELL_NAME" in
+        zsh)  PROFILE="$HOME/.zshrc" ;;
+        bash) PROFILE="$HOME/.bash_profile" ;;
+        *)    PROFILE="$HOME/.profile" ;;
+    esac
+
+    if [ ! -f "$PROFILE" ]; then
+        return
+    fi
+
+    TMP_PROFILE=$(mktemp)
+    awk -v install_dir="$INSTALL_DIR" '
+        $0 == "# YuzuDraw CLI" { skip_next = 1; changed = 1; next }
+        skip_next && $0 == "export PATH=\"" install_dir ":$PATH\"" { skip_next = 0; next }
+        skip_next { skip_next = 0 }
+        { print }
+        END { if (changed) exit 0; exit 0 }
+    ' "$PROFILE" > "$TMP_PROFILE"
+    mv "$TMP_PROFILE" "$PROFILE"
 }
 
 format_agent_list() {

@@ -10,6 +10,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
     "astro": "^5.5.0",
+    "embla-carousel": "^8.6.0",
     "tailwindcss": "^4.2.1"
   }
 }
