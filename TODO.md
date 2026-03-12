@@ -8,7 +8,6 @@
 - [ ] selecting a full group in object pane doesn't allow for deleting it with "delete" button
 - [ ] diagrams tend to have arrows that are cut off in negative x axis. simple fix is to just always start with a bit of room from top/left sides
 - [ ] use a CLI library instead of hardcoding it
-- [ ] clicking on canvas sometimes doesnt remove highlight box from previous selection
 
 ## Core Features
 

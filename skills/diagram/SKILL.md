@@ -10,11 +10,13 @@ When the user invokes `/diagram <description>`, create a diagram using the YuzuD
 
 ## Workflow
 
-1. Parse the user's description to determine what kind of diagram to create
-2. Write YuzuDraw DSL text following the syntax reference below
-3. Save the DSL to a temporary file (for example `/tmp/diagram.dsl`)
-4. Run `./scripts/yuzudraw-cli.sh create-diagram --name "<name>" --dsl-file /tmp/diagram.dsl`
-5. The CLI writes a `.yuzudraw` file and returns the ASCII render
+1. Check whether `yuzudraw-cli` is installed (`command -v yuzudraw-cli`).
+2. If missing, prompt the user to install it by running `curl -fsSL https://www.yuzudraw.com/install.sh | sh`, then stop until they confirm installation.
+3. Parse the user's description to determine what kind of diagram to create.
+4. Write YuzuDraw DSL text following the syntax reference below.
+5. Save the DSL to a temporary file (for example `/tmp/diagram.dsl`).
+6. Run `yuzudraw-cli create-diagram --name "<name>" --dsl-file /tmp/diagram.dsl`.
+7. The CLI writes a `.yuzudraw` file and returns the ASCII render.
 
 For updates, use `update-diagram`. To read back user edits, use `get-diagram`.
 

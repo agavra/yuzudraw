@@ -10,12 +10,14 @@ When the user invokes `/bar-chart <description>`, create a horizontal bar chart 
 
 ## Workflow
 
-1. Parse the user's description to extract data (labels, values, optional segments)
-2. Compute layout variables from the data (see below)
-3. Write YuzuDraw DSL following the bar chart pattern
-4. Save the DSL to a temporary file (for example `/tmp/bar-chart.dsl`)
-5. Run `./scripts/yuzudraw-cli.sh create-diagram --name "<name>" --dsl-file /tmp/bar-chart.dsl`
-6. The chart is written to a `.yuzudraw` file and the ASCII render is returned
+1. Check whether `yuzudraw-cli` is installed (`command -v yuzudraw-cli`).
+2. If missing, prompt the user to install it by running `curl -fsSL https://www.yuzudraw.com/install.sh | sh`, then stop until they confirm installation.
+3. Parse the user's description to extract data (labels, values, optional segments).
+4. Compute layout variables from the data (see below).
+5. Write YuzuDraw DSL following the bar chart pattern.
+6. Save the DSL to a temporary file (for example `/tmp/bar-chart.dsl`).
+7. Run `yuzudraw-cli create-diagram --name "<name>" --dsl-file /tmp/bar-chart.dsl`.
+8. The chart is written to a `.yuzudraw` file and the ASCII render is returned.
 
 For updates, use `update-diagram`. To read back user edits, use `get-diagram`.
 

@@ -137,7 +137,7 @@ jobs:
             -srcfolder build/dmg \
             -ov \
             -format UDZO \
-            "build/YuzuDraw-${VERSION}-universal.dmg"
+            "build/YuzuDraw-universal.dmg"
 
       - name: Sign DMG
         env:
@@ -145,7 +145,7 @@ jobs:
         run: |
           codesign --force --sign \
             "${{ secrets.CODE_SIGN_IDENTITY }}" \
-            build/YuzuDraw-*.dmg
+            build/YuzuDraw-universal.dmg
 
       - name: Notarize DMG
         env:
@@ -153,7 +153,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          xcrun notarytool submit build/YuzuDraw-*.dmg \
+          xcrun notarytool submit build/YuzuDraw-universal.dmg \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_PASSWORD" \
@@ -167,7 +167,7 @@ jobs:
                 developer_log.json 2>/dev/null && cat developer_log.json || true
               exit 1
             }
-          xcrun stapler staple build/YuzuDraw-*.dmg
+          xcrun stapler staple build/YuzuDraw-universal.dmg
 
       - name: Clean up keychain
         if: always()
@@ -177,7 +177,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: app-dmg
-          path: build/YuzuDraw-*-universal.dmg
+          path: build/YuzuDraw-universal.dmg
 
   release:
     needs: [build-cli, build-app]
