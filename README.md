@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <b>A native macOS editor for creating ASCII diagrams.</b><br/>
-  Draw boxes, arrows, and text on a character grid — export as plain text.<br/>
+  <b>A macOS-native ASCII diagram editor with an agent skill.</b><br/>
+  Let Codex or Claude generate your diagrams, then refine them on a visual canvas.<br/>
   <a href="https://www.yuzudraw.com">www.yuzudraw.com</a>
 </p>
 
@@ -18,107 +18,89 @@
 
 ## Why YuzuDraw?
 
-ASCII diagrams live in code comments, markdown docs, and terminal output — but creating them by hand is tedious. YuzuDraw gives you a real diagram editor that outputs plain text. Draw with your mouse, export as characters.
+ASCII diagrams work well in docs, terminals, code comments, and agent workflows because they are lightweight, portable, and readable as plain text. YuzuDraw enables agents to generate ASCII diagrams and then for humans to modify and tweak them until they are perfect.
 
-It also ships with a built-in **CLI**, so agents can create and edit diagrams programmatically without an MCP server.
+It ships with a CLI and a unified `/draw` skill, so you can prompt an agent to generate a diagram, open the result in YuzuDraw, and keep refining it visually.
 
 ## Download
 
-Grab the latest `.dmg` from the [Releases](../../releases) page — universal binary for Apple Silicon and Intel.
+Grab the latest `.dmg` from the [Releases](https://github.com/agavra/yuzudraw/releases) page — universal binary for Apple Silicon and Intel.
 
 Or build from source (see [below](#building-from-source)).
 
+## Quickstart
+
+1. Download YuzuDraw from [Releases](https://github.com/agavra/yuzudraw/releases).
+2. Install the CLI and draw skill:
+   ```bash
+   curl -fsSL https://www.yuzudraw.com/install.sh | sh
+   ```
+3. Prompt your agent:
+   ```
+   /draw a flow chart for request validation, retry on fix, then processing and done
+   ```
+4. Open the generated `.yuzudraw` file in the app and keep editing on the canvas.
+
+The installer can add the `draw` skill for Codex and/or Claude and installs `yuzudraw-cli` locally.
+
 ## Features
 
-### Drawing tools
-- **Rectangles** with configurable borders (single, double, rounded, heavy), fill patterns, dashed lines, and drop shadows
-- **Arrows** with orthogonal routing, smart bend directions, and 8 head styles (filled, open, dot, diamond, and more)
-- **Text** — free-form labels placed anywhere on the canvas
-- **Pencil** — pixel-level freeform drawing, one character at a time
+### Prompt to canvas
+- Generate diagrams through the `draw` skill and `yuzudraw-cli`
+- Refine AI-generated output on a native visual canvas
+- Export as plain ASCII text, PNG, or SVG
+- Copy diagrams directly to the clipboard
 
-### Editing
-- **Arrow attachments** — arrows snap to rectangle sides and follow them when you move shapes
-- **Inspector panel** — fine-tune position, size, text alignment, padding, border styles, fill, shadows, and colors
-- **Inline text editing** — double-click any shape to edit its label
-- **Undo / Redo** — full history for every change
+### Drawing and editing
+- Rectangles with configurable borders, fill patterns, dashed lines, and shadows
+- Arrows with orthogonal routing, attachments, bend control, and multiple head styles
+- Text labels and freeform pencil drawing
+- Inline editing, inspector controls, undo/redo, and multi-tab workspace
 
 ### Organization
-- **Layers** — visibility and lock toggles, drag-and-drop reorder
-- **Groups** — nest shapes hierarchically with Cmd+G
-- **Multi-tab workspace** — work on multiple diagrams side-by-side with auto-save
+- Layers with visibility, lock toggles, and drag-and-drop reordering
+- Grouping for related shapes and hierarchical structure
+- Auto-save and file-based projects stored as `.yuzudraw`
 
-### AI integration (CLI)
-YuzuDraw includes a CLI (`YuzuDrawCLI`) for agent workflows. Claude Code can:
-- **Create diagrams** from a text description via `/diagram`
-- **Read back** your manual edits
-- **Update** existing diagrams in-place
-- **Preview** ASCII output without saving
+## CLI and Skill
 
-See [Claude Code integration](#claude-code-integration) for setup.
+YuzuDraw includes a CLI (`yuzudraw-cli`) for agent workflows and a unified `/draw` skill for architecture diagrams, component diagrams, flow charts, bar charts, and ASCII art.
+
+Core commands:
+
+```bash
+yuzudraw-cli create-diagram --name <name> --dsl-stdin
+yuzudraw-cli update-diagram --name <name> --dsl-stdin
+yuzudraw-cli get-diagram --name <name> --format both
+yuzudraw-cli list-diagrams
+yuzudraw-cli render-ascii --dsl-stdin
+```
+
+See [skills/draw/SKILL.md](skills/draw/SKILL.md) for the current skill workflow and invocation rules.
 
 ## DSL format
 
-Diagrams can be authored in a human-readable DSL:
+YuzuDraw diagrams can be described in a compact DSL used by the CLI and agent skill.
+This format supports all builtin YuzuDraw functionality.
 
-```
-layer "Default" visible
-  rectangle "Client" at 2,2 size 16x5 style rounded
-  rectangle "Server" at 28,2 size 16x5 style rounded
-  arrow from "Client".right to "Server".left label "request"
-  arrow from "Server".left to "Client".right label "response"
-```
-
-Produces:
-
-```
-  ╭──────────────╮          ╭──────────────╮
-  │              │ request  │              │
-  │    Client    │─────────>│    Server    │
-  │              │<─────────│              │
-  │              │ response │              │
-  ╰──────────────╯          ╰──────────────╯
+```text
+layer "Diagram" visible
+  rect "Agent" id agent at 2,2 size 14x3 style rounded
+  rect "DSL" id dsl right-of agent gap 6 size 14x3
+  rect "Canvas" id canvas right-of dsl gap 6 size 14x3 style double
+  arrow from agent.right to dsl.left label "prompt"
+  arrow from dsl.right to canvas.left label "open"
 ```
 
-The DSL supports all shape types, properties, layers, groups, and colors. See [`skills/diagram/SKILL.md`](skills/diagram/SKILL.md) for the full syntax reference.
+Example rendered output:
 
-## Keyboard shortcuts
+```text
+  ╭────────────╮      ┌────────────┐      ╔════════════╗
+  │   Agent    ├prompt▶    DSL     ├open──▶   Canvas   ║
+  ╰────────────╯      └────────────┘      ╚════════════╝
+```
 
-| Shortcut | Action |
-|---|---|
-| **V** / **R** / **L** / **T** / **P** / **H** | Selection / Rectangle / Arrow / Text / Pencil / Hand tool |
-| **Cmd+N** | New project |
-| **Cmd+O** | Open project |
-| **Cmd+S** | Save |
-| **Cmd+Shift+S** | Save as |
-| **Cmd+Shift+R** | Reload from disk |
-| **Cmd+W** | Close tab |
-| **Cmd+G** | Group selected shapes |
-| **Cmd+A** | Select all |
-| **Delete** | Delete selected |
-| **Arrow keys** | Nudge selected shapes |
-| **Escape** | Deselect all |
-| **Double-click** | Edit shape text inline |
-
-## Claude Code integration
-
-1. **Install the skill** (one-time):
-   ```bash
-   mkdir -p ~/.claude/skills/diagram
-   ln -sf "$(pwd)/skills/diagram/SKILL.md" ~/.claude/skills/diagram/SKILL.md
-   ```
-
-2. **Build the CLI**:
-   ```bash
-   xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawCLI -configuration Debug build
-   ```
-
-3. **Use `/diagram` in Claude Code**:
-   ```
-   /diagram a 3-tier web architecture with load balancer, app servers, and database
-   ```
-
-The CLI exposes five commands: `create-diagram`, `update-diagram`, `get-diagram`, `list-diagrams`, and `render-ascii`.
-You can run them with `./scripts/yuzudraw-cli.sh`.
+See [YUZUDSL.md](YUZUDSL.md) for the current syntax reference.
 
 ## Building from source
 
@@ -128,8 +110,11 @@ You can run them with `./scripts/yuzudraw-cli.sh`.
 # Generate the Xcode project
 xcodegen generate
 
-# Build
+# Build app
 xcodebuild -scheme YuzuDraw -destination 'platform=macOS' build
+
+# Build CLI
+xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawCLI -configuration Debug build
 
 # Run tests
 xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
@@ -141,13 +126,13 @@ Or open `YuzuDraw.xcodeproj` in Xcode and hit Run.
 
 MVVM with Swift 6 strict concurrency. The rendering pipeline:
 
-```
-Document (shapes, layers) → RenderEngine → Canvas (2D char grid) → SwiftUI Text
+```text
+Document (shapes, layers) -> RenderEngine -> Canvas (2D char grid) -> SwiftUI Text
 ```
 
-The canvas is a character buffer — shapes are always the source of truth and the full grid is re-rendered on each mutation.
+The canvas is a character buffer. Shapes remain the source of truth and the full grid is re-rendered on each mutation.
 
-```
+```text
 YuzuDraw/
 ├── App/             # Entry point and menu commands
 ├── Models/          # Document, shapes, geometry, canvas grid
@@ -158,12 +143,12 @@ YuzuDraw/
 ├── Automation/      # Shared automation service used by CLI
 └── Resources/       # Assets, entitlements, Info.plist
 YuzuDrawCLI/
-└── main.swift       # CLI entrypoint and command parsing
+└── YuzuDrawCLI.swift # CLI entrypoint and command parsing
 ```
 
 ## Support YuzuDraw
 
-YuzuDraw is free and open source. If you find it useful, please consider [sponsoring the project](https://github.com/sponsors/agavra) — it helps cover the Apple Developer license and keeps development going.
+YuzuDraw is free and open source. If you find it useful, please consider [sponsoring the project](https://github.com/sponsors/agavra),  it helps cover the Apple Developer license and keeps development going!
 
 ## License
 
