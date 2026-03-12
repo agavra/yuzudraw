@@ -4,20 +4,32 @@ Use this reference for modules, services, interfaces, and internal product struc
 
 ## Defaults
 
-- Use `style double` for the main enclosing boundary when a container is helpful.
-- Use `style single` for internal modules and repeated component tiles.
+- Use `style double` for the main enclosing boundary.
+- Use `style single` for service/module components.
+- Use `fill solid char "▒"` or `fill solid char "█"` for data stores (databases, caches, queues, logs) to distinguish them from active services.
+- Use `textOnBorder` for container labels — put the label as the rect's own text (e.g., `rect "Platform" ... textOnBorder`), not as a separate `text` element.
+- Use `shadow light` on the outermost boundary for depth.
 - Use borderless filled rectangles for dense internals or repeated structure.
-- Prefer compact labels placed outside or above dense structures when interior text would collide.
-- Prefer repeated tiles when the important idea is multiplicity, partitioning, or composition.
-- Use shading deliberately. Structure comes first.
+- Default to unlabeled arrows unless the label adds information the reader would otherwise miss. When labels help (read, write, query), use them.
+
+## Visual Distinction Rule
+
+A component diagram should make it immediately obvious which elements are **containers**, which are **services**, and which are **data stores**:
+
+| Element type | Border | Fill | Notes |
+|---|---|---|---|
+| Outer boundary | `style double` | none | Use `textOnBorder` for label |
+| Inner sub-boundary | `style double` or `style heavy` | none | For grouping related components |
+| Service / module | `style single` | none | Active processing components |
+| Data store (DB, cache, WAL, queue) | `style heavy` or `style double` | `fill solid char "▒"` | Passive storage |
+| External system | `style rounded` | none | Outside the boundary |
 
 ## Layout Heuristics
 
-- Arrange components so the dependency direction is obvious.
+- Arrange components so the dependency direction is obvious (top-to-bottom or left-to-right).
 - Keep peers aligned in rows or columns with even spacing.
-- Use one level of containment at a time unless nested structure is necessary.
+- Group related components in sub-boundaries when there are 2+ logical tiers (e.g., services vs data stores). This is important — when a diagram has both services and data stores, wrap the data stores in a "Data Layer" sub-boundary.
 - Distinguish outside elements from internal components by placement and border weight.
-- Default to unlabeled arrows unless the label adds information the reader would otherwise miss.
 - For dense internals, move labels outside the box or into captions rather than writing through the component.
 - When showing many homogeneous internals, use repeated tiles instead of fully labeled boxes.
 
@@ -25,25 +37,34 @@ Many component diagrams should stay simple: a few named components inside one or
 
 ## Patterns
 
-### Components inside a framed subsystem
+### Service pipeline with data stores
 ```dsl
-rect "App" id app at 2,1 size 64x16 style double
-rect "Frontend" id fe at 5,4 style rounded
-rect "API" id api right-of fe gap 10
-rect "Worker" id worker below api gap 3
-rect "Project File" id file below fe gap 3 style double
-arrow from fe to api
-arrow from api.left to file.right
-arrow from api.bottom to worker.top
+rect "Platform" id platform at 2,1 size 76x24 style double textOnBorder shadow light
+
+rect "Ingestion" id ingest at 6,4
+rect "Processor" id proc below ingest gap 3
+rect "Query API" id query at 50,16
+
+rect "Data Layer" id datalayer at 30,3 size 40x12 style double textOnBorder
+rect "WAL" id wal at 34,6 size 32x3 style heavy fill solid char "▒"
+rect "Index" id idx at 34,10 size 32x3 style heavy fill solid char "▒"
+
+arrow from ingest.right to wal.left label "write"
+arrow from proc.right to idx.left label "write"
+arrow from wal.left to proc.right label "read"
+arrow from idx.right to query.left label "read"
 ```
 
-### Public API vs internals
+### Components inside a framed subsystem
 ```dsl
-rect "Public API" id public at 2,1
-rect "Core Engine" id core below public
-rect "Plugin Host" id plugins right-of core gap 6
-arrow from public to core
-arrow from plugins to core
+rect "App" id app at 2,1 size 64x16 style double textOnBorder shadow light
+rect "Frontend" id fe at 5,4
+rect "API" id api right-of fe gap 10
+rect "Worker" id worker below api gap 3
+rect "Config Store" id config below fe gap 3 fill solid char "▒"
+arrow from fe to api
+arrow from api.left to config.right
+arrow from api.bottom to worker.top
 ```
 
 ### Dense tiled internals
@@ -51,7 +72,7 @@ arrow from plugins to core
 text "Source" at 33,1
 rect "" id input at 35,2 size 7x3 fill solid char "█"
 text "entry path" at 2,5
-rect "" id frame at 2,8 size 54x6 style double
+rect "" id frame at 2,8 size 54x6 style double textOnBorder
 rect "" id c1 at 4,9 size 7x3 fill solid char "█"
 rect "" id c2 right-of c1 gap 2 size 7x3 fill solid char "█"
 rect "" id c3 right-of c2 gap 2 size 7x3 fill solid char "█"
@@ -65,10 +86,24 @@ rect "" id shade at frame.right,8 size 2x6 fill solid char "░" noborder
 rect "" id base at 3,14 size 55x1 fill solid char "░" noborder
 ```
 
-## Don’ts
+### Public API with external consumers
+```dsl
+rect "External" id ext at 2,1 style rounded
+rect "System" id sys at 2,6 size 60x14 style double textOnBorder shadow light
+rect "Public API" id api at 6,9 style heavy
+rect "Core Engine" id core right-of api gap 8
+rect "State Store" id store below core gap 3 fill solid char "▒"
+arrow from ext.bottom to api.top
+arrow from api to core
+arrow from core.bottom to store.top
+```
+
+## Don'ts
 
 - Do not turn a component diagram into a deployment map.
 - Do not write labels through dense internals.
 - Do not show every implementation detail. Prefer the smallest useful set of components.
 - Do not flatten everything into rounded boxes when repeated tiles or structural mass would read better.
 - Do not force repeated tiles onto simple dependency diagrams.
+- Do not make data stores visually identical to services — use fill or heavier borders to distinguish them.
+- Do not use a single flat container when the diagram has distinct logical layers (services, data, external) — use nested sub-boundaries.

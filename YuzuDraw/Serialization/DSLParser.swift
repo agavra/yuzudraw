@@ -252,9 +252,14 @@ enum DSLParser {
         if let textOnBorderRange = line.range(of: " textOnBorder ") {
             let value = String(
                 line[textOnBorderRange.upperBound...].prefix(while: { !$0.isWhitespace }))
-            allowTextOnBorder = value == "true"
+            if value == "false" {
+                allowTextOnBorder = false
+            } else {
+                // "true" or any non-boolean token (bare flag followed by next keyword)
+                allowTextOnBorder = true
+            }
         } else if line.contains(" textOnBorder") {
-            // Bare textOnBorder flag (no value) means true
+            // Bare textOnBorder flag at end of line means true
             allowTextOnBorder = true
         }
 

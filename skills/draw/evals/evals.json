@@ -1,0 +1,48 @@
+{
+  "skill_name": "draw",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Draw an architecture diagram of a web application with a load balancer distributing traffic to 3 API servers, which all connect to a shared PostgreSQL database and a Redis cache cluster",
+      "expected_output": "An architecture diagram showing a load balancer, 3 API server nodes in a region/group, a database, and a Redis cache. Should use strong borders for region boundaries, repeated nodes for the API servers, and clear directional arrows.",
+      "assertions": [
+        "The diagram renders successfully with render-ascii",
+        "There are exactly 3 API server nodes visible as distinct boxes",
+        "A load balancer node is present",
+        "The API servers are visually grouped together (in a region or aligned row/column)",
+        "Arrows show the flow direction from LB to servers and from servers to data stores",
+        "The database and cache are visually distinct from the API servers",
+        "Region boundaries use double or heavy border style",
+        "The diagram uses at least 2 different border styles to show hierarchy"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Create a component diagram showing a data pipeline: an ingestion service reads from an S3 bucket, writes to a WAL (write-ahead log), then 2 indexer workers process the WAL and write to an index store. A query service reads from the index store. Show everything inside an 'Analytics Platform' boundary.",
+      "expected_output": "A component diagram with clear containment boundaries, showing the data flow from S3 through ingestion, WAL, indexers, index store, and query service. Should use nested containers and filled blocks for data stores.",
+      "assertions": [
+        "The diagram renders successfully with render-ascii",
+        "An outer boundary labeled 'Analytics Platform' or similar is present",
+        "S3 bucket / external storage is shown outside or at the edge of the platform",
+        "The WAL and index store use filled rectangles or shading to distinguish them from services",
+        "There are exactly 2 indexer worker nodes",
+        "Arrows clearly show the data flow direction",
+        "The diagram uses nested containers (at least 2 levels of containment)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Draw a cloud architecture diagram with 2 regions: US-East and EU-West. Each region has a CDN edge, an API gateway, and a cluster of 2 application servers. Both regions connect to a central global database with replication arrows between the regions.",
+      "expected_output": "A multi-region architecture diagram with two clearly labeled region boundaries, each containing CDN, API gateway, and 2 app servers. A central database connects both regions. Should use shadows on regions and clear labels on borders.",
+      "assertions": [
+        "The diagram renders successfully with render-ascii",
+        "Two distinct region boundaries are visible, labeled US-East and EU-West or similar",
+        "Each region contains a CDN, API gateway, and 2 application server nodes",
+        "A central/shared database is positioned between or below the regions",
+        "Arrows connect the regions to the central database",
+        "Region boundaries use double or heavy borders to distinguish from inner components",
+        "Inner components use single or lighter borders than the region boundary"
+      ]
+    }
+  ]
+}
