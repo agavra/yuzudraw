@@ -3,15 +3,15 @@ import Foundation
 final class TextTool: Tool, @unchecked Sendable {
     let toolType: ToolType = .text
 
-    func mouseDown(at _: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDown(at _: GridPoint, in _: Document) -> ToolAction {
         .none
     }
 
-    func mouseDragged(to _: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDragged(to _: GridPoint, in _: Document) -> ToolAction {
         .none
     }
 
-    func mouseUp(at point: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseUp(at point: GridPoint, in _: Document) -> ToolAction {
         .beginTextEdit(point)
     }
 

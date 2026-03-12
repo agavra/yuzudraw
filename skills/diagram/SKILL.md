@@ -19,11 +19,6 @@ For updates, use `update_diagram`. To read back user edits, use `get_diagram`.
 
 ## DSL Syntax Reference
 
-### Layer header
-```
-layer "Layer Name" visible|hidden [locked]
-```
-
 ### Rectangle
 ```
 rect "Label" [id NAME] [at POSITION] [size WxH] [PROPERTIES...]
@@ -100,10 +95,9 @@ Supports reference coordinates: `pencil at container.left+9,0 cells [...]`
 
 ### Groups
 ```
-layer "Layer 1" visible
-  group "Group Name"
-    rect "A"
-    rect "B" right-of "A"
+group "Group Name"
+  rect "A"
+  rect "B" right-of "A"
 ```
 
 ## Layout Heuristics
@@ -121,42 +115,38 @@ layer "Layer 1" visible
 
 **Horizontal flow:**
 ```
-layer "Diagram" visible
-  rect "Input"
-  rect "Process" right-of "Input"
-  rect "Output" right-of "Process"
-  arrow from "Input" to "Process"
-  arrow from "Process" to "Output"
+rect "Input"
+rect "Process" right-of "Input"
+rect "Output" right-of "Process"
+arrow from "Input" to "Process"
+arrow from "Process" to "Output"
 ```
 
 **Vertical stack:**
 ```
-layer "Diagram" visible
-  rect "Frontend" style rounded
-  rect "API" below "Frontend"
-  rect "Database" below "API" style double
-  arrow from "Frontend" to "API" label "HTTP"
-  arrow from "API" to "Database" label "SQL"
+rect "Frontend" style rounded
+rect "API" below "Frontend"
+rect "Database" below "API" style double
+arrow from "Frontend" to "API" label "HTTP"
+arrow from "API" to "Database" label "SQL"
 ```
 
 **Architecture diagram:**
 ```
-layer "Diagram" visible
-  rect "Client" style rounded
-  rect "Server" right-of "Client"
-  rect "Cache" at "Server".bottom+0,2
-  arrow from "Client" to "Server" label "request"
-  arrow from "Server" to "Cache" label "read"
+rect "Client" style rounded
+rect "Server" right-of "Client"
+rect "Cache" at "Server".bottom+0,2
+arrow from "Client" to "Server" label "request"
+arrow from "Server" to "Cache" label "read"
 ```
 
 **Bidirectional connections:**
 ```
-layer "Diagram" visible
-  rect "Client" style rounded
-  rect "Server" right-of "Client"
-  rect "Cache" at "Server".bottom+0,2
-  arrow from "Client".right to "Server".left label "request"
-  arrow from "Server".bottom to "Cache".top label "read"
+rect "Client" style rounded
+rect "Server" right-of "Client"
+rect "Cache" at "Server".bottom+0,2
+arrow from "Client".right to "Server".left label "request"
+arrow from "Server".bottom to "Cache".top label "read"
 ```
 
 ## Tips

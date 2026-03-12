@@ -4,70 +4,58 @@ import Testing
 @testable import YuzuDraw
 
 struct LayerTests {
-    @Test func should_create_layer_with_defaults() {
-        // given/when
-        let layer = Layer(name: "Test Layer")
-
-        // then
-        #expect(layer.name == "Test Layer")
-        #expect(layer.isVisible)
-        #expect(!layer.isLocked)
-        #expect(layer.shapes.isEmpty)
-        #expect(layer.groups.isEmpty)
-    }
-
-    @Test func should_add_shape_to_layer() {
+    @Test func should_add_shape_to_document() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
 
         // when
-        layer.addShape(.rectangle(rectangle))
+        doc.addShape(.rectangle(rectangle))
 
         // then
-        #expect(layer.shapes.count == 1)
-        #expect(layer.shapes[0].id == rectangle.id)
+        #expect(doc.shapes.count == 1)
+        #expect(doc.shapes[0].id == rectangle.id)
     }
 
-    @Test func should_remove_shape_from_layer() {
+    @Test func should_remove_shape_from_document() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rectangle))
+        doc.addShape(.rectangle(rectangle))
 
         // when
-        layer.removeShape(id: rectangle.id)
+        doc.removeShape(id: rectangle.id)
 
         // then
-        #expect(layer.shapes.isEmpty)
+        #expect(doc.shapes.isEmpty)
     }
 
-    @Test func should_remove_shape_from_groups_when_removed_from_layer() {
+    @Test func should_remove_shape_from_groups_when_removed_from_document() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rectangle))
-        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rectangle.id]))
+        doc.addShape(.rectangle(rectangle))
+        doc.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rectangle.id]))
 
         // when
-        layer.removeShape(id: rectangle.id)
+        doc.removeShape(id: rectangle.id)
 
         // then
-        #expect(layer.groups.isEmpty)
+        #expect(doc.groups.isEmpty)
     }
 
-    @Test func should_remove_shape_from_nested_groups_when_removed_from_layer() {
+    @Test func should_remove_shape_from_nested_groups_when_removed_from_document() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
@@ -76,45 +64,45 @@ struct LayerTests {
             origin: GridPoint(column: 10, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(
             name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
-        layer.groups.append(outerGroup)
+        doc.groups.append(outerGroup)
 
         // when
-        layer.removeShape(id: rect1.id)
+        doc.removeShape(id: rect1.id)
 
         // then
-        #expect(layer.shapes.count == 1)
-        #expect(layer.groups[0].children.isEmpty)
-        #expect(layer.groups[0].shapeIDs == [rect2.id])
+        #expect(doc.shapes.count == 1)
+        #expect(doc.groups[0].children.isEmpty)
+        #expect(doc.groups[0].shapeIDs == [rect2.id])
     }
 
     @Test func should_remove_group_when_all_nested_shapes_are_removed() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect1))
         let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [], children: [innerGroup])
-        layer.groups.append(outerGroup)
+        doc.groups.append(outerGroup)
 
         // when
-        layer.removeShape(id: rect1.id)
+        doc.removeShape(id: rect1.id)
 
         // then
-        #expect(layer.shapes.isEmpty)
-        #expect(layer.groups.isEmpty)
+        #expect(doc.shapes.isEmpty)
+        #expect(doc.groups.isEmpty)
     }
 
     @Test func should_compute_ungrouped_shapes() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
@@ -127,13 +115,13 @@ struct LayerTests {
             origin: GridPoint(column: 20, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
-        layer.addShape(.rectangle(rect3))
-        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
+        doc.addShape(.rectangle(rect3))
+        doc.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
 
         // when
-        let ungrouped = layer.ungroupedShapes
+        let ungrouped = doc.ungroupedShapes
 
         // then
         #expect(ungrouped.count == 1)
@@ -142,7 +130,7 @@ struct LayerTests {
 
     @Test func should_remove_group_when_removeShapesFromGroups_removes_all_members() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
@@ -151,15 +139,15 @@ struct LayerTests {
             origin: GridPoint(column: 10, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
-        layer.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
+        doc.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
 
         // when
-        layer.removeShapesFromGroups(ids: [rect1.id, rect2.id])
+        doc.removeShapesFromGroups(ids: [rect1.id, rect2.id])
 
         // then
-        #expect(layer.groups.isEmpty)
+        #expect(doc.groups.isEmpty)
     }
 
     @Test func should_compute_allShapeIDs_recursively() {
@@ -185,15 +173,15 @@ struct LayerTests {
 
     @Test func should_find_shape_by_id() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3)
         )
-        layer.addShape(.rectangle(rectangle))
+        doc.addShape(.rectangle(rectangle))
 
         // when
-        let found = layer.findShape(id: rectangle.id)
+        let found = doc.findShape(id: rectangle.id)
 
         // then
         #expect(found != nil)
@@ -202,50 +190,50 @@ struct LayerTests {
 
     @Test func should_find_root_group_containing_shape() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
         let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 5, height: 3))
         let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 5, height: 3))
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
-        layer.addShape(.rectangle(rect3))
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
+        doc.addShape(.rectangle(rect3))
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
-        layer.groups.append(group)
+        doc.groups.append(group)
 
         // when/then
-        #expect(layer.findRootGroup(containingShape: rect1.id)?.id == group.id)
-        #expect(layer.findRootGroup(containingShape: rect2.id)?.id == group.id)
-        #expect(layer.findRootGroup(containingShape: rect3.id) == nil)
+        #expect(doc.findRootGroup(containingShape: rect1.id)?.id == group.id)
+        #expect(doc.findRootGroup(containingShape: rect2.id)?.id == group.id)
+        #expect(doc.findRootGroup(containingShape: rect3.id) == nil)
     }
 
     @Test func should_find_root_group_for_nested_shape() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
         let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 5, height: 3))
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
-        layer.groups.append(outerGroup)
+        doc.groups.append(outerGroup)
 
         // when/then
-        #expect(layer.findRootGroup(containingShape: rect1.id)?.id == outerGroup.id)
+        #expect(doc.findRootGroup(containingShape: rect1.id)?.id == outerGroup.id)
     }
 
     @Test func should_find_group_ancestry_for_nested_shape() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
         let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 5, height: 3))
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
-        layer.groups.append(outerGroup)
+        doc.groups.append(outerGroup)
 
         // when
-        let ancestry = layer.findGroupAncestry(containingShape: rect1.id)
+        let ancestry = doc.findGroupAncestry(containingShape: rect1.id)
 
         // then
         #expect(ancestry.count == 2)
@@ -255,12 +243,12 @@ struct LayerTests {
 
     @Test func should_return_empty_ancestry_for_ungrouped_shape() {
         // given
-        var layer = Layer(name: "Layer 1")
+        var doc = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 5, height: 3))
-        layer.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect1))
 
         // when
-        let ancestry = layer.findGroupAncestry(containingShape: rect1.id)
+        let ancestry = doc.findGroupAncestry(containingShape: rect1.id)
 
         // then
         #expect(ancestry.isEmpty)

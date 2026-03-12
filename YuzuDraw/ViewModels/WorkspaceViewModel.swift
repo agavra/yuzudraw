@@ -8,6 +8,7 @@ final class WorkspaceViewModel {
     var recentProjects: [RecentProject] = []
 
     private(set) var editors: [UUID: EditorViewModel] = [:]
+    private let fileWatcher = FileWatcher()
 
     private static let recentProjectsKey = "recentProjects"
 
@@ -99,11 +100,13 @@ final class WorkspaceViewModel {
                 tabs[tabIndex].hasUnsavedChanges = false
                 tabs[tabIndex].isStartPage = false
                 editors[activeTabID] = editor
+                startWatching(tabID: activeTabID, url: url)
             } else {
                 let tab = ProjectTab(metadata: metadata)
                 tabs.append(tab)
                 editors[tab.id] = editor
                 activeTabID = tab.id
+                startWatching(tabID: tab.id, url: url)
             }
             addToRecentProjects(metadata: metadata)
         } catch {
@@ -132,6 +135,7 @@ final class WorkspaceViewModel {
             saveTab(id: tabID)
         }
 
+        fileWatcher.stopWatching(tabID: tabID)
         tabs.remove(at: index)
         editors.removeValue(forKey: tabID)
 
@@ -150,6 +154,30 @@ final class WorkspaceViewModel {
     func switchTab(to tabID: UUID) {
         guard tabs.contains(where: { $0.id == tabID }) else { return }
         activeTabID = tabID
+    }
+
+    // MARK: - File watching
+
+    private func handleExternalChange(tabID: UUID) {
+        guard let tabIndex = tabs.firstIndex(where: { $0.id == tabID }),
+              let fileURL = tabs[tabIndex].metadata.fileURL,
+              let editor = editors[tabID]
+        else { return }
+
+        do {
+            let newDocument = try ProjectFileManager.load(from: fileURL)
+            editor.replaceDocument(newDocument)
+            tabs[tabIndex].hasUnsavedChanges = false
+            tabs[tabIndex].metadata.lastModified = Date()
+        } catch {
+            print("Failed to reload externally changed file: \(error)")
+        }
+    }
+
+    private func startWatching(tabID: UUID, url: URL) {
+        fileWatcher.watch(tabID: tabID, url: url) { [weak self] in
+            self?.handleExternalChange(tabID: tabID)
+        }
     }
 
     // MARK: - Save
@@ -175,6 +203,7 @@ final class WorkspaceViewModel {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {
+            fileWatcher.suppressNextReload(tabID: activeTabID)
             try ProjectFileManager.save(document: editor.document, to: url)
             let name = url.deletingPathExtension().lastPathComponent
             tabs[tabIndex].metadata.fileURL = url
@@ -182,6 +211,9 @@ final class WorkspaceViewModel {
             tabs[tabIndex].metadata.lastModified = Date()
             tabs[tabIndex].hasUnsavedChanges = false
             addToRecentProjects(metadata: tabs[tabIndex].metadata)
+
+            // Restart watcher for the new file
+            startWatching(tabID: activeTabID, url: url)
         } catch {
             print("Failed to save as: \(error)")
         }
@@ -192,8 +224,10 @@ final class WorkspaceViewModel {
               let tabIndex = tabs.firstIndex(where: { $0.id == tabID })
         else { return }
 
+        let isFirstSave = tabs[tabIndex].metadata.fileURL == nil
+
         // If no file URL yet, assign one on first save
-        if tabs[tabIndex].metadata.fileURL == nil {
+        if isFirstSave {
             do {
                 let url = try ProjectFileManager.uniqueFileURL(name: tabs[tabIndex].metadata.name)
                 tabs[tabIndex].metadata.fileURL = url
@@ -206,10 +240,15 @@ final class WorkspaceViewModel {
         guard let fileURL = tabs[tabIndex].metadata.fileURL else { return }
 
         do {
+            fileWatcher.suppressNextReload(tabID: tabID)
             try ProjectFileManager.save(document: editor.document, to: fileURL)
             tabs[tabIndex].metadata.lastModified = Date()
             tabs[tabIndex].hasUnsavedChanges = false
             addToRecentProjects(metadata: tabs[tabIndex].metadata)
+
+            if isFirstSave {
+                startWatching(tabID: tabID, url: fileURL)
+            }
         } catch {
             print("Failed to save: \(error)")
         }
@@ -354,6 +393,7 @@ final class WorkspaceViewModel {
             if oldURL != newURL {
                 try FileManager.default.moveItem(at: oldURL, to: newURL)
                 tabs[index].metadata.fileURL = newURL
+                startWatching(tabID: tabID, url: newURL)
                 if let recentIndex = recentProjects.firstIndex(where: { $0.fileURL == oldURL }) {
                     recentProjects[recentIndex].name = trimmed
                     recentProjects[recentIndex].fileURL = newURL

@@ -11,35 +11,12 @@ struct SelectionToolTests {
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 10, height: 5)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let action = tool.mouseDown(
             at: GridPoint(column: 7, row: 4),
-            in: doc,
-            activeLayerIndex: 0
-        )
-
-        // then
-        #expect(action == .selectShape(rectangle.id))
-    }
-
-    @Test func should_select_shape_on_locked_layer() {
-        // given
-        let tool = SelectionTool()
-        let rectangle = RectangleShape(
-            origin: GridPoint(column: 5, row: 3),
-            size: GridSize(width: 10, height: 5)
-        )
-        let doc = Document(layers: [
-            Layer(name: "Locked", isLocked: true, shapes: [.rectangle(rectangle)])
-        ])
-
-        // when
-        let action = tool.mouseDown(
-            at: GridPoint(column: 7, row: 4),
-            in: doc,
-            activeLayerIndex: 0
+            in: doc
         )
 
         // then
@@ -54,8 +31,7 @@ struct SelectionToolTests {
         // when
         let action = tool.mouseDown(
             at: GridPoint(column: 0, row: 0),
-            in: doc,
-            activeLayerIndex: 0
+            in: doc
         )
 
         // then
@@ -70,12 +46,12 @@ struct SelectionToolTests {
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 10, height: 5)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 7, row: 4), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 7, row: 4), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 10, row: 6), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 10, row: 6), in: doc)
 
         // then
         if case .updateShape(.rectangle(let moved)) = action {
@@ -83,25 +59,6 @@ struct SelectionToolTests {
         } else {
             Issue.record("Expected updateShape action with rectangle")
         }
-    }
-
-    @Test func should_not_move_shape_on_locked_layer() {
-        // given
-        let tool = SelectionTool()
-        var doc = Document(layers: [Layer(name: "Layer 1", isLocked: true)])
-        let rectangle = RectangleShape(
-            origin: GridPoint(column: 5, row: 3),
-            size: GridSize(width: 10, height: 5)
-        )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
-
-        // when
-        _ = tool.mouseDown(at: GridPoint(column: 7, row: 4), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseDragged(
-            to: GridPoint(column: 10, row: 6), in: doc, activeLayerIndex: 0)
-
-        // then
-        #expect(action == .none)
     }
 
     @Test func should_move_all_selected_shapes_when_dragging_one_selected_shape() {
@@ -116,16 +73,15 @@ struct SelectionToolTests {
             origin: GridPoint(column: 15, row: 8),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rect1), toLayerAt: 0)
-        doc.addShape(.rectangle(rect2), toLayerAt: 0)
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         tool.selectedShapeIDs = [rect1.id, rect2.id]
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 8, row: 6), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 8, row: 6), in: doc)
         let action = tool.mouseDragged(
             to: GridPoint(column: 11, row: 8),
-            in: doc,
-            activeLayerIndex: 0
+            in: doc
         )
 
         // then
@@ -154,15 +110,14 @@ struct SelectionToolTests {
             origin: GridPoint(column: 20, row: 6),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rect1), toLayerAt: 0)
-        doc.addShape(.rectangle(rect2), toLayerAt: 0)
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         tool.selectedShapeIDs = [rect1.id, rect2.id]
 
         // when
         let action = tool.mouseDown(
             at: GridPoint(column: 8, row: 6),
-            in: doc,
-            activeLayerIndex: 0
+            in: doc
         )
 
         // then
@@ -181,14 +136,14 @@ struct SelectionToolTests {
             origin: GridPoint(column: 20, row: 6),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rect1), toLayerAt: 0)
-        doc.addShape(.rectangle(rect2), toLayerAt: 0)
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         tool.selectedShapeIDs = [rect1.id, rect2.id]
 
         // when - click on rect1 without dragging
         let clickPoint = GridPoint(column: 8, row: 6)
-        _ = tool.mouseDown(at: clickPoint, in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: clickPoint, in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: clickPoint, in: doc)
+        let action = tool.mouseUp(at: clickPoint, in: doc)
 
         // then - selection narrows to just rect1
         #expect(action == .selectShape(rect1.id))
@@ -206,14 +161,14 @@ struct SelectionToolTests {
             origin: GridPoint(column: 20, row: 8),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rect1), toLayerAt: 0)
-        doc.addShape(.rectangle(rect2), toLayerAt: 0)
+        doc.addShape(.rectangle(rect1))
+        doc.addShape(.rectangle(rect2))
         tool.selectedShapeIDs = [rect1.id, rect2.id]
 
         // when - click and drag
-        _ = tool.mouseDown(at: GridPoint(column: 8, row: 6), in: doc, activeLayerIndex: 0)
-        _ = tool.mouseDragged(to: GridPoint(column: 11, row: 8), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: GridPoint(column: 11, row: 8), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 8, row: 6), in: doc)
+        _ = tool.mouseDragged(to: GridPoint(column: 11, row: 8), in: doc)
+        let action = tool.mouseUp(at: GridPoint(column: 11, row: 8), in: doc)
 
         // then - multi-selection is preserved (no narrowing)
         #expect(action == .none)
@@ -227,13 +182,13 @@ struct SelectionToolTests {
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 6, height: 4)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
         tool.selectedShapeIDs = [rectangle.id]
 
         // when — click at the handle position (maxColumn+1, maxRow+1)
-        _ = tool.mouseDown(at: GridPoint(column: 11, row: 7), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 11, row: 7), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 14, row: 9), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 14, row: 9), in: doc)
 
         // then
         if case .updateShape(.rectangle(let resized)) = action {
@@ -252,13 +207,13 @@ struct SelectionToolTests {
             start: GridPoint(column: 2, row: 2),
             end: GridPoint(column: 8, row: 2)
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
         tool.selectedShapeIDs = [arrow.id]
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 8, row: 2), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 8, row: 2), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 12, row: 5), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 12, row: 5), in: doc)
 
         // then
         if case .updateShape(.arrow(let resized)) = action {
@@ -277,12 +232,12 @@ struct SelectionToolTests {
             start: GridPoint(column: 2, row: 2),
             end: GridPoint(column: 8, row: 2)
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
 
         // when
-        let downAction = tool.mouseDown(at: GridPoint(column: 5, row: 2), in: doc, activeLayerIndex: 0)
+        let downAction = tool.mouseDown(at: GridPoint(column: 5, row: 2), in: doc)
         let dragAction = tool.mouseDragged(
-            to: GridPoint(column: 12, row: 5), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 12, row: 5), in: doc)
 
         // then
         #expect(downAction == .selectShape(arrow.id))
@@ -306,14 +261,14 @@ struct SelectionToolTests {
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
+        doc.addShape(.arrow(arrow))
         tool.selectedShapeIDs = [arrow.id]
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 2, row: 2), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 2, row: 2), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 27, row: 4), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 27, row: 4), in: doc)
 
         // then
         if case .updateShape(.arrow(let resized)) = action {
@@ -336,14 +291,14 @@ struct SelectionToolTests {
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
+        doc.addShape(.arrow(arrow))
         tool.selectedShapeIDs = [arrow.id]
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 2, row: 2), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 2, row: 2), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 26, row: 5), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 26, row: 5), in: doc)
 
         // then
         if case .updateShape(.arrow(let resized)) = action {
@@ -362,13 +317,13 @@ struct SelectionToolTests {
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 6, height: 4)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
         tool.selectedShapeIDs = [rectangle.id]
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 11, row: 7), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 11, row: 7), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 14, row: 9), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 14, row: 9), in: doc)
 
         // then
         if case .updateShape(.rectangle(let resized)) = action {
@@ -387,13 +342,13 @@ struct SelectionToolTests {
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 6, height: 4)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
         tool.selectedShapeIDs = [rectangle.id]
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 11, row: 5), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 11, row: 5), in: doc)
         let action = tool.mouseDragged(
-            to: GridPoint(column: 14, row: 5), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 14, row: 5), in: doc)
 
         // then
         if case .updateShape(.rectangle(let resized)) = action {

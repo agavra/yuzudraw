@@ -144,11 +144,11 @@ struct ContentView: View {
 
 private extension EditorViewModel {
     static func previewSeeded() -> EditorViewModel {
-        var document = Document(layers: [
-            Layer(name: "Background"),
-            Layer(name: "Service Mesh"),
-            Layer(name: "Annotations"),
-        ], canvasSize: GridSize(width: 120, height: 40))
+        var document = Document(
+            shapes: [],
+            groups: [],
+            canvasSize: GridSize(width: 120, height: 40)
+        )
 
         let datacenter = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
@@ -200,7 +200,7 @@ private extension EditorViewModel {
         )
         let note = TextShape(
             origin: GridPoint(column: 8, row: 30),
-            text: "Drag layers and shapes in the left pane.\nDrop line shows exact insertion."
+            text: "Drag shapes and groups in the left pane.\nDrop line shows exact insertion."
         )
 
         let flow1 = ArrowShape(
@@ -231,15 +231,15 @@ private extension EditorViewModel {
             endHeadStyle: .openDiamond
         )
 
-        document.addShape(.rectangle(datacenter), toLayerAt: 0)
-        document.addShape(.rectangle(api), toLayerAt: 1)
-        document.addShape(.rectangle(workers), toLayerAt: 1)
-        document.addShape(.rectangle(db), toLayerAt: 1)
-        document.addShape(.arrow(flow1), toLayerAt: 1)
-        document.addShape(.arrow(flow2), toLayerAt: 1)
-        document.addShape(.arrow(flow3), toLayerAt: 1)
-        document.addShape(.text(note), toLayerAt: 2)
-        document.layers[1].groups.append(
+        document.addShape(.rectangle(datacenter))
+        document.addShape(.rectangle(api))
+        document.addShape(.rectangle(workers))
+        document.addShape(.rectangle(db))
+        document.addShape(.arrow(flow1))
+        document.addShape(.arrow(flow2))
+        document.addShape(.arrow(flow3))
+        document.addShape(.text(note))
+        document.groups.append(
             ShapeGroup(
                 name: "Backend",
                 shapeIDs: [api.id, workers.id, db.id],
@@ -250,8 +250,6 @@ private extension EditorViewModel {
         )
 
         let vm = EditorViewModel(document: document)
-        vm.activeLayerIndex = 1
-        vm.expandedItemIDs = Set(vm.document.layers.map(\.id))
         vm.selectedShapeIDs = [workers.id]
         vm.rerender()
         return vm

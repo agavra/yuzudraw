@@ -9,15 +9,14 @@ struct RectangleToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc, activeLayerIndex: 0)
-        _ = tool.mouseDragged(to: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc)
+        _ = tool.mouseDragged(to: GridPoint(column: 10, row: 5), in: doc)
+        let action = tool.mouseUp(at: GridPoint(column: 10, row: 5), in: doc)
 
         // then
-        if case .addShape(.rectangle(let rectangle), let layerIndex) = action {
+        if case .addShape(.rectangle(let rectangle)) = action {
             #expect(rectangle.origin == GridPoint(column: 2, row: 1))
             #expect(rectangle.size == GridSize(width: 9, height: 5))
-            #expect(layerIndex == 0)
         } else {
             Issue.record("Expected addShape action with rectangle")
         }
@@ -29,8 +28,8 @@ struct RectangleToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: GridPoint(column: 2, row: 1), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc)
+        let action = tool.mouseUp(at: GridPoint(column: 2, row: 1), in: doc)
 
         // then
         #expect(action == .none)
@@ -42,8 +41,8 @@ struct RectangleToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc, activeLayerIndex: 0)
-        _ = tool.mouseDragged(to: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc)
+        _ = tool.mouseDragged(to: GridPoint(column: 10, row: 5), in: doc)
         let preview = tool.previewShape()
 
         // then
@@ -59,8 +58,8 @@ struct RectangleToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc, activeLayerIndex: 0)
-        _ = tool.mouseUp(at: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 2, row: 1), in: doc)
+        _ = tool.mouseUp(at: GridPoint(column: 10, row: 5), in: doc)
         let preview = tool.previewShape()
 
         // then
@@ -74,11 +73,11 @@ struct RectangleToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 0, row: 0), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 0, row: 0), in: doc)
+        let action = tool.mouseUp(at: GridPoint(column: 5, row: 3), in: doc)
 
         // then
-        if case .addShape(.rectangle(let rectangle), _) = action {
+        if case .addShape(.rectangle(let rectangle)) = action {
             #expect(rectangle.strokeStyle == .double)
         } else {
             Issue.record("Expected addShape action with rectangle")

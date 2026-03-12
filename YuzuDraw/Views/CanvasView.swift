@@ -903,8 +903,7 @@ struct InlineTextEditor: NSViewRepresentable {
                 size: GridSize(width: 14, height: 5),
                 strokeStyle: .single,
                 label: "Server"
-            )),
-            toLayerAt: 0
+            ))
         )
         vm.document.addShape(
             .rectangle(RectangleShape(
@@ -912,15 +911,13 @@ struct InlineTextEditor: NSViewRepresentable {
                 size: GridSize(width: 14, height: 5),
                 strokeStyle: .double,
                 label: "Database"
-            )),
-            toLayerAt: 0
+            ))
         )
         vm.document.addShape(
             .arrow(ArrowShape(
                 start: GridPoint(column: 19, row: 5),
                 end: GridPoint(column: 30, row: 5)
-            )),
-            toLayerAt: 0
+            ))
         )
         vm.rerender()
         return vm

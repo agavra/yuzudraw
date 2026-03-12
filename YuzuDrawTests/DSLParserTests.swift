@@ -14,11 +14,8 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        #expect(doc.layers.count == 1)
-        #expect(doc.layers[0].name == "Infrastructure")
-        #expect(doc.layers[0].isVisible)
-        #expect(doc.layers[0].shapes.count == 1)
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        #expect(doc.shapes.count == 1)
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.label == "Server")
             #expect(rectangle.origin == GridPoint(column: 5, row: 3))
             #expect(rectangle.size == GridSize(width: 20, height: 5))
@@ -39,7 +36,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.label == "Server")
             #expect(rectangle.origin == GridPoint(column: 5, row: 3))
             #expect(rectangle.size == GridSize(width: 20, height: 5))
@@ -59,7 +56,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.name == "srv1")
             #expect(rectangle.label == "Server")
         } else {
@@ -78,7 +75,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.hasBorder == false)
         } else {
             Issue.record("Expected rectangle shape")
@@ -96,7 +93,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.allowTextOnBorder == true)
         } else {
             Issue.record("Expected rectangle shape")
@@ -114,7 +111,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .arrow(let arrow) = doc.layers[0].shapes[0] {
+        if case .arrow(let arrow) = doc.shapes[0] {
             #expect(arrow.start == GridPoint(column: 15, row: 7))
             #expect(arrow.end == GridPoint(column: 15, row: 15))
             #expect(arrow.label == "SQL")
@@ -135,7 +132,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .arrow(let arrow) = doc.layers[0].shapes[0] {
+        if case .arrow(let arrow) = doc.shapes[0] {
             #expect(arrow.label == "compact\nwhen full")
         } else {
             Issue.record("Expected arrow shape")
@@ -153,7 +150,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.fillMode == .character)
             #expect(rectangle.fillCharacter == ".")
         } else {
@@ -172,7 +169,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.hasBorder == false)
             #expect(rectangle.textHorizontalAlignment == .right)
             #expect(rectangle.textVerticalAlignment == .bottom)
@@ -197,7 +194,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.hasShadow)
             #expect(rectangle.shadowStyle == .dark)
             #expect(rectangle.shadowOffsetX == 2)
@@ -218,7 +215,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.visibleBorders == [.top, .left])
         } else {
             Issue.record("Expected rectangle shape")
@@ -236,7 +233,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.borderLineStyle == .dashed)
             #expect(rectangle.borderDashLength == 3)
             #expect(rectangle.borderGapLength == 2)
@@ -256,7 +253,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .text(let text) = doc.layers[0].shapes[0] {
+        if case .text(let text) = doc.shapes[0] {
             #expect(text.text == "Client App")
             #expect(text.origin == GridPoint(column: 40, row: 3))
         } else {
@@ -264,8 +261,8 @@ struct DSLParserTests {
         }
     }
 
-    @Test func should_parse_hidden_locked_layer() throws {
-        // given
+    @Test func should_parse_hidden_locked_layer_line() throws {
+        // given — layer lines are now ignored by the parser, but should not cause errors
         let dsl = """
             layer "Background" hidden locked
             """
@@ -274,8 +271,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        #expect(doc.layers[0].isVisible == false)
-        #expect(doc.layers[0].isLocked == true)
+        #expect(doc.shapes.isEmpty)
     }
 
     @Test func should_parse_groups() throws {
@@ -291,10 +287,10 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        #expect(doc.layers[0].groups.count == 1)
-        #expect(doc.layers[0].groups[0].name == "Backend")
-        #expect(doc.layers[0].groups[0].shapeIDs.count == 2)
-        #expect(doc.layers[0].shapes.count == 2)
+        #expect(doc.groups.count == 1)
+        #expect(doc.groups[0].name == "Backend")
+        #expect(doc.groups[0].shapeIDs.count == 2)
+        #expect(doc.shapes.count == 2)
     }
 
     @Test func should_parse_nested_groups() throws {
@@ -311,18 +307,18 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        #expect(doc.layers[0].groups.count == 1)
-        #expect(doc.layers[0].groups[0].name == "Outer")
-        #expect(doc.layers[0].groups[0].children.count == 1)
-        #expect(doc.layers[0].groups[0].children[0].name == "Inner")
-        #expect(doc.layers[0].groups[0].children[0].shapeIDs.count == 1)
-        #expect(doc.layers[0].groups[0].shapeIDs.count == 1)
-        #expect(doc.layers[0].shapes.count == 2)
+        #expect(doc.groups.count == 1)
+        #expect(doc.groups[0].name == "Outer")
+        #expect(doc.groups[0].children.count == 1)
+        #expect(doc.groups[0].children[0].name == "Inner")
+        #expect(doc.groups[0].children[0].shapeIDs.count == 1)
+        #expect(doc.groups[0].shapeIDs.count == 1)
+        #expect(doc.shapes.count == 2)
     }
 
     @Test func should_round_trip_through_dsl() throws {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         doc.addShape(
             .rectangle(
                 RectangleShape(
@@ -330,22 +326,21 @@ struct DSLParserTests {
                     size: GridSize(width: 20, height: 5),
                     strokeStyle: .double,
                     label: "DB"
-                )), toLayerAt: 0)
+                )))
         doc.addShape(
             .arrow(
                 ArrowShape(
                     start: GridPoint(column: 10, row: 1),
                     end: GridPoint(column: 10, row: 3),
                     label: "SQL"
-                )), toLayerAt: 0)
+                )))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
         let parsed = try DSLParser.parse(dsl)
 
         // then
-        #expect(parsed.layers.count == 1)
-        #expect(parsed.layers[0].shapes.count == 2)
+        #expect(parsed.shapes.count == 2)
     }
 
     @Test func should_return_default_document_for_empty_input() throws {
@@ -356,8 +351,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        #expect(doc.layers.count == 1)
-        #expect(doc.layers[0].name == "Layer 1")
+        #expect(doc.shapes.isEmpty)
     }
 
     @Test func should_parse_rectangle_with_float() throws {
@@ -371,7 +365,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.float == true)
         } else {
             Issue.record("Expected rectangle shape")
@@ -389,7 +383,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = doc.shapes[0] {
             #expect(rectangle.float == false)
         } else {
             Issue.record("Expected rectangle shape")
@@ -407,7 +401,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .arrow(let arrow) = doc.layers[0].shapes[0] {
+        if case .arrow(let arrow) = doc.shapes[0] {
             #expect(arrow.float == true)
         } else {
             Issue.record("Expected arrow shape")
@@ -429,20 +423,20 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        #expect(doc.layers[0].shapes.count == 5)
-        if case .rectangle(let frontend) = doc.layers[0].shapes[0] {
+        #expect(doc.shapes.count == 5)
+        if case .rectangle(let frontend) = doc.shapes[0] {
             #expect(frontend.label == "Frontend")
             #expect(frontend.strokeStyle == .rounded)
         } else {
             Issue.record("Expected rectangle shape")
         }
-        if case .rectangle(let api) = doc.layers[0].shapes[1] {
+        if case .rectangle(let api) = doc.shapes[1] {
             #expect(api.label == "API")
             #expect(api.origin.row > 0)  // should be below Frontend
         } else {
             Issue.record("Expected rectangle shape")
         }
-        if case .arrow(let arrow) = doc.layers[0].shapes[3] {
+        if case .arrow(let arrow) = doc.shapes[3] {
             #expect(arrow.label == "HTTP")
             #expect(arrow.startAttachment != nil)
             #expect(arrow.endAttachment != nil)
@@ -464,7 +458,7 @@ struct DSLParserTests {
         let doc = try DSLParser.parse(dsl)
 
         // then
-        if case .arrow(let arrow) = doc.layers[0].shapes[2] {
+        if case .arrow(let arrow) = doc.shapes[2] {
             #expect(arrow.startAttachment != nil)
             #expect(arrow.endAttachment != nil)
         } else {

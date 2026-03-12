@@ -11,17 +11,16 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s3.id])
-        var layer = Layer(
-            name: "L1",
+        var doc = Document(
             shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
             groups: [group]
         )
 
         // when
-        layer.consolidateGroup(group.id)
+        doc.consolidateGroup(group.id)
 
         // then — s1 and s3 should be contiguous, preserving relative order
-        let ids = layer.shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         let s1Idx = ids.firstIndex(of: s1.id)!
         let s3Idx = ids.firstIndex(of: s3.id)!
         #expect(s3Idx == s1Idx + 1)
@@ -36,18 +35,17 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var layer = Layer(
-            name: "L1",
+        var doc = Document(
             shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
             groups: [group]
         )
-        let originalIDs = layer.shapes.map(\.id)
+        let originalIDs = doc.shapes.map(\.id)
 
         // when
-        layer.consolidateGroup(group.id)
+        doc.consolidateGroup(group.id)
 
         // then — no change
-        #expect(layer.shapes.map(\.id) == originalIDs)
+        #expect(doc.shapes.map(\.id) == originalIDs)
     }
 
     // MARK: - Group index range
@@ -58,14 +56,13 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        let layer = Layer(
-            name: "L1",
+        let doc = Document(
             shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
             groups: [group]
         )
 
         // when
-        let range = layer.groupShapeIndexRange(for: group.id)
+        let range = doc.groupShapeIndexRange(for: group.id)
 
         // then
         #expect(range == 0..<2)
@@ -79,16 +76,17 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)], groups: [group])
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
+            groups: [group]
+        )
 
         // when
-        let result = doc.moveGroupForward(groupID: group.id, inLayerAt: 0)
+        let result = doc.moveGroupForward(groupID: group.id)
 
         // then — [C, A(g), B(g)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s3.id, s1.id, s2.id])
     }
 
@@ -98,16 +96,17 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)], groups: [group])
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)],
+            groups: [group]
+        )
 
         // when
-        let result = doc.moveGroupBackward(groupID: group.id, inLayerAt: 0)
+        let result = doc.moveGroupBackward(groupID: group.id)
 
         // then — [A(g), B(g), C]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s1.id, s2.id, s3.id])
     }
 
@@ -118,20 +117,17 @@ struct GroupZOrderTests {
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let s4 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "D")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(
-                name: "L1",
-                shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3), .rectangle(s4)],
-                groups: [group]
-            )
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3), .rectangle(s4)],
+            groups: [group]
+        )
 
         // when
-        let result = doc.moveGroupToFront(groupID: group.id, inLayerAt: 0)
+        let result = doc.moveGroupToFront(groupID: group.id)
 
         // then — [C, D, A(g), B(g)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s3.id, s4.id, s1.id, s2.id])
     }
 
@@ -142,20 +138,17 @@ struct GroupZOrderTests {
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let s4 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "D")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(
-                name: "L1",
-                shapes: [.rectangle(s3), .rectangle(s4), .rectangle(s1), .rectangle(s2)],
-                groups: [group]
-            )
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s3), .rectangle(s4), .rectangle(s1), .rectangle(s2)],
+            groups: [group]
+        )
 
         // when
-        let result = doc.moveGroupToBack(groupID: group.id, inLayerAt: 0)
+        let result = doc.moveGroupToBack(groupID: group.id)
 
         // then — [A(g), B(g), C, D]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s1.id, s2.id, s3.id, s4.id])
     }
 
@@ -167,20 +160,17 @@ struct GroupZOrderTests {
         let s4 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "D")
         let g1 = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
         let g2 = ShapeGroup(name: "G2", shapeIDs: [s3.id, s4.id])
-        var doc = Document(layers: [
-            Layer(
-                name: "L1",
-                shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3), .rectangle(s4)],
-                groups: [g1, g2]
-            )
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3), .rectangle(s4)],
+            groups: [g1, g2]
+        )
 
         // when
-        let result = doc.moveGroupForward(groupID: g1.id, inLayerAt: 0)
+        let result = doc.moveGroupForward(groupID: g1.id)
 
         // then — [C(g2), D(g2), A(g1), B(g1)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s3.id, s4.id, s1.id, s2.id])
     }
 
@@ -192,17 +182,18 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id, s3.id])
-        var doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)], groups: [group])
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
+            groups: [group]
+        )
 
         // when
         let result = doc.moveShapeWithinGroup(
-            id: s1.id, forward: true, groupID: group.id, inLayerAt: 0)
+            id: s1.id, forward: true, groupID: group.id)
 
         // then — [B(g), A(g), C(g)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s2.id, s1.id, s3.id])
     }
 
@@ -212,13 +203,14 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)], groups: [group])
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
+            groups: [group]
+        )
 
         // when — try to move B forward (it's at the end of the group)
         let result = doc.moveShapeWithinGroup(
-            id: s2.id, forward: true, groupID: group.id, inLayerAt: 0)
+            id: s2.id, forward: true, groupID: group.id)
 
         // then — should not move
         #expect(!result)
@@ -232,13 +224,14 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        let doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)], groups: [group])
-        ])
+        let doc = Document(
+            shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)],
+            groups: [group]
+        )
 
         // when/then
-        #expect(!doc.canMoveGroupForward(groupID: group.id, inLayerAt: 0))
-        #expect(doc.canMoveGroupBackward(groupID: group.id, inLayerAt: 0))
+        #expect(!doc.canMoveGroupForward(groupID: group.id))
+        #expect(doc.canMoveGroupBackward(groupID: group.id))
     }
 
     @Test func should_report_cannot_move_group_backward_at_start() {
@@ -247,13 +240,14 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        let doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)], groups: [group])
-        ])
+        let doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
+            groups: [group]
+        )
 
         // when/then
-        #expect(doc.canMoveGroupForward(groupID: group.id, inLayerAt: 0))
-        #expect(!doc.canMoveGroupBackward(groupID: group.id, inLayerAt: 0))
+        #expect(doc.canMoveGroupForward(groupID: group.id))
+        #expect(!doc.canMoveGroupBackward(groupID: group.id))
     }
 
     // MARK: - Positional group moves (drag-and-drop)
@@ -266,20 +260,17 @@ struct GroupZOrderTests {
         let s4 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "D")
         let g1 = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
         let g2 = ShapeGroup(name: "G2", shapeIDs: [s3.id, s4.id])
-        var doc = Document(layers: [
-            Layer(
-                name: "L1",
-                shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3), .rectangle(s4)],
-                groups: [g1, g2]
-            )
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3), .rectangle(s4)],
+            groups: [g1, g2]
+        )
 
         // when — move g2 before g1
-        let result = doc.moveGroup(groupID: g2.id, beforeGroup: g1.id, inLayerAt: 0)
+        let result = doc.moveGroup(groupID: g2.id, beforeGroup: g1.id)
 
         // then — [C(g2), D(g2), A(g1), B(g1)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s3.id, s4.id, s1.id, s2.id])
     }
 
@@ -291,20 +282,17 @@ struct GroupZOrderTests {
         let s4 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "D")
         let g1 = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
         let g2 = ShapeGroup(name: "G2", shapeIDs: [s3.id, s4.id])
-        var doc = Document(layers: [
-            Layer(
-                name: "L1",
-                shapes: [.rectangle(s3), .rectangle(s4), .rectangle(s1), .rectangle(s2)],
-                groups: [g1, g2]
-            )
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s3), .rectangle(s4), .rectangle(s1), .rectangle(s2)],
+            groups: [g1, g2]
+        )
 
         // when — move g2 after g1
-        let result = doc.moveGroup(groupID: g2.id, afterGroup: g1.id, inLayerAt: 0)
+        let result = doc.moveGroup(groupID: g2.id, afterGroup: g1.id)
 
         // then — [A(g1), B(g1), C(g2), D(g2)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s1.id, s2.id, s3.id, s4.id])
     }
 
@@ -314,16 +302,17 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)], groups: [group])
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)],
+            groups: [group]
+        )
 
         // when — move group before C
-        let result = doc.moveGroup(groupID: group.id, beforeShape: s3.id, inLayerAt: 0)
+        let result = doc.moveGroup(groupID: group.id, beforeShape: s3.id)
 
         // then — [A(g), B(g), C]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s1.id, s2.id, s3.id])
     }
 
@@ -333,16 +322,17 @@ struct GroupZOrderTests {
         let s2 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "B")
         let s3 = RectangleShape(origin: .zero, size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        var doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)], groups: [group])
-        ])
+        var doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
+            groups: [group]
+        )
 
         // when — move group after C (to end)
-        let result = doc.moveGroup(groupID: group.id, afterShape: s3.id, inLayerAt: 0)
+        let result = doc.moveGroup(groupID: group.id, afterShape: s3.id)
 
         // then — [C, A(g), B(g)]
         #expect(result)
-        let ids = doc.layers[0].shapes.map(\.id)
+        let ids = doc.shapes.map(\.id)
         #expect(ids == [s3.id, s1.id, s2.id])
     }
 
@@ -357,9 +347,10 @@ struct GroupZOrderTests {
         let s3 = RectangleShape(
             origin: GridPoint(column: 20, row: 0), size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        let doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)], groups: [group])
-        ])
+        let doc = Document(
+            shapes: [.rectangle(s3), .rectangle(s1), .rectangle(s2)],
+            groups: [group]
+        )
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -380,9 +371,10 @@ struct GroupZOrderTests {
         let s3 = RectangleShape(
             origin: GridPoint(column: 20, row: 0), size: GridSize(width: 5, height: 3), label: "C")
         let group = ShapeGroup(name: "G1", shapeIDs: [s1.id, s2.id])
-        let doc = Document(layers: [
-            Layer(name: "L1", shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)], groups: [group])
-        ])
+        let doc = Document(
+            shapes: [.rectangle(s1), .rectangle(s2), .rectangle(s3)],
+            groups: [group]
+        )
 
         // when
         let dsl = DSLSerializer.serialize(doc)

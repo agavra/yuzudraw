@@ -5,20 +5,19 @@ import Testing
 struct DSLSerializerTests {
     @Test func should_serialize_simple_document() {
         // given
-        var doc = Document(layers: [Layer(name: "Infrastructure")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 20, height: 5),
             strokeStyle: .single,
             label: "Server"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
 
         // then — uses "rect", omits default style "single"
-        #expect(dsl.contains("layer \"Infrastructure\" visible"))
         #expect(dsl.contains("rect \"Server\" at 5,3 size 20x5"))
         #expect(!dsl.contains("rectangle "))
         #expect(!dsl.contains("style single"))
@@ -26,14 +25,14 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_arrow_with_label() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let arrow = ArrowShape(
             start: GridPoint(column: 15, row: 7),
             end: GridPoint(column: 15, row: 15),
             label: "SQL",
             strokeStyle: .heavy
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -44,13 +43,13 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_arrow_with_multiline_label() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let arrow = ArrowShape(
             start: GridPoint(column: 10, row: 5),
             end: GridPoint(column: 10, row: 15),
             label: "compact\nwhen full"
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -61,13 +60,13 @@ struct DSLSerializerTests {
 
     @Test func should_omit_default_arrow_style() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let arrow = ArrowShape(
             start: GridPoint(column: 0, row: 0),
             end: GridPoint(column: 10, row: 0),
             strokeStyle: .single
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -79,7 +78,7 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_fill() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
@@ -88,7 +87,7 @@ struct DSLSerializerTests {
             fillCharacter: ".",
             label: "Filled"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -99,7 +98,7 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_text_layout_settings() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
@@ -113,7 +112,7 @@ struct DSLSerializerTests {
             textPaddingTop: 0,
             textPaddingBottom: 1
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -131,13 +130,13 @@ struct DSLSerializerTests {
 
     @Test func should_omit_default_text_layout_settings() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 3),
             label: "Default"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -154,14 +153,14 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_visible_borders() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             visibleBorders: [.top, .left],
             label: "Sides"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -172,7 +171,7 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_dashed_border_settings() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 8, height: 4),
@@ -181,7 +180,7 @@ struct DSLSerializerTests {
             borderGapLength: 2,
             label: "Dash"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -194,7 +193,7 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_shadow_settings() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
@@ -204,7 +203,7 @@ struct DSLSerializerTests {
             shadowOffsetX: -2,
             shadowOffsetY: -3
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -217,12 +216,12 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_text_shape() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let text = TextShape(
             origin: GridPoint(column: 40, row: 3),
             text: "Client App"
         )
-        doc.addShape(.text(text), toLayerAt: 0)
+        doc.addShape(.text(text))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -231,22 +230,8 @@ struct DSLSerializerTests {
         #expect(dsl.contains("text \"Client App\" at 40,3"))
     }
 
-    @Test func should_serialize_hidden_locked_layer() {
-        // given
-        let doc = Document(layers: [
-            Layer(name: "Background", isVisible: false, isLocked: true)
-        ])
-
-        // when
-        let dsl = DSLSerializer.serialize(doc)
-
-        // then
-        #expect(dsl.contains("layer \"Background\" hidden locked"))
-    }
-
     @Test func should_serialize_nested_groups() {
         // given
-        var layer = Layer(name: "Layer 1")
         let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3),
@@ -257,14 +242,14 @@ struct DSLSerializerTests {
             size: GridSize(width: 5, height: 3),
             label: "Outer"
         )
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
         let innerGroup = ShapeGroup(name: "InnerGroup", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(
             name: "OuterGroup", shapeIDs: [rect2.id], children: [innerGroup])
-        layer.groups.append(outerGroup)
 
-        let doc = Document(layers: [layer])
+        let doc = Document(
+            shapes: [.rectangle(rect1), .rectangle(rect2)],
+            groups: [outerGroup]
+        )
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -278,7 +263,6 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_groups() {
         // given
-        var layer = Layer(name: "Layer 1")
         let rect1 = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 5, height: 3),
@@ -289,12 +273,10 @@ struct DSLSerializerTests {
             size: GridSize(width: 5, height: 3),
             label: "B"
         )
-        layer.addShape(.rectangle(rect1))
-        layer.addShape(.rectangle(rect2))
-        layer.groups.append(
-            ShapeGroup(name: "Backend", shapeIDs: [rect1.id, rect2.id]))
-
-        let doc = Document(layers: [layer])
+        let doc = Document(
+            shapes: [.rectangle(rect1), .rectangle(rect2)],
+            groups: [ShapeGroup(name: "Backend", shapeIDs: [rect1.id, rect2.id])]
+        )
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -307,13 +289,13 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_with_float() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 5),
             float: true
         )
-        doc.layers[0].shapes.append(.rectangle(rectangle))
+        doc.shapes.append(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -324,13 +306,13 @@ struct DSLSerializerTests {
 
     @Test func should_not_serialize_float_when_false() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 5),
             float: false
         )
-        doc.layers[0].shapes.append(.rectangle(rectangle))
+        doc.shapes.append(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -341,20 +323,20 @@ struct DSLSerializerTests {
 
     @Test func should_roundtrip_float_property() throws {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 5),
             float: true
         )
-        doc.layers[0].shapes.append(.rectangle(rectangle))
+        doc.shapes.append(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
         let parsed = try DSLParser.parse(dsl)
 
         // then
-        if case .rectangle(let parsedRect) = parsed.layers[0].shapes[0] {
+        if case .rectangle(let parsedRect) = parsed.shapes[0] {
             #expect(parsedRect.float == true)
         } else {
             Issue.record("Expected rectangle shape")
@@ -363,14 +345,14 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_rectangle_with_id() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rectangle = RectangleShape(
             name: "srv1",
             origin: GridPoint(column: 5, row: 3),
             size: GridSize(width: 20, height: 5),
             label: "Server"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let dsl = DSLSerializer.serialize(doc)
@@ -381,20 +363,20 @@ struct DSLSerializerTests {
 
     @Test func should_serialize_arrow_endpoint_with_id() {
         // given
-        var doc = Document(layers: [Layer(name: "Layer 1")])
+        var doc = Document()
         let rect = RectangleShape(
             name: "srv1",
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 10, height: 3),
             label: "Server"
         )
-        doc.addShape(.rectangle(rect), toLayerAt: 0)
+        doc.addShape(.rectangle(rect))
         let arrow = ArrowShape(
             start: rect.attachmentPoint(for: .right),
             end: GridPoint(column: 20, row: 1),
             startAttachment: ArrowAttachment(shapeID: rect.id, side: .right)
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
 
         // when
         let dsl = DSLSerializer.serialize(doc)

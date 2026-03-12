@@ -13,7 +13,6 @@ private enum DropEdge {
 }
 
 private enum PanelSelectionItem: Hashable {
-    case layer(UUID)
     case group(UUID)
     case shape(UUID)
 }
@@ -32,31 +31,26 @@ private func panelRowBackground(isSelected: Bool, isHovered: Bool) -> Color {
 
 struct LayerPanel: View {
     @Bindable var viewModel: EditorViewModel
-    @State private var draggedLayerID: UUID?
     @State private var draggedShapeID: UUID?
     @State private var draggedGroupID: UUID?
-    @State private var layerDropTarget: (id: UUID, edge: DropEdge)?
     @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @State private var groupDropTarget: UUID?
     @State private var groupReorderTarget: (id: UUID, edge: DropEdge)?
     @State private var ignoreNextRowTap = false
     @State private var selectionAnchorItem: PanelSelectionItem?
-    @State private var hoveredLayerID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            layerList
-            Divider()
-            bottomButtons
+            objectList
         }
         .frame(minWidth: 160, idealWidth: 200, maxWidth: 260)
     }
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Layers")
+            Text("Objects")
                 .font(.headline)
 
             Spacer()
@@ -72,27 +66,52 @@ struct LayerPanel: View {
 
     private var visibleSelectionEntries: [PanelSelectionEntry] {
         var entries: [PanelSelectionEntry] = []
-        for layer in viewModel.document.layers.reversed() {
-            entries.append(
-                PanelSelectionEntry(
-                    item: .layer(layer.id),
-                    representedShapeIDs: Set(layer.shapes.map(\.id))
-                )
-            )
-            guard viewModel.expandedItemIDs.contains(layer.id) else { continue }
-            for item in layer.orderedItems.reversed() {
-                appendVisibleEntries(for: item, in: layer, to: &entries)
-            }
+        for item in viewModel.document.orderedItems.reversed() {
+            appendVisibleEntries(for: item, to: &entries)
         }
         return entries
     }
 
-    private var layerList: some View {
+    private var objectList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(viewModel.document.layers.enumerated().reversed()), id: \.element.id) {
-                    index, layer in
-                    layerSection(layer: layer, index: index)
+                ForEach(Array(viewModel.document.orderedItems.reversed()), id: \.id) { item in
+                    switch item {
+                    case .group(let group):
+                        GroupRow(
+                            group: group,
+                            viewModel: viewModel,
+                            ignoreNextRowTap: $ignoreNextRowTap,
+                            draggedShapeID: $draggedShapeID,
+                            draggedGroupID: $draggedGroupID,
+                            shapeDropTarget: $shapeDropTarget,
+                            groupDropTarget: $groupDropTarget,
+                            groupReorderTarget: $groupReorderTarget,
+                            onSelect: { item, representedShapeIDs in
+                                applyPanelSelection(
+                                    for: item,
+                                    representedShapeIDs: representedShapeIDs
+                                )
+                            },
+                            depth: 0
+                        )
+                    case .shape(let shape):
+                        ShapeRow(
+                            shape: shape,
+                            containingGroupID: nil,
+                            viewModel: viewModel,
+                            draggedShapeID: $draggedShapeID,
+                            draggedGroupID: $draggedGroupID,
+                            shapeDropTarget: $shapeDropTarget,
+                            onSelect: { item, representedShapeIDs in
+                                applyPanelSelection(
+                                    for: item,
+                                    representedShapeIDs: representedShapeIDs
+                                )
+                            },
+                            depth: 0
+                        )
+                    }
                 }
             }
             .contentShape(Rectangle())
@@ -108,199 +127,12 @@ struct LayerPanel: View {
             }
         )
         .contextMenu {
-            LayerReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
+            ReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
         }
-    }
-
-    private func layerSection(layer: Layer, index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            let _ = os_signpost(.event, log: layerPanelLog, name: "layerSection", "%{public}s shapes=%d", layer.name, layer.shapes.count)
-            HStack(spacing: 2) {
-                chevron(isExpanded: viewModel.expandedItemIDs.contains(layer.id)) {
-                    ignoreNextRowTap = true
-                    viewModel.toggleExpanded(layer.id)
-                    DispatchQueue.main.async {
-                        ignoreNextRowTap = false
-                    }
-                }
-
-                Button {
-                    viewModel.toggleLayerVisibility(at: index)
-                } label: {
-                    Image(systemName: layer.isVisible ? "eye" : "eye.slash")
-                        .font(.caption2)
-                        .foregroundStyle(layer.isVisible ? .primary : .secondary)
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    viewModel.toggleLayerLock(at: index)
-                } label: {
-                    Image(systemName: layer.isLocked ? "lock" : "lock.open")
-                        .font(.caption2)
-                        .foregroundStyle(layer.isLocked ? .primary : .secondary)
-                }
-                .buttonStyle(.plain)
-
-                Text(layer.name)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .fontWeight(index == viewModel.activeLayerIndex ? .semibold : .regular)
-
-                Spacer()
-
-                if !layer.shapes.isEmpty {
-                    Text("\(layer.shapes.count)")
-                        .font(.caption2)
-                        .padding(.horizontal, 4)
-                        .background(.quaternary)
-                        .clipShape(Capsule())
-                }
-            }
-            .padding(.vertical, 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .background(
-                panelRowBackground(
-                    isSelected: viewModel.selectedLayerID == layer.id,
-                    isHovered: hoveredLayerID == layer.id
-                )
-            )
-            .cornerRadius(3)
-            .onHover { isHovering in
-                hoveredLayerID = isHovering ? layer.id : (hoveredLayerID == layer.id ? nil : hoveredLayerID)
-            }
-            .onTapGesture {
-                dismissInlineRenameFocus()
-                guard !ignoreNextRowTap else {
-                    ignoreNextRowTap = false
-                    return
-                }
-                applyPanelSelection(
-                    for: .layer(layer.id),
-                    representedShapeIDs: Set(layer.shapes.map(\.id)),
-                    in: layer.id
-                )
-            }
-            .onDrag {
-                draggedLayerID = layer.id
-                return NSItemProvider(object: "layer:\(layer.id.uuidString)" as NSString)
-            }
-            .onDrop(
-                of: [UTType.text],
-                delegate: LayerDropDelegate(
-                    targetLayerID: layer.id,
-                    draggedLayerID: $draggedLayerID,
-                    draggedShapeID: $draggedShapeID,
-                    dropTargetLayer: $layerDropTarget,
-                    viewModel: viewModel
-                )
-            )
-            .contextMenu {
-                LayerRowContextMenu(viewModel: viewModel, layerIndex: index)
-            }
-
-            let isLayerExpanded = viewModel.expandedItemIDs.contains(layer.id)
-            ForEach(Array(layer.orderedItems.reversed()), id: \.id) { item in
-                switch item {
-                case .group(let group):
-                    GroupRow(
-                        group: group,
-                        layer: layer,
-                        viewModel: viewModel,
-                        ignoreNextRowTap: $ignoreNextRowTap,
-                        draggedShapeID: $draggedShapeID,
-                        draggedGroupID: $draggedGroupID,
-                        shapeDropTarget: $shapeDropTarget,
-                        groupDropTarget: $groupDropTarget,
-                        groupReorderTarget: $groupReorderTarget,
-                        onSelect: { item, representedShapeIDs, layerID in
-                            applyPanelSelection(
-                                for: item,
-                                representedShapeIDs: representedShapeIDs,
-                                in: layerID
-                            )
-                        },
-                        depth: 1
-                    )
-                case .shape(let shape):
-                    ShapeRow(
-                        shape: shape,
-                        layerID: layer.id,
-                        containingGroupID: nil,
-                        viewModel: viewModel,
-                        draggedShapeID: $draggedShapeID,
-                        draggedGroupID: $draggedGroupID,
-                        shapeDropTarget: $shapeDropTarget,
-                        onSelect: { item, representedShapeIDs, layerID in
-                            applyPanelSelection(
-                                for: item,
-                                representedShapeIDs: representedShapeIDs,
-                                in: layerID
-                            )
-                        },
-                        depth: 1
-                    )
-                }
-            }
-            .frame(maxHeight: isLayerExpanded ? .infinity : 0)
-            .clipped()
-            .opacity(isLayerExpanded ? 1 : 0)
-        }
-        .overlay(alignment: .top) {
-            if draggedLayerID != nil, layerDropTarget?.id == layer.id, layerDropTarget?.edge == .before {
-                Rectangle()
-                    .fill(Color.accentColor)
-                    .frame(height: 2)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if draggedLayerID != nil, layerDropTarget?.id == layer.id, layerDropTarget?.edge == .after {
-                Rectangle()
-                    .fill(Color.accentColor)
-                    .frame(height: 2)
-            }
-        }
-    }
-
-    private func chevron(isExpanded: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: "chevron.right")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.secondary)
-                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                .frame(width: 12, height: 12)
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
-        .frame(width: 20, height: 20)
-    }
-
-    private var bottomButtons: some View {
-        HStack(spacing: 8) {
-            Button {
-                viewModel.addLayer()
-            } label: {
-                Image(systemName: "plus")
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                viewModel.removeLayer(at: viewModel.activeLayerIndex)
-            } label: {
-                Image(systemName: "minus")
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.document.layers.count <= 1)
-
-            Spacer()
-        }
-        .padding(8)
     }
 
     private func appendVisibleEntries(
-        for item: Layer.LayerItem,
-        in layer: Layer,
+        for item: DocumentItem,
         to entries: inout [PanelSelectionEntry]
     ) {
         switch item {
@@ -312,7 +144,7 @@ struct LayerPanel: View {
                 )
             )
             guard viewModel.expandedItemIDs.contains(group.id) else { return }
-            appendVisibleEntries(for: group, in: layer, to: &entries)
+            appendVisibleEntries(for: group, to: &entries)
         case .shape(let shape):
             entries.append(
                 PanelSelectionEntry(
@@ -325,7 +157,6 @@ struct LayerPanel: View {
 
     private func appendVisibleEntries(
         for group: ShapeGroup,
-        in layer: Layer,
         to entries: inout [PanelSelectionEntry]
     ) {
         for child in group.children {
@@ -336,12 +167,13 @@ struct LayerPanel: View {
                 )
             )
             if viewModel.expandedItemIDs.contains(child.id) {
-                appendVisibleEntries(for: child, in: layer, to: &entries)
+                appendVisibleEntries(for: child, to: &entries)
             }
         }
 
         let directShapeIDs = Set(group.shapeIDs)
-        for shapeID in layer.shapes.map(\.id).reversed() where directShapeIDs.contains(shapeID) {
+        for shapeID in viewModel.document.shapes.map(\.id).reversed()
+        where directShapeIDs.contains(shapeID) {
             entries.append(
                 PanelSelectionEntry(
                     item: .shape(shapeID),
@@ -353,8 +185,7 @@ struct LayerPanel: View {
 
     private func applyPanelSelection(
         for item: PanelSelectionItem,
-        representedShapeIDs: Set<UUID>,
-        in layerID: UUID
+        representedShapeIDs: Set<UUID>
     ) {
         let modifiers = NSApp.currentEvent?.modifierFlags ?? []
         let isShift = modifiers.contains(.shift)
@@ -374,19 +205,6 @@ struct LayerPanel: View {
         }
 
         viewModel.selectedShapeIDs = nextSelection
-
-        if case .layer(let selectedLayerID) = item {
-            let layerShapeIDs = Set(
-                viewModel.document.layers.first(where: { $0.id == selectedLayerID })?.shapes.map(\.id) ?? []
-            )
-            viewModel.selectedLayerID = nextSelection == layerShapeIDs ? selectedLayerID : nil
-        } else {
-            viewModel.selectedLayerID = nil
-        }
-
-        if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }) {
-            viewModel.activeLayerIndex = layerIndex
-        }
         selectionAnchorItem = item
     }
 
@@ -414,7 +232,6 @@ struct LayerPanel: View {
 
 private struct GroupRow: View {
     let group: ShapeGroup
-    let layer: Layer
     @Bindable var viewModel: EditorViewModel
     @Binding var ignoreNextRowTap: Bool
     @Binding var draggedShapeID: UUID?
@@ -422,7 +239,7 @@ private struct GroupRow: View {
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @Binding var groupDropTarget: UUID?
     @Binding var groupReorderTarget: (id: UUID, edge: DropEdge)?
-    let onSelect: (PanelSelectionItem, Set<UUID>, UUID) -> Void
+    let onSelect: (PanelSelectionItem, Set<UUID>) -> Void
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
@@ -430,17 +247,23 @@ private struct GroupRow: View {
     @FocusState private var nameFieldFocused: Bool
 
     private var orderedGroupShapeIDs: [UUID] {
-        os_signpost(.begin, log: layerPanelLog, name: "orderedGroupShapeIDs", "%{public}s members=%d layerShapes=%d", group.name, group.shapeIDs.count, layer.shapes.count)
+        os_signpost(
+            .begin, log: layerPanelLog, name: "orderedGroupShapeIDs",
+            "%{public}s members=%d docShapes=%d", group.name, group.shapeIDs.count,
+            viewModel.document.shapes.count)
         let memberIDs = Set(group.shapeIDs)
-        let result = Array(layer.shapes.map(\.id).filter { memberIDs.contains($0) }.reversed())
+        let result = Array(
+            viewModel.document.shapes.map(\.id).filter { memberIDs.contains($0) }.reversed())
         os_signpost(.end, log: layerPanelLog, name: "orderedGroupShapeIDs")
         return result
     }
 
     private var isSelected: Bool {
-        os_signpost(.begin, log: layerPanelLog, name: "GroupRow.isSelected", "%{public}s", group.name)
+        os_signpost(
+            .begin, log: layerPanelLog, name: "GroupRow.isSelected", "%{public}s", group.name)
         let groupShapeIDs = Set(group.allShapeIDs)
-        let result = !groupShapeIDs.isEmpty && groupShapeIDs.isSubset(of: viewModel.selectedShapeIDs)
+        let result = !groupShapeIDs.isEmpty
+            && groupShapeIDs.isSubset(of: viewModel.selectedShapeIDs)
         os_signpost(.end, log: layerPanelLog, name: "GroupRow.isSelected")
         return result
     }
@@ -452,7 +275,9 @@ private struct GroupRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            let _ = os_signpost(.event, log: layerPanelLog, name: "GroupRow.body", "%{public}s depth=%d", group.name, depth)
+            let _ = os_signpost(
+                .event, log: layerPanelLog, name: "GroupRow.body", "%{public}s depth=%d",
+                group.name, depth)
             HStack(spacing: 2) {
                 chevron(isExpanded: viewModel.expandedItemIDs.contains(group.id)) {
                     ignoreNextRowTap = true
@@ -515,7 +340,7 @@ private struct GroupRow: View {
                 }
                 let groupIDs = Set(group.allShapeIDs)
                 viewModel.enteredGroupID = nil
-                onSelect(.group(group.id), groupIDs, layer.id)
+                onSelect(.group(group.id), groupIDs)
             }
             .onTapGesture(count: 2) {
                 beginRename()
@@ -528,7 +353,6 @@ private struct GroupRow: View {
                 of: [UTType.text],
                 delegate: GroupDropDelegate(
                     targetGroupID: group.id,
-                    layerID: layer.id,
                     draggedShapeID: $draggedShapeID,
                     draggedGroupID: $draggedGroupID,
                     groupDropTarget: $groupDropTarget,
@@ -543,7 +367,7 @@ private struct GroupRow: View {
             )
             .overlay(alignment: .top) {
                 if draggedGroupID != nil, groupReorderTarget?.id == group.id,
-                   groupReorderTarget?.edge == .before
+                    groupReorderTarget?.edge == .before
                 {
                     Rectangle()
                         .fill(Color.accentColor)
@@ -552,7 +376,7 @@ private struct GroupRow: View {
             }
             .overlay(alignment: .bottom) {
                 if draggedGroupID != nil, groupReorderTarget?.id == group.id,
-                   groupReorderTarget?.edge == .after
+                    groupReorderTarget?.edge == .after
                 {
                     Rectangle()
                         .fill(Color.accentColor)
@@ -584,7 +408,6 @@ private struct GroupRow: View {
                 ForEach(group.children) { child in
                     GroupRow(
                         group: child,
-                        layer: layer,
                         viewModel: viewModel,
                         ignoreNextRowTap: $ignoreNextRowTap,
                         draggedShapeID: $draggedShapeID,
@@ -597,10 +420,9 @@ private struct GroupRow: View {
                     )
                 }
                 ForEach(orderedGroupShapeIDs, id: \.self) { shapeID in
-                    if let shape = layer.findShape(id: shapeID) {
+                    if let shape = viewModel.document.findShape(id: shapeID) {
                         ShapeRow(
                             shape: shape,
-                            layerID: layer.id,
                             containingGroupID: group.id,
                             viewModel: viewModel,
                             draggedShapeID: $draggedShapeID,
@@ -652,13 +474,12 @@ private struct GroupRow: View {
 
 private struct ShapeRow: View {
     let shape: AnyShape
-    let layerID: UUID
     let containingGroupID: UUID?
     @Bindable var viewModel: EditorViewModel
     @Binding var draggedShapeID: UUID?
     @Binding var draggedGroupID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
-    let onSelect: (PanelSelectionItem, Set<UUID>, UUID) -> Void
+    let onSelect: (PanelSelectionItem, Set<UUID>) -> Void
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
@@ -720,10 +541,8 @@ private struct ShapeRow: View {
                 return
             }
             // If the shape is inside a group, set enteredGroupID to the innermost containing group
-            if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }),
-               let rootGroup = viewModel.document.layers[layerIndex].findRootGroup(containingShape: shape.id)
-            {
-                let ancestry = viewModel.document.layers[layerIndex].findGroupAncestry(containingShape: shape.id)
+            if let rootGroup = viewModel.document.findRootGroup(containingShape: shape.id) {
+                let ancestry = viewModel.document.findGroupAncestry(containingShape: shape.id)
                 // Set to the innermost group that directly contains this shape
                 if let innermostGroup = ancestry.last(where: { $0.shapeIDs.contains(shape.id) }) {
                     viewModel.enteredGroupID = innermostGroup.id
@@ -733,7 +552,7 @@ private struct ShapeRow: View {
             } else {
                 viewModel.enteredGroupID = nil
             }
-            onSelect(.shape(shape.id), [shape.id], layerID)
+            onSelect(.shape(shape.id), [shape.id])
         }
         .onTapGesture(count: 2) {
             beginRename()
@@ -746,7 +565,6 @@ private struct ShapeRow: View {
             of: [UTType.text],
             delegate: ShapeDropDelegate(
                 targetShapeID: shape.id,
-                layerID: layerID,
                 targetGroupID: containingGroupID,
                 draggedShapeID: $draggedShapeID,
                 draggedGroupID: $draggedGroupID,
@@ -755,11 +573,11 @@ private struct ShapeRow: View {
             )
         )
         .contextMenu {
-            LayerReorderContextMenu(viewModel: viewModel, shapeID: shape.id)
+            ReorderContextMenu(viewModel: viewModel, shapeID: shape.id)
         }
         .overlay(alignment: .top) {
             if (draggedShapeID != nil || draggedGroupID != nil),
-               shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .before
+                shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .before
             {
                 Rectangle()
                     .fill(Color.accentColor)
@@ -768,7 +586,7 @@ private struct ShapeRow: View {
         }
         .overlay(alignment: .bottom) {
             if (draggedShapeID != nil || draggedGroupID != nil),
-               shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .after
+                shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .after
             {
                 Rectangle()
                     .fill(Color.accentColor)
@@ -805,7 +623,7 @@ private struct ShapeRow: View {
     }
 }
 
-private struct LayerReorderContextMenu: View {
+private struct ReorderContextMenu: View {
     let viewModel: EditorViewModel
     let shapeID: UUID?
 
@@ -889,72 +707,8 @@ private struct GroupReorderContextMenu: View {
     }
 }
 
-private struct LayerRowContextMenu: View {
-    @Bindable var viewModel: EditorViewModel
-    let layerIndex: Int
-
-    private var canDeleteLayer: Bool {
-        viewModel.document.layers.count > 1
-    }
-
-    var body: some View {
-        Button("Delete Layer", role: .destructive) {
-            viewModel.removeLayer(at: layerIndex)
-        }
-        .disabled(!canDeleteLayer)
-    }
-}
-
-private struct LayerDropDelegate: DropDelegate {
-    let targetLayerID: UUID
-    @Binding var draggedLayerID: UUID?
-    @Binding var draggedShapeID: UUID?
-    @Binding var dropTargetLayer: (id: UUID, edge: DropEdge)?
-    let viewModel: EditorViewModel
-
-    func dropEntered(info: DropInfo) {
-        guard draggedLayerID != nil else { return }
-        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
-        dropTargetLayer = (targetLayerID, edge)
-    }
-
-    func dropExited(info _: DropInfo) {
-        if dropTargetLayer?.id == targetLayerID {
-            dropTargetLayer = nil
-        }
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard draggedLayerID != nil else { return DropProposal(operation: .move) }
-        let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
-        dropTargetLayer = (targetLayerID, edge)
-        return DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard draggedLayerID != nil || draggedShapeID != nil else { return false }
-        if let draggedLayerID, draggedLayerID != targetLayerID {
-            let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
-            // Layer rows are shown top->bottom, but model order is bottom->top.
-            if edge == .before {
-                viewModel.moveLayer(draggedLayerID: draggedLayerID, after: targetLayerID)
-            } else {
-                viewModel.moveLayer(draggedLayerID: draggedLayerID, before: targetLayerID)
-            }
-        }
-        if let draggedShapeID {
-            viewModel.moveShape(draggedShapeID: draggedShapeID, toLayer: targetLayerID)
-        }
-        draggedLayerID = nil
-        draggedShapeID = nil
-        dropTargetLayer = nil
-        return true
-    }
-}
-
 private struct ShapeDropDelegate: DropDelegate {
     let targetShapeID: UUID
-    let layerID: UUID
     let targetGroupID: UUID?
     @Binding var draggedShapeID: UUID?
     @Binding var draggedGroupID: UUID?
@@ -990,10 +744,10 @@ private struct ShapeDropDelegate: DropDelegate {
             // Shape rows are shown top->bottom, but model order is bottom->top.
             if edge == .before {
                 viewModel.moveGroup(
-                    draggedGroupID: draggedGroupID, afterShape: targetShapeID, in: layerID)
+                    draggedGroupID: draggedGroupID, afterShape: targetShapeID)
             } else {
                 viewModel.moveGroup(
-                    draggedGroupID: draggedGroupID, beforeShape: targetShapeID, in: layerID)
+                    draggedGroupID: draggedGroupID, beforeShape: targetShapeID)
             }
             self.draggedGroupID = nil
             dropTargetShape = nil
@@ -1004,15 +758,15 @@ private struct ShapeDropDelegate: DropDelegate {
         if let draggedShapeID, draggedShapeID != targetShapeID {
             // Shape rows are shown top->bottom, but model order is bottom->top.
             if edge == .before {
-                viewModel.moveShape(draggedShapeID: draggedShapeID, after: targetShapeID, in: layerID)
+                viewModel.moveShape(draggedShapeID: draggedShapeID, after: targetShapeID)
             } else {
-                viewModel.moveShape(draggedShapeID: draggedShapeID, before: targetShapeID, in: layerID)
+                viewModel.moveShape(draggedShapeID: draggedShapeID, before: targetShapeID)
             }
             // Update group membership to match drop target's context
             if let targetGroupID {
-                viewModel.moveShapeToGroup(shapeID: draggedShapeID, groupID: targetGroupID, in: layerID)
+                viewModel.moveShapeToGroup(shapeID: draggedShapeID, groupID: targetGroupID)
             } else {
-                viewModel.removeShapeFromGroup(shapeID: draggedShapeID, in: layerID)
+                viewModel.removeShapeFromGroup(shapeID: draggedShapeID)
             }
         }
         draggedShapeID = nil
@@ -1023,7 +777,6 @@ private struct ShapeDropDelegate: DropDelegate {
 
 private struct GroupDropDelegate: DropDelegate {
     let targetGroupID: UUID
-    let layerID: UUID
     @Binding var draggedShapeID: UUID?
     @Binding var draggedGroupID: UUID?
     @Binding var groupDropTarget: UUID?
@@ -1065,10 +818,10 @@ private struct GroupDropDelegate: DropDelegate {
             // Group rows are shown top->bottom, but model order is bottom->top.
             if edge == .before {
                 viewModel.moveGroup(
-                    draggedGroupID: draggedGroupID, afterGroup: targetGroupID, in: layerID)
+                    draggedGroupID: draggedGroupID, afterGroup: targetGroupID)
             } else {
                 viewModel.moveGroup(
-                    draggedGroupID: draggedGroupID, beforeGroup: targetGroupID, in: layerID)
+                    draggedGroupID: draggedGroupID, beforeGroup: targetGroupID)
             }
             self.draggedGroupID = nil
             groupReorderTarget = nil
@@ -1078,17 +831,14 @@ private struct GroupDropDelegate: DropDelegate {
         // Handle shape-into-group
         guard let draggedShapeID else { return false }
         // Don't drop a shape that's already a direct member of this group
-        if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }),
-           let group = viewModel.document.layers[layerIndex].groups.first(where: {
-               $0.id == targetGroupID
-           }),
-           group.shapeIDs.contains(draggedShapeID)
+        if let group = viewModel.document.groups.first(where: { $0.id == targetGroupID }),
+            group.shapeIDs.contains(draggedShapeID)
         {
             self.draggedShapeID = nil
             groupDropTarget = nil
             return false
         }
-        viewModel.moveShapeToGroup(shapeID: draggedShapeID, groupID: targetGroupID, in: layerID)
+        viewModel.moveShapeToGroup(shapeID: draggedShapeID, groupID: targetGroupID)
         self.draggedShapeID = nil
         groupDropTarget = nil
         return true
@@ -1116,14 +866,10 @@ private struct GroupDropDelegate: DropDelegate {
         origin: GridPoint(column: 5, row: 10),
         text: "Notes here"
     )
-    vm.document.addShape(.rectangle(rect1), toLayerAt: 0)
-    vm.document.addShape(.rectangle(rect2), toLayerAt: 0)
-    vm.document.addShape(.arrow(arrow), toLayerAt: 0)
-    vm.document.addShape(.text(text), toLayerAt: 0)
-    vm.document.layers[0].groups.append(
-        ShapeGroup(name: "Backend", shapeIDs: [rect1.id, rect2.id])
+    vm.document = Document(
+        shapes: [.rectangle(rect1), .rectangle(rect2), .arrow(arrow), .text(text)],
+        groups: [ShapeGroup(name: "Backend", shapeIDs: [rect1.id, rect2.id])]
     )
-    vm.expandedItemIDs.insert(vm.document.layers[0].id)
     vm.selectedShapeIDs = [rect1.id]
 
     return LayerPanel(viewModel: vm)

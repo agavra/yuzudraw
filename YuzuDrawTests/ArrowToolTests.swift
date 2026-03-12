@@ -9,17 +9,16 @@ struct ArrowToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 1, row: 1), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 1, row: 1), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 10, row: 5), in: doc)
 
         // then
-        if case .addShape(.arrow(let arrow), let layerIndex) = action {
+        if case .addShape(.arrow(let arrow)) = action {
             #expect(arrow.start == GridPoint(column: 1, row: 1))
             #expect(arrow.end == GridPoint(column: 10, row: 1))
             #expect(arrow.startAttachment == nil)
             #expect(arrow.endAttachment == nil)
-            #expect(layerIndex == 0)
         } else {
             Issue.record("Expected addShape action with arrow")
         }
@@ -38,16 +37,16 @@ struct ArrowToolTests {
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(leftRect), toLayerAt: 0)
-        doc.addShape(.rectangle(rightRect), toLayerAt: 0)
+        doc.addShape(.rectangle(leftRect))
+        doc.addShape(.rectangle(rightRect))
 
         // when – click near the right attachment of leftRect and left attachment of rightRect
-        _ = tool.mouseDown(at: GridPoint(column: 9, row: 4), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 9, row: 4), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 20, row: 4), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 20, row: 4), in: doc)
 
         // then
-        if case .addShape(.arrow(let arrow), _) = action {
+        if case .addShape(.arrow(let arrow)) = action {
             #expect(arrow.start == GridPoint(column: 9, row: 4))
             #expect(arrow.end == GridPoint(column: 20, row: 4))
             #expect(arrow.startAttachment == ArrowAttachment(shapeID: leftRect.id, side: .right))
@@ -64,9 +63,9 @@ struct ArrowToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 5, row: 5), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 5, row: 5), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 5, row: 5), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 5), in: doc)
 
         // then
         #expect(action == .none)
@@ -78,9 +77,9 @@ struct ArrowToolTests {
         let doc = Document()
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 1, row: 1), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 1, row: 1), in: doc)
         _ = tool.mouseDragged(
-            to: GridPoint(column: 10, row: 5), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 10, row: 5), in: doc)
         let preview = tool.previewShape()
 
         // then
@@ -95,14 +94,14 @@ struct ArrowToolTests {
             origin: GridPoint(column: 10, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: rectangle.boundingRect.minColumn, row: 4), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: GridPoint(column: 0, row: 4), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: rectangle.boundingRect.minColumn, row: 4), in: doc)
+        let action = tool.mouseUp(at: GridPoint(column: 0, row: 4), in: doc)
 
         // then
-        if case .addShape(.arrow(let arrow), _) = action {
+        if case .addShape(.arrow(let arrow)) = action {
             #expect(arrow.start == GridPoint(column: rectangle.boundingRect.minColumn, row: 4))
             #expect(arrow.startAttachment == ArrowAttachment(shapeID: rectangle.id, side: .left))
         } else {
@@ -118,14 +117,14 @@ struct ArrowToolTests {
             origin: GridPoint(column: 10, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
-        _ = tool.mouseDown(at: GridPoint(column: 8, row: 4), in: doc, activeLayerIndex: 0)
-        let action = tool.mouseUp(at: GridPoint(column: 0, row: 4), in: doc, activeLayerIndex: 0)
+        _ = tool.mouseDown(at: GridPoint(column: 8, row: 4), in: doc)
+        let action = tool.mouseUp(at: GridPoint(column: 0, row: 4), in: doc)
 
         // then
-        if case .addShape(.arrow(let arrow), _) = action {
+        if case .addShape(.arrow(let arrow)) = action {
             #expect(arrow.start == GridPoint(column: 8, row: 4))
             #expect(arrow.startAttachment == nil)
         } else {

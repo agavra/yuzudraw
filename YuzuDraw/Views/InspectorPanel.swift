@@ -12,9 +12,9 @@ struct InspectorPanel: View {
     @State private var isExportSectionExpanded = true
     @State private var exportScale = 1
     @State private var exportBackgroundColor: ShapeColor?
-    @State private var exportFormat: LayerExportFormat = .png
+    @State private var exportFormat: ExportFormat = .png
 
-    private enum LayerExportFormat: String, CaseIterable {
+    private enum ExportFormat: String, CaseIterable {
         case png = "PNG"
         case svg = "SVG"
     }
@@ -25,9 +25,7 @@ struct InspectorPanel: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let layer = viewModel.selectedLayer {
-                        layerProperties(layer)
-                    } else if viewModel.selectedShapes.count > 1 {
+                    if viewModel.selectedShapes.count > 1 {
                         multiSelectionView
                     } else if let shape = viewModel.selectedShape {
                         shapeProperties(shape)
@@ -35,6 +33,10 @@ struct InspectorPanel: View {
                         pencilToolSettings
                     } else {
                         noSelectionView
+                    }
+
+                    if viewModel.selectedShapes.count >= 1 {
+                        exportSection
                     }
                 }
             }
@@ -50,18 +52,7 @@ struct InspectorPanel: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            if let layer = viewModel.selectedLayer {
-                Image(systemName: "square.3.layers.3d")
-                    .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(layer.name)
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text("Layer")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else if viewModel.selectedShapes.count > 1 {
+            if viewModel.selectedShapes.count > 1 {
                 Image(systemName: "square.on.square")
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 1) {
@@ -390,131 +381,91 @@ struct InspectorPanel: View {
         .padding()
     }
 
-    // MARK: - Layer properties
+    // MARK: - Export section
 
-    @ViewBuilder
-    private func layerProperties(_ layer: Layer) -> some View {
-        if viewModel.hasLayerFillShapes {
+    private var exportSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
             Divider()
 
-            staticSection(label: "Fill", icon: "paintbrush") {
-                mixableColorSwatchRow(
-                    color: viewModel.layerFillColor,
-                    isMixed: viewModel.isLayerFillColorMixed,
-                    target: .layerFill,
-                    onColorSelected: { viewModel.updateLayerFillColor($0) }
-                )
-            }
-        }
+            collapsibleSection(
+                label: "Export",
+                icon: "square.and.arrow.up",
+                isExpanded: isExportSectionExpanded,
+                onToggle: { isExportSectionExpanded.toggle() }
+            ) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Picker("", selection: $exportScale) {
+                            Text("1x").tag(1)
+                            Text("2x").tag(2)
+                            Text("3x").tag(3)
+                            Text("4x").tag(4)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .disabled(exportFormat == .svg)
 
-        if viewModel.hasLayerBorderShapes {
-            Divider()
-
-            staticSection(label: "Border", icon: "square") {
-                mixableColorSwatchRow(
-                    color: viewModel.layerBorderColor,
-                    isMixed: viewModel.isLayerBorderColorMixed,
-                    target: .layerBorder,
-                    onColorSelected: { viewModel.updateLayerBorderColor($0) }
-                )
-            }
-        }
-
-        if viewModel.hasLayerTextShapes {
-            Divider()
-
-            staticSection(label: "Text", icon: "textformat") {
-                mixableColorSwatchRow(
-                    color: viewModel.layerTextColor,
-                    isMixed: viewModel.isLayerTextColorMixed,
-                    target: .layerText,
-                    onColorSelected: { viewModel.updateLayerTextColor($0) }
-                )
-            }
-        }
-
-        Divider()
-
-        collapsibleSection(
-            label: "Export",
-            icon: "square.and.arrow.up",
-            isExpanded: isExportSectionExpanded,
-            onToggle: { isExportSectionExpanded.toggle() }
-        ) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Picker("", selection: $exportScale) {
-                        Text("1x").tag(1)
-                        Text("2x").tag(2)
-                        Text("3x").tag(3)
-                        Text("4x").tag(4)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
-                    .disabled(exportFormat == .svg)
-
-                    Picker("", selection: $exportFormat) {
-                        ForEach(LayerExportFormat.allCases, id: \.self) { format in
-                            Text(format.rawValue).tag(format)
+                        Picker("", selection: $exportFormat) {
+                            ForEach(ExportFormat.allCases, id: \.self) { format in
+                                Text(format.rawValue).tag(format)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .onChange(of: exportFormat) {
+                            if exportFormat == .svg {
+                                exportScale = 1
+                            }
                         }
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
-                    .onChange(of: exportFormat) {
-                        if exportFormat == .svg {
-                            exportScale = 1
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Background")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        colorSwatchRow(
+                            color: exportBackgroundColor,
+                            defaultColor: .white,
+                            allowsNone: true,
+                            target: .exportBackground,
+                            onColorSelected: { exportBackgroundColor = $0 }
+                        )
+                    }
+
+                    HStack(spacing: 6) {
+                        Button {
+                            switch exportFormat {
+                            case .png:
+                                viewModel.exportSelectedShapesAsPNG(
+                                    scale: exportScale,
+                                    backgroundColor: exportBackgroundColor
+                                )
+                            case .svg:
+                                viewModel.exportSelectedShapesAsSVG(
+                                    backgroundColor: exportBackgroundColor
+                                )
+                            }
+                        } label: {
+                            Label("Export", systemImage: "square.and.arrow.up")
+                                .font(.caption.weight(.medium))
+                                .frame(maxWidth: .infinity)
                         }
-                    }
-                }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Background")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    colorSwatchRow(
-                        color: exportBackgroundColor,
-                        defaultColor: .white,
-                        allowsNone: true,
-                        target: .exportBackground,
-                        onColorSelected: { exportBackgroundColor = $0 }
-                    )
-                }
-
-                HStack(spacing: 6) {
-                    Button {
-                        switch exportFormat {
-                        case .png:
-                            viewModel.exportSelectedLayerAsPNG(
-                                scale: exportScale,
-                                backgroundColor: exportBackgroundColor
-                            )
-                        case .svg:
-                            viewModel.exportSelectedLayerAsSVG(
-                                backgroundColor: exportBackgroundColor
-                            )
+                        Button {
+                            viewModel.copySelectionAsPlainTextToClipboard()
+                        } label: {
+                            Label("Copy Text", systemImage: "doc.on.doc")
+                                .font(.caption.weight(.medium))
+                                .frame(maxWidth: .infinity)
                         }
-                    } label: {
-                        Label("Export", systemImage: "square.and.arrow.up")
-                            .font(.caption.weight(.medium))
-                            .frame(maxWidth: .infinity)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(layer.shapes.isEmpty)
-
-                    Button {
-                        viewModel.copySelectedLayerAsTextToClipboard()
-                    } label: {
-                        Label("Copy Text", systemImage: "doc.on.doc")
-                            .font(.caption.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(layer.shapes.isEmpty)
                 }
             }
         }
@@ -1905,15 +1856,17 @@ struct InspectorPanel: View {
 }
 
 #Preview {
-    let rectangle = RectangleShape(
-        origin: GridPoint(column: 4, row: 2),
-        size: GridSize(width: 20, height: 10),
-        label: "My Rectangle"
-    )
-    var document = Document()
-    document.addShape(.rectangle(rectangle), toLayerAt: 0)
-    let vm = EditorViewModel(document: document)
-    vm.selectedShapeIDs = [rectangle.id]
-    return InspectorPanel(viewModel: vm)
-        .frame(height: 700)
+    InspectorPanel(viewModel: {
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 4, row: 2),
+            size: GridSize(width: 20, height: 10),
+            label: "My Rectangle"
+        )
+        var document = Document()
+        document.addShape(.rectangle(rectangle))
+        let vm = EditorViewModel(document: document)
+        vm.selectedShapeIDs = [rectangle.id]
+        return vm
+    }())
+    .frame(height: 700)
 }

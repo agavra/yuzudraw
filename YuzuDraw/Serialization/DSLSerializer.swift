@@ -2,37 +2,24 @@ import Foundation
 
 enum DSLSerializer {
     static func serialize(_ document: Document) -> String {
-        let allShapes = document.layers.flatMap(\.shapes)
+        let allShapes = document.shapes
         var lines: [String] = []
 
-        for layer in document.layers {
-            var layerLine = "layer \"\(layer.name)\""
-            if layer.isVisible {
-                layerLine += " visible"
+        // Walk shapes in z-order, emitting each group block when its first member is encountered
+        let groupedIDs = document.groupedShapeIDs
+        var emittedGroupIDs = Set<UUID>()
+
+        for shape in document.shapes {
+            if groupedIDs.contains(shape.id) {
+                // Find the root group containing this shape
+                guard let rootGroup = document.findRootGroup(containingShape: shape.id),
+                      !emittedGroupIDs.contains(rootGroup.id)
+                else { continue }
+                emittedGroupIDs.insert(rootGroup.id)
+                serializeGroup(
+                    rootGroup, document: document, allShapes: allShapes, indent: 2, lines: &lines)
             } else {
-                layerLine += " hidden"
-            }
-            if layer.isLocked {
-                layerLine += " locked"
-            }
-            lines.append(layerLine)
-
-            // Walk shapes in z-order, emitting each group block when its first member is encountered
-            let groupedIDs = layer.groupedShapeIDs
-            var emittedGroupIDs = Set<UUID>()
-
-            for shape in layer.shapes {
-                if groupedIDs.contains(shape.id) {
-                    // Find the root group containing this shape
-                    guard let rootGroup = layer.findRootGroup(containingShape: shape.id),
-                          !emittedGroupIDs.contains(rootGroup.id)
-                    else { continue }
-                    emittedGroupIDs.insert(rootGroup.id)
-                    serializeGroup(
-                        rootGroup, layer: layer, allShapes: allShapes, indent: 2, lines: &lines)
-                } else {
-                    lines.append("  \(serializeShape(shape, allShapes: allShapes))")
-                }
+                lines.append("  \(serializeShape(shape, allShapes: allShapes))")
             }
         }
 
@@ -40,7 +27,7 @@ enum DSLSerializer {
     }
 
     private static func serializeGroup(
-        _ group: ShapeGroup, layer: Layer, allShapes: [AnyShape], indent: Int,
+        _ group: ShapeGroup, document: Document, allShapes: [AnyShape], indent: Int,
         lines: inout [String]
     ) {
         let pad = String(repeating: " ", count: indent)
@@ -49,13 +36,13 @@ enum DSLSerializer {
         // Nested child groups
         for child in group.children {
             serializeGroup(
-                child, layer: layer, allShapes: allShapes, indent: indent + 2, lines: &lines)
+                child, document: document, allShapes: allShapes, indent: indent + 2, lines: &lines)
         }
 
         // Direct shape members
         let shapePad = String(repeating: " ", count: indent + 2)
         for shapeID in group.shapeIDs {
-            if let shape = layer.findShape(id: shapeID) {
+            if let shape = document.findShape(id: shapeID) {
                 lines.append("\(shapePad)\(serializeShape(shape, allShapes: allShapes))")
             }
         }

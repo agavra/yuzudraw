@@ -16,8 +16,8 @@ enum DSLParser {
     static func parse(_ input: String) throws -> Document {
         let expanded = DSLPreprocessor.expand(input)
 
-        var layers: [Layer] = []
-        var currentLayer: Layer?
+        var shapes: [AnyShape] = []
+        var groups: [ShapeGroup] = []
         var groupStack: [GroupStackEntry] = []
 
         let lines = expanded.components(separatedBy: "\n")
@@ -29,71 +29,56 @@ enum DSLParser {
             let indentLevel = line.prefix(while: { $0 == " " }).count
 
             if trimmed.hasPrefix("layer ") {
-                // Flush group stack
-                flushGroupStack(&groupStack, into: &currentLayer)
-
-                // Flush previous layer if any
-                if let layer = currentLayer {
-                    layers.append(layer)
-                }
-
-                currentLayer = try parseLayerHeader(trimmed)
+                // Legacy layer lines — flush group stack and ignore
+                flushGroupStack(&groupStack, into: &groups)
+                continue
             } else if trimmed.hasPrefix("group ") {
                 // Pop groups from stack that are at same or deeper indent
-                popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
+                popGroupsToIndent(indentLevel, stack: &groupStack, groups: &groups)
 
                 let name = try parseQuotedString(from: trimmed, after: "group ")
                 groupStack.append(
                     GroupStackEntry(name: name, shapeIDs: [], children: [], indent: indentLevel))
             } else if trimmed.hasPrefix("arrow ") {
                 // Pop groups whose indent is >= this shape's indent
-                popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
+                popGroupsToIndent(indentLevel, stack: &groupStack, groups: &groups)
 
-                let arrow = try parseArrow(trimmed, layers: layers, currentLayer: currentLayer)
+                let arrow = try parseArrow(trimmed, allShapes: shapes)
                 let shape = AnyShape.arrow(arrow)
                 if !groupStack.isEmpty {
                     groupStack[groupStack.count - 1].shapeIDs.append(shape.id)
                 }
-                currentLayer?.addShape(shape)
+                shapes.append(shape)
             } else if trimmed.hasPrefix("rectangle ") || trimmed.hasPrefix("rect ")
                 || trimmed.hasPrefix("box ")
                 || trimmed.hasPrefix("text ") || trimmed.hasPrefix("pencil ")
             {
                 // Pop groups whose indent is >= this shape's indent
-                popGroupsToIndent(indentLevel, stack: &groupStack, layer: &currentLayer)
+                popGroupsToIndent(indentLevel, stack: &groupStack, groups: &groups)
 
                 let shape = try parseShape(trimmed)
                 if !groupStack.isEmpty {
                     groupStack[groupStack.count - 1].shapeIDs.append(shape.id)
                 }
-                currentLayer?.addShape(shape)
+                shapes.append(shape)
             }
         }
 
         // Flush remaining group stack
-        flushGroupStack(&groupStack, into: &currentLayer)
+        flushGroupStack(&groupStack, into: &groups)
 
-        // Flush last layer
-        if let layer = currentLayer {
-            layers.append(layer)
-        }
-
-        if layers.isEmpty {
-            return Document()
-        }
-
-        return Document(layers: layers)
+        return Document(shapes: shapes, groups: groups)
     }
 
     private static func popGroupsToIndent(
-        _ indent: Int, stack: inout [GroupStackEntry], layer: inout Layer?
+        _ indent: Int, stack: inout [GroupStackEntry], groups: inout [ShapeGroup]
     ) {
         while let top = stack.last, top.indent >= indent {
             let entry = stack.removeLast()
             let group = ShapeGroup(
                 name: entry.name, shapeIDs: entry.shapeIDs, children: entry.children)
             if stack.isEmpty {
-                layer?.groups.append(group)
+                groups.append(group)
             } else {
                 stack[stack.count - 1].children.append(group)
             }
@@ -101,31 +86,17 @@ enum DSLParser {
     }
 
     private static func flushGroupStack(
-        _ stack: inout [GroupStackEntry], into layer: inout Layer?
+        _ stack: inout [GroupStackEntry], into groups: inout [ShapeGroup]
     ) {
         while let entry = stack.popLast() {
             let group = ShapeGroup(
                 name: entry.name, shapeIDs: entry.shapeIDs, children: entry.children)
             if stack.isEmpty {
-                layer?.groups.append(group)
+                groups.append(group)
             } else {
                 stack[stack.count - 1].children.append(group)
             }
         }
-    }
-
-    private static func parseLayerHeader(_ line: String) throws -> Layer {
-        // layer "name" visible|hidden [locked]
-        guard let name = try? parseQuotedString(from: line, after: "layer ") else {
-            throw DSLParserError.invalidSyntax("Expected layer name: \(line)")
-        }
-
-        let isVisible = line.contains(" visible")
-        let isLocked = line.contains(" locked")
-        // bgColor is parsed and ignored for backward compatibility
-        _ = parseColorKeyword("bgColor", in: line)
-
-        return Layer(name: name, isVisible: isVisible, isLocked: isLocked)
     }
 
     private static func parseShape(_ line: String) throws -> AnyShape {
@@ -395,7 +366,7 @@ enum DSLParser {
     }
 
     private static func parseArrow(
-        _ line: String, layers: [Layer], currentLayer: Layer?
+        _ line: String, allShapes: [AnyShape]
     ) throws -> ArrowShape {
         // Supports two endpoint formats:
         //   arrow from col,row to col,row ...
@@ -409,9 +380,6 @@ enum DSLParser {
             throw DSLParserError.invalidSyntax("Expected 'to' in arrow: \(line)")
         }
         let afterTo = String(line[toRange.upperBound...])
-
-        let allShapes = (layers + (currentLayer.map { [$0] } ?? []))
-            .flatMap(\.shapes)
 
         // Parse start endpoint
         var startPoint: GridPoint

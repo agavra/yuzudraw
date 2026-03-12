@@ -69,8 +69,7 @@ rect "" id seg2 at <bar_col + seg1_width>,<row> size <seg2_width>x1 fill block c
 
 ### Simple bar chart (3 rows)
 ```
-layer "Chart" visible
-  group "Bar Chart"
+group "Bar Chart"
     rect "Revenue by Region" at 0,0 size 22x3
     rect "" id container at 0,2 size 67x5
     text "APAC" at 2,3
@@ -87,8 +86,7 @@ layer "Chart" visible
 
 ### Stacked bar chart (2 rows)
 ```
-layer "Chart" visible
-  group "Bar Chart"
+group "Bar Chart"
     rect "50% margin reduction" at 0,0 size 24x3
     rect "" id container at 0,2 size 67x4
     text "before" at 2,3
@@ -107,8 +105,7 @@ layer "Chart" visible
 For complex charts, use groups to organize sections and a double-bordered outer frame:
 
 ```
-layer "Layer 1" visible
-  group "Chart 1"
+group "Chart 1"
     rect "50% hardware savings" at 11,7 size 24x3
     rect "" id c1 at 11,9 size 69x4
     rect "" id c1s1a at 21,10 size 14x1 fill block char "▓" noborder

@@ -16,8 +16,8 @@ struct ArrowAttachmentIntegrationTests {
             origin: GridPoint(column: 20, row: 2),
             size: GridSize(width: 8, height: 5)
         )
-        vm.document.addShape(.rectangle(leftRect), toLayerAt: 0)
-        vm.document.addShape(.rectangle(rightRect), toLayerAt: 0)
+        vm.document.addShape(.rectangle(leftRect))
+        vm.document.addShape(.rectangle(rightRect))
 
         vm.activeToolType = .arrow
         // Click near attachment points (right side of leftRect, left side of rightRect)
@@ -31,7 +31,7 @@ struct ArrowAttachmentIntegrationTests {
         vm.mouseUp(at: GridPoint(column: 33, row: 4))
 
         // then
-        let arrows = vm.document.layers[0].shapes.compactMap { shape -> ArrowShape? in
+        let arrows = vm.document.shapes.compactMap { shape -> ArrowShape? in
             guard case .arrow(let arrow) = shape else { return nil }
             return arrow
         }
@@ -66,9 +66,9 @@ struct ArrowAttachmentIntegrationTests {
             endAttachment: ArrowAttachment(shapeID: rightRect.id, side: .left)
         )
 
-        vm.document.addShape(.rectangle(leftRect), toLayerAt: 0)
-        vm.document.addShape(.rectangle(rightRect), toLayerAt: 0)
-        vm.document.addShape(.arrow(arrow), toLayerAt: 0)
+        vm.document.addShape(.rectangle(leftRect))
+        vm.document.addShape(.rectangle(rightRect))
+        vm.document.addShape(.arrow(arrow))
         vm.rerender()
 
         vm.activeToolType = .select

@@ -7,18 +7,18 @@ final class RectangleTool: Tool, @unchecked Sendable {
     private var currentPoint: GridPoint?
     var strokeStyle: StrokeStyle = .single
 
-    func mouseDown(at point: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDown(at point: GridPoint, in _: Document) -> ToolAction {
         startPoint = point
         currentPoint = point
         return .none
     }
 
-    func mouseDragged(to point: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDragged(to point: GridPoint, in _: Document) -> ToolAction {
         currentPoint = point
         return .none
     }
 
-    func mouseUp(at point: GridPoint, in _: Document, activeLayerIndex: Int) -> ToolAction {
+    func mouseUp(at point: GridPoint, in _: Document) -> ToolAction {
         guard let start = startPoint else { return .none }
         currentPoint = point
 
@@ -37,7 +37,7 @@ final class RectangleTool: Tool, @unchecked Sendable {
         )
 
         cancel()
-        return .addShape(.rectangle(rectangle), layerIndex: activeLayerIndex)
+        return .addShape(.rectangle(rectangle))
     }
 
     func cancel() {

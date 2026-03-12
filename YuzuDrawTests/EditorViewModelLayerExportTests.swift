@@ -4,33 +4,28 @@ import Testing
 @testable import YuzuDraw
 
 @MainActor
-struct EditorViewModelLayerExportTests {
-    @Test func should_export_selected_layer_as_normalized_text() {
+struct EditorViewModelExportTests {
+    @Test func should_export_selected_shapes_as_normalized_text() {
         // given
-        let layer = Layer(
-            name: "Layer 1",
-            shapes: [
-                .rectangle(RectangleShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3)))
-            ]
-        )
-        let viewModel = EditorViewModel(document: Document(layers: [layer]))
-        viewModel.selectedLayerID = layer.id
+        var document = Document()
+        let rectangle = RectangleShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rectangle))
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rectangle.id]
 
         // when
-        let exported = viewModel.selectedLayerPlainText()
+        let exported = viewModel.selectionOrCanvasPlainText()
 
         // then
         #expect(exported == "┌──┐\n│  │\n└──┘")
     }
 
-    @Test func should_return_nil_when_selected_layer_has_no_shapes() {
+    @Test func should_return_nil_when_no_shapes_selected_and_canvas_empty() {
         // given
-        let layer = Layer(name: "Empty Layer")
-        let viewModel = EditorViewModel(document: Document(layers: [layer]))
-        viewModel.selectedLayerID = layer.id
+        let viewModel = EditorViewModel(document: Document())
 
         // when
-        let exported = viewModel.selectedLayerPlainText()
+        let exported = viewModel.selectionOrCanvasPlainText()
 
         // then
         #expect(exported == nil)
@@ -38,7 +33,7 @@ struct EditorViewModelLayerExportTests {
 
     @Test func should_paste_shapes_with_new_ids_offset_and_remapped_arrow_attachments() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 9, row: 0), size: GridSize(width: 4, height: 3))
         let arrow = ArrowShape(
@@ -47,9 +42,9 @@ struct EditorViewModelLayerExportTests {
             startAttachment: ArrowAttachment(shapeID: rectA.id, side: .right),
             endAttachment: ArrowAttachment(shapeID: rectB.id, side: .left)
         )
-        document.addShape(.rectangle(rectA), toLayerAt: 0)
-        document.addShape(.rectangle(rectB), toLayerAt: 0)
-        document.addShape(.arrow(arrow), toLayerAt: 0)
+        document.addShape(.rectangle(rectA))
+        document.addShape(.rectangle(rectB))
+        document.addShape(.arrow(arrow))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rectA.id, rectB.id, arrow.id]
 
@@ -63,10 +58,10 @@ struct EditorViewModelLayerExportTests {
 
         // then
         #expect(didPaste)
-        #expect(viewModel.document.layers[0].shapes.count == 6)
+        #expect(viewModel.document.shapes.count == 6)
 
         let originalIDs: Set<UUID> = [rectA.id, rectB.id, arrow.id]
-        let pastedShapes = viewModel.document.layers[0].shapes.filter { !originalIDs.contains($0.id) }
+        let pastedShapes = viewModel.document.shapes.filter { !originalIDs.contains($0.id) }
         #expect(pastedShapes.count == 3)
 
         let pastedRects = pastedShapes.compactMap { shape -> RectangleShape? in
@@ -102,9 +97,9 @@ struct EditorViewModelLayerExportTests {
 
     @Test func should_increase_offset_on_consecutive_pastes_of_same_payload() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let text = TextShape(origin: GridPoint(column: 5, row: 5), text: "A")
-        document.addShape(.text(text), toLayerAt: 0)
+        document.addShape(.text(text))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [text.id]
 
@@ -118,7 +113,7 @@ struct EditorViewModelLayerExportTests {
         _ = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
 
         // then
-        let pastedTexts = viewModel.document.layers[0].shapes.compactMap { shape -> TextShape? in
+        let pastedTexts = viewModel.document.shapes.compactMap { shape -> TextShape? in
             guard case .text(let pasted) = shape, pasted.id != text.id else { return nil }
             return pasted
         }
@@ -129,14 +124,15 @@ struct EditorViewModelLayerExportTests {
 
     @Test func should_paste_shapes_into_same_group_they_were_copied_from() {
         // given
-        var layer = Layer(name: "Layer 1")
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
-        layer.shapes = [.rectangle(rectA), .rectangle(rectB)]
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rectA.id, rectB.id])
-        layer.groups = [group]
+        let document = Document(
+            shapes: [.rectangle(rectA), .rectangle(rectB)],
+            groups: [group]
+        )
 
-        let viewModel = EditorViewModel(document: Document(layers: [layer]))
+        let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rectA.id, rectB.id]
 
         guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
@@ -149,13 +145,13 @@ struct EditorViewModelLayerExportTests {
 
         // then
         #expect(didPaste)
-        #expect(viewModel.document.layers[0].shapes.count == 4)
+        #expect(viewModel.document.shapes.count == 4)
 
         let pastedIDs = Set(viewModel.selectedShapeIDs)
         #expect(pastedIDs.count == 2)
         #expect(pastedIDs.isDisjoint(with: [rectA.id, rectB.id]))
 
-        guard let pastedIntoGroup = viewModel.document.layers[0].groups.first(where: { $0.id == group.id }) else {
+        guard let pastedIntoGroup = viewModel.document.groups.first(where: { $0.id == group.id }) else {
             Issue.record("Expected original group to exist")
             return
         }
@@ -164,15 +160,16 @@ struct EditorViewModelLayerExportTests {
 
     @Test func should_paste_shapes_into_top_most_selected_group_when_multiple_groups_selected() {
         // given
-        var layer = Layer(name: "Layer 1")
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
-        layer.shapes = [.rectangle(rectA), .rectangle(rectB)]
         let topGroup = ShapeGroup(name: "Group 1", shapeIDs: [rectA.id])
         let secondGroup = ShapeGroup(name: "Group 2", shapeIDs: [rectB.id])
-        layer.groups = [topGroup, secondGroup]
+        let document = Document(
+            shapes: [.rectangle(rectA), .rectangle(rectB)],
+            groups: [topGroup, secondGroup]
+        )
 
-        let viewModel = EditorViewModel(document: Document(layers: [layer]))
+        let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rectA.id, rectB.id]
 
         guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
@@ -185,16 +182,16 @@ struct EditorViewModelLayerExportTests {
 
         // then
         #expect(didPaste)
-        #expect(viewModel.document.layers[0].shapes.count == 4)
+        #expect(viewModel.document.shapes.count == 4)
 
         let pastedIDs = Set(viewModel.selectedShapeIDs)
         #expect(pastedIDs.count == 2)
 
-        guard let pastedTopGroup = viewModel.document.layers[0].groups.first(where: { $0.id == topGroup.id }) else {
+        guard let pastedTopGroup = viewModel.document.groups.first(where: { $0.id == topGroup.id }) else {
             Issue.record("Expected top-most group to exist")
             return
         }
-        guard let untouchedSecondGroup = viewModel.document.layers[0].groups.first(where: { $0.id == secondGroup.id }) else {
+        guard let untouchedSecondGroup = viewModel.document.groups.first(where: { $0.id == secondGroup.id }) else {
             Issue.record("Expected second group to exist")
             return
         }
@@ -205,9 +202,9 @@ struct EditorViewModelLayerExportTests {
 
     @Test func should_copy_selected_shapes_as_normalized_plain_text() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rectangle = RectangleShape(origin: GridPoint(column: 8, row: 6), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(rectangle), toLayerAt: 0)
+        document.addShape(.rectangle(rectangle))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rectangle.id]
 
@@ -220,7 +217,7 @@ struct EditorViewModelLayerExportTests {
 
     @Test func should_include_shadow_in_plain_text_copy() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 5, row: 5),
             size: GridSize(width: 4, height: 3),
@@ -229,7 +226,7 @@ struct EditorViewModelLayerExportTests {
             shadowOffsetX: 1,
             shadowOffsetY: 1
         )
-        document.addShape(.rectangle(rectangle), toLayerAt: 0)
+        document.addShape(.rectangle(rectangle))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rectangle.id]
 
@@ -240,50 +237,22 @@ struct EditorViewModelLayerExportTests {
         #expect(text == "┌──┐ \n│  │░\n└──┘░\n ░░░░")
     }
 
-    @Test func should_create_new_layer_when_pasting_into_locked_active_layer() {
+    @Test func should_delete_selected_shapes() {
         // given
-        let lockedLayer = Layer(name: "Locked", isLocked: true)
-        var sourceDocument = Document(layers: [Layer(name: "Source")])
-        let text = TextShape(origin: GridPoint(column: 1, row: 1), text: "A")
-        sourceDocument.addShape(.text(text), toLayerAt: 0)
-        let sourceViewModel = EditorViewModel(document: sourceDocument)
-        sourceViewModel.selectedShapeIDs = [text.id]
-        guard let payloadData = sourceViewModel.selectedShapesClipboardPayloadData() else {
-            Issue.record("Expected payload data")
-            return
-        }
-
-        let viewModel = EditorViewModel(document: Document(layers: [lockedLayer]))
-        viewModel.activeLayerIndex = 0
-
-        // when
-        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
-
-        // then
-        #expect(didPaste)
-        #expect(viewModel.document.layers.count == 2)
-        #expect(viewModel.document.layers[0].shapes.isEmpty)
-        #expect(viewModel.document.layers[1].shapes.count == 1)
-        #expect(viewModel.activeLayerIndex == 1)
-    }
-
-    @Test func should_not_delete_shapes_from_locked_layers() {
-        // given
-        let lockedRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let unlockedRect = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
-        let document = Document(layers: [
-            Layer(name: "Locked", isLocked: true, shapes: [.rectangle(lockedRect)]),
-            Layer(name: "Unlocked", shapes: [.rectangle(unlockedRect)]),
-        ])
+        var document = Document()
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [lockedRect.id, unlockedRect.id]
+        viewModel.selectedShapeIDs = [rect1.id]
 
         // when
         viewModel.deleteSelectedShapes()
 
         // then
-        #expect(viewModel.document.findShape(id: lockedRect.id) != nil)
-        #expect(viewModel.document.findShape(id: unlockedRect.id) == nil)
-        #expect(viewModel.selectedShapeIDs == Set([lockedRect.id]))
+        #expect(viewModel.document.findShape(id: rect1.id) == nil)
+        #expect(viewModel.document.findShape(id: rect2.id) != nil)
+        #expect(viewModel.selectedShapeIDs.isEmpty)
     }
 }

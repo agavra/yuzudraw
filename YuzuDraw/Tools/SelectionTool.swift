@@ -36,7 +36,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
         arrowAttachmentPreviewPointsStorage
     }
 
-    func mouseDown(at point: GridPoint, in document: Document, activeLayerIndex _: Int)
+    func mouseDown(at point: GridPoint, in document: Document)
         -> ToolAction
     {
         arrowAttachmentPreviewPointsStorage = []
@@ -97,7 +97,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
         }
     }
 
-    func mouseDragged(to point: GridPoint, in document: Document, activeLayerIndex _: Int)
+    func mouseDragged(to point: GridPoint, in document: Document)
         -> ToolAction
     {
         switch mode {
@@ -107,11 +107,6 @@ final class SelectionTool: Tool, @unchecked Sendable {
 
         case .draggingShape(let shapeID, let offset):
             guard let shape = document.findShape(id: shapeID) else {
-                return .none
-            }
-            guard let layerIndex = document.layerIndex(containingShape: shapeID),
-                !document.layers[layerIndex].isLocked
-            else {
                 return .none
             }
 
@@ -163,12 +158,6 @@ final class SelectionTool: Tool, @unchecked Sendable {
             return .none
 
         case .resizingShape(let originalShape, let handle):
-            guard let layerIndex = document.layerIndex(containingShape: originalShape.id),
-                !document.layers[layerIndex].isLocked
-            else {
-                return .none
-            }
-
             guard case .arrow(let arrow) = originalShape, handle == .start || handle == .end else {
                 arrowAttachmentPreviewPointsStorage = []
                 return .updateShape(originalShape.resized(using: handle, to: point))
@@ -190,11 +179,8 @@ final class SelectionTool: Tool, @unchecked Sendable {
         in document: Document
     ) -> [AnyShape] {
         var movableShapes: [AnyShape] = []
-        for layer in document.layers {
-            guard !layer.isLocked else { continue }
-            for shape in layer.shapes where selectedShapeIDs.contains(shape.id) {
-                movableShapes.append(shape)
-            }
+        for shape in document.shapes where selectedShapeIDs.contains(shape.id) {
+            movableShapes.append(shape)
         }
 
         guard !movableShapes.isEmpty else { return [] }
@@ -258,7 +244,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
         }
     }
 
-    func mouseUp(at point: GridPoint, in document: Document, activeLayerIndex _: Int) -> ToolAction
+    func mouseUp(at point: GridPoint, in document: Document) -> ToolAction
     {
         switch mode {
         case .marquee(let start, _):
@@ -267,7 +253,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
             arrowAttachmentPreviewPointsStorage = []
             // Only do marquee selection if the user actually dragged
             if rect.size.width > 1 || rect.size.height > 1 {
-                let shapes = document.shapesInRect(rect, excludingLockedLayers: true)
+                let shapes = document.shapesInRect(rect)
                 let ids = Set(shapes.map(\.id))
                 return isShiftKeyPressed ? .addShapesToSelection(ids) : .selectShapes(ids)
             }
@@ -315,13 +301,10 @@ final class SelectionTool: Tool, @unchecked Sendable {
 
     private func resizeHandleHit(at point: GridPoint, in document: Document) -> (AnyShape, ResizeHandle)? {
         guard !selectedShapeIDs.isEmpty else { return nil }
-        for layer in document.layers.reversed() {
-            guard layer.isVisible, !layer.isLocked else { continue }
-            for shape in layer.shapes.reversed() {
-                guard selectedShapeIDs.contains(shape.id) else { continue }
-                if let handle = shape.resizeHandle(at: point) {
-                    return (shape, handle)
-                }
+        for shape in document.shapes.reversed() {
+            guard selectedShapeIDs.contains(shape.id) else { continue }
+            if let handle = shape.resizeHandle(at: point) {
+                return (shape, handle)
             }
         }
         return nil
@@ -392,22 +375,19 @@ final class SelectionTool: Tool, @unchecked Sendable {
         var best: (rectangle: RectangleShape, side: ArrowAttachmentSide, point: GridPoint)?
         var bestDistance = Double.greatestFiniteMagnitude
 
-        for layer in document.layers.reversed() {
-            guard layer.isVisible else { continue }
-            for shape in layer.shapes.reversed() {
-                guard shape.id != excludingShapeID else { continue }
-                guard case .rectangle(let rectangle) = shape else { continue }
-                for side in ArrowAttachmentSide.allCases {
-                    let attachPoint = rectangle.attachmentPoint(for: side)
-                    let distance = hypot(
-                        Double(attachPoint.column - point.column),
-                        Double(attachPoint.row - point.row)
-                    )
-                    guard distance <= Self.attachmentSnapRadius else { continue }
-                    if distance < bestDistance {
-                        bestDistance = distance
-                        best = (rectangle, side, attachPoint)
-                    }
+        for shape in document.shapes.reversed() {
+            guard shape.id != excludingShapeID else { continue }
+            guard case .rectangle(let rectangle) = shape else { continue }
+            for side in ArrowAttachmentSide.allCases {
+                let attachPoint = rectangle.attachmentPoint(for: side)
+                let distance = hypot(
+                    Double(attachPoint.column - point.column),
+                    Double(attachPoint.row - point.row)
+                )
+                guard distance <= Self.attachmentSnapRadius else { continue }
+                if distance < bestDistance {
+                    bestDistance = distance
+                    best = (rectangle, side, attachPoint)
                 }
             }
         }

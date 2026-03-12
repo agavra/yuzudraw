@@ -6,9 +6,9 @@ import Testing
 struct EditorViewModelGroupingTests {
     @Test func should_group_single_selected_shape() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(rect), toLayerAt: 0)
+        document.addShape(.rectangle(rect))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rect.id]
 
@@ -16,19 +16,19 @@ struct EditorViewModelGroupingTests {
         viewModel.groupSelectedShapes()
 
         // then
-        #expect(viewModel.document.layers[0].groups.count == 1)
-        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [rect.id])
+        #expect(viewModel.document.groups.count == 1)
+        #expect(viewModel.document.groups[0].shapeIDs == [rect.id])
     }
 
-    @Test func should_group_selected_shapes_in_same_layer() {
+    @Test func should_group_selected_shapes() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
         let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
-        document.addShape(.rectangle(rect3), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
+        document.addShape(.rectangle(rect3))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rect3.id, rect1.id]
 
@@ -36,17 +36,17 @@ struct EditorViewModelGroupingTests {
         viewModel.groupSelectedShapes()
 
         // then
-        #expect(viewModel.document.layers[0].groups.count == 1)
-        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [rect1.id, rect3.id])
+        #expect(viewModel.document.groups.count == 1)
+        #expect(viewModel.document.groups[0].shapeIDs == [rect1.id, rect3.id])
     }
 
     @Test func should_preserve_multi_selection_when_drag_starts_on_selected_shape() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
         viewModel.selectedShapeIDs = [rect1.id, rect2.id]
@@ -58,34 +58,16 @@ struct EditorViewModelGroupingTests {
         #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id])
     }
 
-    @Test func should_not_group_selected_shapes_across_layers() {
-        // given
-        var document = Document(layers: [Layer(name: "Layer 1"), Layer(name: "Layer 2")])
-        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 1)
-        let viewModel = EditorViewModel(document: document)
-        viewModel.selectedShapeIDs = [rect1.id, rect2.id]
-
-        // when
-        viewModel.groupSelectedShapes()
-
-        // then
-        #expect(viewModel.document.layers[0].groups.isEmpty)
-        #expect(viewModel.document.layers[1].groups.isEmpty)
-    }
-
     @Test func should_remove_shapes_from_existing_groups_before_creating_new_group() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
         let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
-        document.addShape(.rectangle(rect3), toLayerAt: 0)
-        document.layers[0].groups.append(ShapeGroup(name: "Existing", shapeIDs: [rect1.id, rect2.id]))
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
+        document.addShape(.rectangle(rect3))
+        document.groups.append(ShapeGroup(name: "Existing", shapeIDs: [rect1.id, rect2.id]))
         let viewModel = EditorViewModel(document: document)
         viewModel.selectedShapeIDs = [rect2.id, rect3.id]
 
@@ -93,72 +75,72 @@ struct EditorViewModelGroupingTests {
         viewModel.groupSelectedShapes()
 
         // then
-        #expect(viewModel.document.layers[0].groups.count == 2)
-        #expect(viewModel.document.layers[0].groups[0].shapeIDs == [rect1.id])
-        #expect(viewModel.document.layers[0].groups[1].shapeIDs == [rect2.id, rect3.id])
+        #expect(viewModel.document.groups.count == 2)
+        #expect(viewModel.document.groups[0].shapeIDs == [rect1.id])
+        #expect(viewModel.document.groups[1].shapeIDs == [rect2.id, rect3.id])
     }
 
     @Test func should_rename_shape_without_changing_label() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rectangle = RectangleShape(
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 6, height: 4),
             label: "Rendered"
         )
-        document.addShape(.rectangle(rectangle), toLayerAt: 0)
+        document.addShape(.rectangle(rectangle))
         let viewModel = EditorViewModel(document: document)
 
         // when
         viewModel.renameShapeFromPanel(rectangle.id, to: "Node A")
 
         // then
-        guard case .rectangle(let renamedRect) = viewModel.document.layers[0].shapes[0] else {
+        guard case .rectangle(let renamedRect) = viewModel.document.shapes[0] else {
             Issue.record("Expected rectangle shape")
             return
         }
         #expect(renamedRect.name == "Node A")
         #expect(renamedRect.label == "Rendered")
-        #expect(viewModel.document.layers[0].shapes[0].displayName == "Node A")
+        #expect(viewModel.document.shapes[0].displayName == "Node A")
     }
 
     @Test func should_clear_custom_shape_name_when_empty_string_is_submitted() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let arrow = ArrowShape(
             name: "Flow",
             start: GridPoint(column: 0, row: 0),
             end: GridPoint(column: 5, row: 0),
             label: ""
         )
-        document.addShape(.arrow(arrow), toLayerAt: 0)
+        document.addShape(.arrow(arrow))
         let viewModel = EditorViewModel(document: document)
 
         // when
         viewModel.renameShapeFromPanel(arrow.id, to: "   ")
 
         // then
-        guard case .arrow(let renamedArrow) = viewModel.document.layers[0].shapes[0] else {
+        guard case .arrow(let renamedArrow) = viewModel.document.shapes[0] else {
             Issue.record("Expected arrow shape")
             return
         }
         #expect(renamedArrow.name == nil)
-        #expect(viewModel.document.layers[0].shapes[0].displayName == "Arrow")
+        #expect(viewModel.document.shapes[0].displayName == "Arrow")
     }
 
     @Test func should_rename_nested_group_from_panel() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let nestedGroup = ShapeGroup(name: "Inner", shapeIDs: [])
         let parentGroup = ShapeGroup(name: "Outer", shapeIDs: [], children: [nestedGroup])
-        document.layers[0].groups = [parentGroup]
+        document.groups = [parentGroup]
         let viewModel = EditorViewModel(document: document)
 
         // when
         viewModel.renameGroupFromPanel(nestedGroup.id, to: "Database")
 
         // then
-        #expect(viewModel.document.layers[0].groups[0].children[0].name == "Database")
+        #expect(viewModel.document.groups[0].children[0].name == "Database")
     }
 
     @Test func should_expand_canvas_width_when_scrolling_right_near_edge() {
@@ -271,14 +253,14 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_select_entire_group_when_clicking_grouped_shape() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
         let rect3 = RectangleShape(origin: GridPoint(column: 40, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
-        document.addShape(.rectangle(rect3), toLayerAt: 0)
-        document.layers[0].groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
+        document.addShape(.rectangle(rect3))
+        document.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
 
@@ -293,13 +275,13 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_enter_group_on_second_click() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
-        document.layers[0].groups.append(group)
+        document.groups.append(group)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
 
@@ -319,14 +301,14 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_drill_into_nested_groups_progressively() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let innerGroup = ShapeGroup(name: "Inner", shapeIDs: [rect1.id])
         let outerGroup = ShapeGroup(name: "Outer", shapeIDs: [rect2.id], children: [innerGroup])
-        document.layers[0].groups.append(outerGroup)
+        document.groups.append(outerGroup)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
 
@@ -351,13 +333,13 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_exit_group_on_escape_and_reselect_parent() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
-        document.layers[0].groups.append(group)
+        document.groups.append(group)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
 
@@ -377,11 +359,11 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_deselect_on_empty_canvas_click() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id])
-        document.layers[0].groups.append(group)
+        document.groups.append(group)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
         viewModel.selectedShapeIDs = [rect1.id]
@@ -398,14 +380,14 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_add_entire_group_on_shift_click() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
         let rect3 = RectangleShape(origin: GridPoint(column: 40, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
-        document.addShape(.rectangle(rect3), toLayerAt: 0)
-        document.layers[0].groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
+        document.addShape(.rectangle(rect3))
+        document.groups.append(ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id]))
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
         viewModel.selectedShapeIDs = [rect3.id]
@@ -423,13 +405,13 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_select_another_shape_within_entered_group() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 8, height: 5))
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
-        document.layers[0].groups.append(group)
+        document.groups.append(group)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
 
@@ -448,17 +430,17 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_double_click_enter_group() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rect1 = RectangleShape(
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 8, height: 5),
             label: "Hello"
         )
         let rect2 = RectangleShape(origin: GridPoint(column: 20, row: 2), size: GridSize(width: 8, height: 5))
-        document.addShape(.rectangle(rect1), toLayerAt: 0)
-        document.addShape(.rectangle(rect2), toLayerAt: 0)
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
         let group = ShapeGroup(name: "Group 1", shapeIDs: [rect1.id, rect2.id])
-        document.layers[0].groups.append(group)
+        document.groups.append(group)
         let viewModel = EditorViewModel(document: document)
         viewModel.activeToolType = .select
 
@@ -473,9 +455,9 @@ struct EditorViewModelGroupingTests {
 
     @Test func should_not_shrink_canvas_below_shape_bounds_plus_padding() {
         // given
-        var document = Document(layers: [Layer(name: "Layer 1")])
+        var document = Document()
         let rectangle = RectangleShape(origin: GridPoint(column: 95, row: 5), size: GridSize(width: 10, height: 4))
-        document.addShape(.rectangle(rectangle), toLayerAt: 0)
+        document.addShape(.rectangle(rectangle))
         let viewModel = EditorViewModel(document: document)
         viewModel.document.canvasSize = GridSize(width: 140, height: 40)
 
@@ -503,43 +485,38 @@ struct EditorViewModelGroupingTests {
         #expect(viewModel.document.canvasSize.width == 120)
     }
 
-    @Test func should_select_shapes_from_top_layer_down_to_selected_layer() {
+    @Test func should_select_all_shapes_in_document() {
         // given
-        var document = Document(layers: [Layer(name: "Bottom"), Layer(name: "Middle"), Layer(name: "Top")])
-        let bottomRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
-        let middleRect = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
-        let topRect = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(bottomRect), toLayerAt: 0)
-        document.addShape(.rectangle(middleRect), toLayerAt: 1)
-        document.addShape(.rectangle(topRect), toLayerAt: 2)
+        var document = Document()
+        let rect1 = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rect2 = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        let rect3 = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(rect1))
+        document.addShape(.rectangle(rect2))
+        document.addShape(.rectangle(rect3))
         let viewModel = EditorViewModel(document: document)
-        viewModel.activeLayerIndex = 1
-        viewModel.selectedShapeIDs = [middleRect.id]
-        viewModel.selectedLayerID = viewModel.document.layers[1].id
+        viewModel.selectedShapeIDs = [rect2.id]
 
         // when
         viewModel.selectAllShapes()
 
         // then
-        #expect(viewModel.selectedShapeIDs == [middleRect.id, topRect.id])
+        #expect(viewModel.selectedShapeIDs == [rect1.id, rect2.id, rect3.id])
     }
 
     @Test func should_select_only_members_of_group_when_selecting_shape_in_group() {
         // given
-        var document = Document(layers: [Layer(name: "Main"), Layer(name: "Top")])
+        var document = Document()
         let bottomRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let groupedRectA = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
         let groupedRectB = RectangleShape(origin: GridPoint(column: 15, row: 0), size: GridSize(width: 4, height: 3))
         let topOfLayerRect = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
-        let topLayerRect = RectangleShape(origin: GridPoint(column: 30, row: 0), size: GridSize(width: 4, height: 3))
-        document.addShape(.rectangle(bottomRect), toLayerAt: 0)
-        document.addShape(.rectangle(groupedRectA), toLayerAt: 0)
-        document.addShape(.rectangle(groupedRectB), toLayerAt: 0)
-        document.addShape(.rectangle(topOfLayerRect), toLayerAt: 0)
-        document.layers[0].groups = [ShapeGroup(name: "Middle Group", shapeIDs: [groupedRectA.id, groupedRectB.id])]
-        document.addShape(.rectangle(topLayerRect), toLayerAt: 1)
+        document.addShape(.rectangle(bottomRect))
+        document.addShape(.rectangle(groupedRectA))
+        document.addShape(.rectangle(groupedRectB))
+        document.addShape(.rectangle(topOfLayerRect))
+        document.groups = [ShapeGroup(name: "Middle Group", shapeIDs: [groupedRectA.id, groupedRectB.id])]
         let viewModel = EditorViewModel(document: document)
-        viewModel.activeLayerIndex = 0
         viewModel.selectedShapeIDs = [groupedRectA.id]
 
         // when

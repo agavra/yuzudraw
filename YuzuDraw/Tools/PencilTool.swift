@@ -12,10 +12,8 @@ final class PencilTool: Tool, @unchecked Sendable {
     private var currentShape: PencilShape?
     private var lastPoint: GridPoint?
     private var isAppending = false
-    private var activeLayerIndexAtStart: Int = 0
 
-    func mouseDown(at point: GridPoint, in document: Document, activeLayerIndex: Int) -> ToolAction {
-        activeLayerIndexAtStart = activeLayerIndex
+    func mouseDown(at point: GridPoint, in document: Document) -> ToolAction {
         lastPoint = point
 
         if let targetID = targetShapeID,
@@ -38,7 +36,7 @@ final class PencilTool: Tool, @unchecked Sendable {
         return .none
     }
 
-    func mouseDragged(to point: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDragged(to point: GridPoint, in _: Document) -> ToolAction {
         guard var shape = currentShape, let last = lastPoint else { return .none }
 
         let interpolated = Self.bresenhamLine(from: last, to: point)
@@ -51,7 +49,7 @@ final class PencilTool: Tool, @unchecked Sendable {
         return .none
     }
 
-    func mouseUp(at point: GridPoint, in _: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseUp(at point: GridPoint, in _: Document) -> ToolAction {
         guard var shape = currentShape, let last = lastPoint else {
             cancel()
             return .none
@@ -67,7 +65,7 @@ final class PencilTool: Tool, @unchecked Sendable {
         if isAppending {
             result = .updateShape(.pencil(shape))
         } else {
-            result = .addShape(.pencil(shape), layerIndex: activeLayerIndexAtStart)
+            result = .addShape(.pencil(shape))
         }
 
         cancel()

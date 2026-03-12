@@ -12,9 +12,6 @@ enum ColorTarget: Hashable {
     case textColor
     case pencilColor
     case pencilToolColor
-    case layerFill
-    case layerBorder
-    case layerText
     case exportBackground
     case multiSelectRectBorder
     case multiSelectRectFill
@@ -38,12 +35,7 @@ final class EditorViewModel {
 
     var document: Document
     var canvas: Canvas
-    var selectedShapeIDs: Set<UUID> = [] {
-        didSet {
-            clearSelectedLayerIfNeeded()
-        }
-    }
-    var selectedLayerID: UUID?
+    var selectedShapeIDs: Set<UUID> = []
     var activeToolType: ToolType = .select {
         didSet {
             if activeToolType != oldValue {
@@ -51,7 +43,6 @@ final class EditorViewModel {
             }
         }
     }
-    var activeLayerIndex: Int = 0
     var expandedItemIDs: Set<UUID> = []
     var isEditingText: Bool = false
     var textEditPoint: GridPoint?
@@ -90,6 +81,15 @@ final class EditorViewModel {
         guard let next = redoStack.popLast() else { return }
         undoStack.append(document)
         document = next
+        selectedShapeIDs = []
+        enteredGroupID = nil
+        rerender()
+    }
+
+    func replaceDocument(_ newDocument: Document) {
+        undoStack.removeAll()
+        redoStack.removeAll()
+        document = newDocument
         selectedShapeIDs = []
         enteredGroupID = nil
         rerender()
@@ -198,7 +198,7 @@ final class EditorViewModel {
     init(document: Document = Document()) {
         self.document = document
         self.canvas = Canvas(size: document.canvasSize)
-        expandedItemIDs = Set(document.layers.map(\.id))
+        expandedItemIDs = []
         rerender()
     }
 
@@ -233,8 +233,7 @@ final class EditorViewModel {
         recordSnapshot()
         isInDragOperation = true
 
-        let action = activeTool.mouseDown(
-            at: point, in: document, activeLayerIndex: activeLayerIndex)
+        let action = activeTool.mouseDown(at: point, in: document)
 
         if activeToolType == .select {
             applyGroupAwareAction(action)
@@ -246,15 +245,8 @@ final class EditorViewModel {
     func handleDoubleClick(at point: GridPoint) {
         guard let shape = document.hitTest(at: point) else { return }
 
-        // Don't allow editing shapes on locked layers
-        guard let layerIndex = document.layerIndex(containingShape: shape.id),
-              !document.layers[layerIndex].isLocked
-        else { return }
-
-        let layer = document.layers[layerIndex]
-
         // Group handling: if shape is in a group, double-click enters the group
-        if let rootGroup = layer.findRootGroup(containingShape: shape.id) {
+        if let rootGroup = document.findRootGroup(containingShape: shape.id) {
             if enteredGroupID == nil {
                 // Not entered yet — enter the root group, select the shape (or sub-group)
                 enteredGroupID = rootGroup.id
@@ -268,7 +260,7 @@ final class EditorViewModel {
             }
 
             // Already entered — check if we can drill deeper
-            let ancestry = layer.findGroupAncestry(containingShape: shape.id)
+            let ancestry = document.findGroupAncestry(containingShape: shape.id)
             if let enteredIndex = ancestry.firstIndex(where: { $0.id == enteredGroupID }) {
                 let enteredGroup = ancestry[enteredIndex]
                 if let childGroup = enteredGroup.childGroup(containingShape: shape.id) {
@@ -320,8 +312,7 @@ final class EditorViewModel {
         if activeToolType == .arrow {
             hoverGridPoint = point
         }
-        let action = activeTool.mouseDragged(
-            to: point, in: document, activeLayerIndex: activeLayerIndex)
+        let action = activeTool.mouseDragged(to: point, in: document)
         applyAction(action)
         rerender()
     }
@@ -331,8 +322,7 @@ final class EditorViewModel {
         isOptionKeyPressed = optionDown
         arrowTool.suppressAttachment = optionDown
         selectionTool.isShiftKeyPressed = isShiftKeyPressed
-        let action = activeTool.mouseUp(
-            at: point, in: document, activeLayerIndex: activeLayerIndex)
+        let action = activeTool.mouseUp(at: point, in: document)
 
         if activeToolType == .select {
             applyGroupAwareAction(action)
@@ -366,10 +356,8 @@ final class EditorViewModel {
         switch action {
         case .none:
             break
-        case .addShape(let shape, let layerIndex):
-            let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: layerIndex)
-            document.addShape(shape, toLayerAt: targetLayerIndex)
-            activeLayerIndex = targetLayerIndex
+        case .addShape(let shape):
+            document.addShape(shape)
             selectedShapeIDs = [shape.id]
             if case .pencil = shape {
                 // Stay in pencil mode so the user can keep drawing
@@ -407,16 +395,8 @@ final class EditorViewModel {
 
     // MARK: - Group-aware selection
 
-    private func activeLayer() -> Layer? {
-        guard document.layers.indices.contains(activeLayerIndex) else { return nil }
-        return document.layers[activeLayerIndex]
-    }
-
     func resolveGroupSelection(forShapeID shapeID: UUID) -> (shapeIDs: Set<UUID>, groupID: UUID?) {
-        guard let layer = activeLayer() else {
-            return ([shapeID], nil)
-        }
-        guard let rootGroup = layer.findRootGroup(containingShape: shapeID) else {
+        guard let rootGroup = document.findRootGroup(containingShape: shapeID) else {
             return ([shapeID], nil)
         }
         guard let enteredGroupID else {
@@ -424,7 +404,7 @@ final class EditorViewModel {
         }
 
         // Walk the ancestry to find the entered group, then resolve within it
-        let ancestry = layer.findGroupAncestry(containingShape: shapeID)
+        let ancestry = document.findGroupAncestry(containingShape: shapeID)
         guard let enteredIndex = ancestry.firstIndex(where: { $0.id == enteredGroupID }) else {
             // Shape is not inside the entered group — select the root group
             return (rootGroup.allShapeIDs, rootGroup.id)
@@ -438,15 +418,15 @@ final class EditorViewModel {
     }
 
     private func isGroupSelected() -> ShapeGroup? {
-        guard !selectedShapeIDs.isEmpty, let layer = activeLayer() else { return nil }
-        for group in layer.groups {
+        guard !selectedShapeIDs.isEmpty else { return nil }
+        for group in document.groups {
             let groupIDs = group.allShapeIDs
             if !groupIDs.isEmpty, groupIDs == selectedShapeIDs {
                 return group
             }
         }
         // Also check nested groups
-        return findSelectedGroupRecursive(in: layer.groups)
+        return findSelectedGroupRecursive(in: document.groups)
     }
 
     private func findSelectedGroupRecursive(in groups: [ShapeGroup]) -> ShapeGroup? {
@@ -470,8 +450,7 @@ final class EditorViewModel {
             applyAction(action)
 
         case .selectShape(let id?):
-            guard let layer = activeLayer(),
-                  let rootGroup = layer.findRootGroup(containingShape: id)
+            guard let rootGroup = document.findRootGroup(containingShape: id)
             else {
                 // Ungrouped shape — clear group state, select normally
                 enteredGroupID = nil
@@ -479,9 +458,9 @@ final class EditorViewModel {
                 return
             }
 
-            if enteredGroupID != nil, isAncestor(groupID: enteredGroupID!, of: id, in: layer) {
+            if enteredGroupID != nil, isAncestor(groupID: enteredGroupID!, of: id) {
                 // Already inside entered group — check if current selection matches a sub-group
-                if let selectedSubGroup = findSelectedSubGroup(within: enteredGroupID!, in: layer),
+                if let selectedSubGroup = findSelectedSubGroup(within: enteredGroupID!),
                    selectedSubGroup.containsShape(id) {
                     // Selection matches a sub-group and we clicked inside it — drill into it
                     enteredGroupID = selectedSubGroup.id
@@ -492,7 +471,7 @@ final class EditorViewModel {
                     let resolved = resolveGroupSelection(forShapeID: id)
                     selectedShapeIDs = resolved.shapeIDs
                 }
-            } else if let currentGroup = isGroupSelected(), currentGroup.id == rootGroup.id || isAncestor(group: currentGroup, of: id, in: layer) {
+            } else if let currentGroup = isGroupSelected(), currentGroup.id == rootGroup.id || isAncestor(group: currentGroup, of: id) {
                 // Group (or ancestor) is already selected — enter group, select inner target
                 enteredGroupID = currentGroup.id
                 let resolved = resolveGroupSelection(forShapeID: id)
@@ -504,8 +483,7 @@ final class EditorViewModel {
             }
 
         case .addShapeToSelection(let id):
-            guard let layer = activeLayer(),
-                  let rootGroup = layer.findRootGroup(containingShape: id)
+            guard let rootGroup = document.findRootGroup(containingShape: id)
             else {
                 applyAction(action)
                 return
@@ -519,8 +497,7 @@ final class EditorViewModel {
             }
 
         case .removeShapeFromSelection(let id):
-            guard let layer = activeLayer(),
-                  let rootGroup = layer.findRootGroup(containingShape: id)
+            guard let rootGroup = document.findRootGroup(containingShape: id)
             else {
                 applyAction(action)
                 return
@@ -538,22 +515,15 @@ final class EditorViewModel {
         }
     }
 
-    private func isAncestor(group: ShapeGroup, of shapeID: UUID, in layer: Layer) -> Bool {
-        let ancestry = layer.findGroupAncestry(containingShape: shapeID)
+    private func isAncestor(group: ShapeGroup, of shapeID: UUID) -> Bool {
+        let ancestry = document.findGroupAncestry(containingShape: shapeID)
         return ancestry.contains { $0.id == group.id }
     }
 
-    private func findSelectedSubGroup(within parentGroupID: UUID, in layer: Layer) -> ShapeGroup? {
+    private func findSelectedSubGroup(within parentGroupID: UUID) -> ShapeGroup? {
         guard !selectedShapeIDs.isEmpty else { return nil }
         // Find the parent group, then check if selection matches any of its child groups
-        func findGroup(id: UUID, in groups: [ShapeGroup]) -> ShapeGroup? {
-            for group in groups {
-                if group.id == id { return group }
-                if let found = findGroup(id: id, in: group.children) { return found }
-            }
-            return nil
-        }
-        guard let parentGroup = findGroup(id: parentGroupID, in: layer.groups) else { return nil }
+        guard let parentGroup = document.findGroupByID(parentGroupID) else { return nil }
         for child in parentGroup.children {
             if child.allShapeIDs == selectedShapeIDs {
                 return child
@@ -562,20 +532,19 @@ final class EditorViewModel {
         return nil
     }
 
-    private func isAncestor(groupID: UUID, of shapeID: UUID, in layer: Layer) -> Bool {
-        let ancestry = layer.findGroupAncestry(containingShape: shapeID)
+    private func isAncestor(groupID: UUID, of shapeID: UUID) -> Bool {
+        let ancestry = document.findGroupAncestry(containingShape: shapeID)
         return ancestry.contains { $0.id == groupID }
     }
 
     var selectedGroupBoundingRect: GridRect? {
         guard enteredGroupID == nil, !selectedShapeIDs.isEmpty else { return nil }
-        guard let layer = activeLayer() else { return nil }
 
         // Check if the selection matches a group's allShapeIDs
-        let matchesGroup = layer.groups.contains { group in
+        let matchesGroup = document.groups.contains { group in
             let ids = group.allShapeIDs
             return !ids.isEmpty && ids == selectedShapeIDs
-        } || findSelectedGroupRecursive(in: layer.groups) != nil
+        } || findSelectedGroupRecursive(in: document.groups) != nil
 
         guard matchesGroup else { return nil }
 
@@ -603,22 +572,17 @@ final class EditorViewModel {
     func handleEscape() -> Bool {
         if let enteredGroupID {
             // Exit entered group and re-select the group as a whole
-            if let layer = activeLayer() {
-                let ancestry = findGroupContaining(groupID: enteredGroupID, in: layer.groups)
-                if let parentGroup = ancestry {
-                    // Re-select the parent group
-                    selectedShapeIDs = parentGroup.allShapeIDs
-                    self.enteredGroupID = nil
-                } else {
-                    // enteredGroupID is a root group — find it and select it
-                    if let group = layer.groups.first(where: { $0.id == enteredGroupID }) {
-                        selectedShapeIDs = group.allShapeIDs
-                    }
-                    self.enteredGroupID = nil
-                }
-            } else {
+            let ancestry = findGroupContaining(groupID: enteredGroupID, in: document.groups)
+            if let parentGroup = ancestry {
+                // Re-select the parent group
+                selectedShapeIDs = parentGroup.allShapeIDs
                 self.enteredGroupID = nil
-                selectedShapeIDs = []
+            } else {
+                // enteredGroupID is a root group — find it and select it
+                if let group = document.groups.first(where: { $0.id == enteredGroupID }) {
+                    selectedShapeIDs = group.allShapeIDs
+                }
+                self.enteredGroupID = nil
             }
             return true
         } else if !selectedShapeIDs.isEmpty {
@@ -684,9 +648,7 @@ final class EditorViewModel {
                 return
             }
             let textShape = TextShape(origin: point, text: textEditContent)
-            let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: activeLayerIndex)
-            document.addShape(.text(textShape), toLayerAt: targetLayerIndex)
-            activeLayerIndex = targetLayerIndex
+            document.addShape(.text(textShape))
             selectedShapeIDs = [textShape.id]
             activeToolType = .select
         }
@@ -713,42 +675,6 @@ final class EditorViewModel {
         return document.findShape(id: id)
     }
 
-    var selectedLayer: Layer? {
-        guard let id = selectedLayerID else { return nil }
-        return document.layers.first { $0.id == id }
-    }
-
-    private func clearSelectedLayerIfNeeded() {
-        guard let layerID = selectedLayerID,
-            let layer = document.layers.first(where: { $0.id == layerID })
-        else {
-            selectedLayerID = nil
-            return
-        }
-        let layerShapeIDs = Set(layer.shapes.map(\.id))
-        if selectedShapeIDs != layerShapeIDs {
-            selectedLayerID = nil
-        }
-    }
-
-    // MARK: - Layer aggregate colors
-
-    var hasLayerFillShapes: Bool {
-        selectedLayer?.shapes.contains { if case .rectangle = $0 { return true }; return false } ?? false
-    }
-
-    var hasLayerBorderShapes: Bool {
-        selectedLayer?.shapes.contains {
-            if case .rectangle = $0 { return true }
-            if case .arrow = $0 { return true }
-            return false
-        } ?? false
-    }
-
-    var hasLayerTextShapes: Bool {
-        selectedLayer?.shapes.isEmpty == false
-    }
-
     var documentColors: [ShapeColor] {
         var seen = Set<ShapeColor>()
         var result: [ShapeColor] = []
@@ -756,141 +682,14 @@ final class EditorViewModel {
             seen.insert(color)
             result.append(color)
         }
-        for layer in document.layers {
-            for shape in layer.shapes {
-                for color in shape.colors {
-                    if seen.insert(color).inserted {
-                        result.append(color)
-                    }
+        for shape in document.shapes {
+            for color in shape.colors {
+                if seen.insert(color).inserted {
+                    result.append(color)
                 }
             }
         }
         return result
-    }
-
-    var layerFillColor: ShapeColor? {
-        guard let layer = selectedLayer else { return nil }
-        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            if case .rectangle(let rectangle) = shape { return rectangle.fillColor }
-            return nil
-        }
-        guard let first = colors.first else { return nil }
-        return colors.allSatisfy({ $0 == first }) ? first : nil
-    }
-
-    var isLayerFillColorMixed: Bool {
-        guard let layer = selectedLayer else { return false }
-        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            if case .rectangle(let rectangle) = shape { return rectangle.fillColor }
-            return nil
-        }
-        guard colors.count > 1 else { return false }
-        return !colors.allSatisfy { $0 == colors[0] }
-    }
-
-    var layerBorderColor: ShapeColor? {
-        guard let layer = selectedLayer else { return nil }
-        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            switch shape {
-            case .rectangle(let rectangle): return rectangle.borderColor
-            case .arrow(let arrow): return arrow.strokeColor
-            case .text, .pencil: return nil
-            }
-        }
-        guard let first = colors.first else { return nil }
-        return colors.allSatisfy({ $0 == first }) ? first : nil
-    }
-
-    var isLayerBorderColorMixed: Bool {
-        guard let layer = selectedLayer else { return false }
-        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            switch shape {
-            case .rectangle(let rectangle): return rectangle.borderColor
-            case .arrow(let arrow): return arrow.strokeColor
-            case .text, .pencil: return nil
-            }
-        }
-        guard colors.count > 1 else { return false }
-        return !colors.allSatisfy { $0 == colors[0] }
-    }
-
-    var layerTextColor: ShapeColor? {
-        guard let layer = selectedLayer else { return nil }
-        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            switch shape {
-            case .rectangle(let rectangle): return rectangle.textColor
-            case .arrow(let arrow): return arrow.labelColor
-            case .text(let text): return text.textColor
-            case .pencil: return nil
-            }
-        }
-        guard let first = colors.first else { return nil }
-        return colors.allSatisfy({ $0 == first }) ? first : nil
-    }
-
-    var isLayerTextColorMixed: Bool {
-        guard let layer = selectedLayer else { return false }
-        let colors = layer.shapes.compactMap { shape -> ShapeColor? in
-            switch shape {
-            case .rectangle(let rectangle): return rectangle.textColor
-            case .arrow(let arrow): return arrow.labelColor
-            case .text(let text): return text.textColor
-            case .pencil: return nil
-            }
-        }
-        guard colors.count > 1 else { return false }
-        return !colors.allSatisfy { $0 == colors[0] }
-    }
-
-    func updateLayerFillColor(_ color: ShapeColor?) {
-        recordSnapshot()
-        guard let layer = selectedLayer else { return }
-        for shape in layer.shapes {
-            if case .rectangle(var rectangle) = shape {
-                rectangle.fillColor = color
-                updateShapeAndAttachments(.rectangle(rectangle))
-            }
-        }
-        rerender()
-    }
-
-    func updateLayerBorderColor(_ color: ShapeColor?) {
-        recordSnapshot()
-        guard let layer = selectedLayer else { return }
-        for shape in layer.shapes {
-            switch shape {
-            case .rectangle(var rectangle):
-                rectangle.borderColor = color
-                updateShapeAndAttachments(.rectangle(rectangle))
-            case .arrow(var arrow):
-                arrow.strokeColor = color
-                document.updateShape(.arrow(arrow))
-            case .text, .pencil:
-                break
-            }
-        }
-        rerender()
-    }
-
-    func updateLayerTextColor(_ color: ShapeColor?) {
-        recordSnapshot()
-        guard let layer = selectedLayer else { return }
-        for shape in layer.shapes {
-            switch shape {
-            case .rectangle(var rectangle):
-                rectangle.textColor = color
-                updateShapeAndAttachments(.rectangle(rectangle))
-            case .arrow(var arrow):
-                arrow.labelColor = color
-                document.updateShape(.arrow(arrow))
-            case .text(var text):
-                text.textColor = color
-                document.updateShape(.text(text))
-            case .pencil:
-                break
-            }
-        }
-        rerender()
     }
 
     // MARK: - Multi-selection helpers
@@ -1867,7 +1666,7 @@ final class EditorViewModel {
         document.palette.entries.removeAll { $0.id == id }
     }
 
-    // MARK: - Layer export
+    // MARK: - Clipboard and export
 
     func canCopySelectedShapes() -> Bool {
         !isEditingText && !selectedShapesInDocumentOrder().isEmpty
@@ -1922,7 +1721,6 @@ final class EditorViewModel {
 
         let dx = Self.pasteOffset.column * consecutivePasteCount
         let dy = Self.pasteOffset.row * consecutivePasteCount
-        let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: activeLayerIndex)
 
         recordSnapshot()
 
@@ -1934,17 +1732,16 @@ final class EditorViewModel {
             guard let newID = idMap[shape.id] else { continue }
             let remappedShape = remappedShapeForClipboardPaste(shape, newID: newID, idMap: idMap)
             let translated = translatedShape(remappedShape, dx: dx, dy: dy)
-            document.addShape(translated, toLayerAt: targetLayerIndex)
+            document.addShape(translated)
             pastedShapeIDs.insert(translated.id)
             pastedShapeIDsInOrder.append(translated.id)
         }
 
         if let sourceGroupID = payload.sourceGroupID {
-            _ = document.layers[targetLayerIndex].appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
+            _ = document.appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
         }
 
         selectedShapeIDs = pastedShapeIDs
-        activeLayerIndex = targetLayerIndex
         activeToolType = .select
         rerender()
         return true
@@ -1962,38 +1759,18 @@ final class EditorViewModel {
     }
 
     private func selectedShapesSourceGroupID() -> UUID? {
-        guard let layerIndex = layerIndexForSelectedShapes() else { return nil }
-        let layer = document.layers[layerIndex]
         let selectedIDs = selectedShapeIDs
 
-        if let selectedGroupID = topMostSelectedGroupID(in: layer, selectedIDs: selectedIDs) {
+        if let selectedGroupID = topMostSelectedGroupID(selectedIDs: selectedIDs) {
             return selectedGroupID
         }
 
         let orderedShapes = selectedShapesInDocumentOrder()
         guard let firstShapeID = orderedShapes.first?.id else { return nil }
-        return layer.findGroupAncestry(containingShape: firstShapeID).last?.id
+        return document.findGroupAncestry(containingShape: firstShapeID).last?.id
     }
 
-    private func layerIndexForSelectedShapes() -> Int? {
-        var selectedLayerIndex: Int?
-
-        for shape in selectedShapesInDocumentOrder() {
-            guard let layerIndex = document.layerIndex(containingShape: shape.id) else {
-                return nil
-            }
-
-            if let selectedLayerIndex {
-                guard selectedLayerIndex == layerIndex else { return nil }
-            } else {
-                selectedLayerIndex = layerIndex
-            }
-        }
-
-        return selectedLayerIndex
-    }
-
-    private func topMostSelectedGroupID(in layer: Layer, selectedIDs: Set<UUID>) -> UUID? {
+    private func topMostSelectedGroupID(selectedIDs: Set<UUID>) -> UUID? {
         func visit(_ groups: [ShapeGroup]) -> UUID? {
             for group in groups {
                 let memberIDs = group.allShapeIDs
@@ -2006,7 +1783,7 @@ final class EditorViewModel {
             }
             return nil
         }
-        return visit(layer.groups)
+        return visit(document.groups)
     }
 
     func copySelectionAsPlainTextToClipboard() {
@@ -2036,26 +1813,8 @@ final class EditorViewModel {
         return canvas.render()
     }
 
-    func copySelectedLayerAsTextToClipboard() {
-        guard let text = selectedLayerPlainText() else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-    }
-
-    func selectedLayerPlainText() -> String? {
-        guard let canvas = selectedLayerExportCanvas() else { return nil }
-        return canvas.render()
-    }
-
     private func selectedShapesInDocumentOrder() -> [AnyShape] {
-        var ordered: [AnyShape] = []
-        for layer in document.layers {
-            for shape in layer.shapes where selectedShapeIDs.contains(shape.id) {
-                ordered.append(shape)
-            }
-        }
-        return ordered
+        document.shapes.filter { selectedShapeIDs.contains($0.id) }
     }
 
     private func selectedShapesExportCanvas() -> Canvas? {
@@ -2218,145 +1977,53 @@ final class EditorViewModel {
         return exportCanvas.render()
     }
 
-    func exportSelectedLayerAsPNG(scale: Int, backgroundColor: ShapeColor?) {
-        guard let layer = selectedLayer,
-            let canvas = selectedLayerExportCanvas(),
+    func exportSelectedShapesAsPNG(scale: Int, backgroundColor: ShapeColor?) {
+        guard let canvas = selectedShapesExportCanvas(),
             let pngData = pngData(from: canvas, scale: scale, backgroundColor: backgroundColor)
         else { return }
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.init(filenameExtension: "png")!]
-        panel.nameFieldStringValue = "\(layer.name).png"
+
+        let defaultName: String
+        if let group = isGroupSelected() {
+            defaultName = "\(group.name).png"
+        } else {
+            defaultName = "Selection.png"
+        }
+        panel.nameFieldStringValue = defaultName
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {
             try pngData.write(to: url)
         } catch {
-            print("Failed to export layer PNG: \(error)")
+            print("Failed to export PNG: \(error)")
         }
     }
 
-    private func selectedLayerExportCanvas() -> Canvas? {
-        guard let layer = selectedLayer, !layer.shapes.isEmpty else { return nil }
-        let bounds = layerBounds(for: layer)
-
-        var canvas = Canvas(columns: bounds.size.width, rows: bounds.size.height)
-        for shape in layer.shapes {
-            translatedShape(shape, dx: -bounds.origin.column, dy: -bounds.origin.row)
-                .render(into: &canvas)
-        }
-        return canvas
-    }
-
-    private func layerBounds(for layer: Layer) -> GridRect {
-        let first = layer.shapes[0].renderBoundingRect
-        return layer.shapes.dropFirst().reduce(first) { result, shape in
-            let rect = shape.renderBoundingRect
-            let minColumn = min(result.minColumn, rect.minColumn)
-            let minRow = min(result.minRow, rect.minRow)
-            let maxColumn = max(result.maxColumn, rect.maxColumn)
-            let maxRow = max(result.maxRow, rect.maxRow)
-            return GridRect(
-                origin: GridPoint(column: minColumn, row: minRow),
-                size: GridSize(width: maxColumn - minColumn + 1, height: maxRow - minRow + 1)
-            )
-        }
-    }
-
-    private func translatedShape(_ shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
-        switch shape {
-        case .rectangle(var rectangle):
-            rectangle.origin = GridPoint(column: rectangle.origin.column + dx, row: rectangle.origin.row + dy)
-            return .rectangle(rectangle)
-        case .arrow(var arrow):
-            arrow.start = GridPoint(column: arrow.start.column + dx, row: arrow.start.row + dy)
-            arrow.end = GridPoint(column: arrow.end.column + dx, row: arrow.end.row + dy)
-            return .arrow(arrow)
-        case .text(var text):
-            text.origin = GridPoint(column: text.origin.column + dx, row: text.origin.row + dy)
-            return .text(text)
-        case .pencil(var pencil):
-            pencil.origin = GridPoint(
-                column: pencil.origin.column + dx,
-                row: pencil.origin.row + dy
-            )
-            return .pencil(pencil)
-        }
-    }
-
-    private func pngData(from canvas: Canvas, scale: Int, backgroundColor: ShapeColor?) -> Data? {
-        let exportScale = min(max(scale, 1), 4)
-        let font = NSFont.monospacedSystemFont(ofSize: 16, weight: .regular)
-        let charSize = ("M" as NSString).size(withAttributes: [.font: font])
-        let baseWidth = max(1, Int(ceil(CGFloat(canvas.columns) * charSize.width)))
-        let baseHeight = max(1, Int(ceil(CGFloat(canvas.rows) * charSize.height)))
-        let width = baseWidth * exportScale
-        let height = baseHeight * exportScale
-
-        guard let bitmap = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: width,
-            pixelsHigh: height,
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ) else { return nil }
-
-        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = context
-
-        (backgroundColor?.nsColor ?? .clear).setFill()
-        NSRect(x: 0, y: 0, width: width, height: height).fill()
-
-        context.cgContext.scaleBy(x: CGFloat(exportScale), y: CGFloat(exportScale))
-
-        for row in 0..<canvas.rows {
-            for column in 0..<canvas.columns {
-                guard let cell = canvas.cell(atColumn: column, row: row) else { continue }
-                let x = CGFloat(column) * charSize.width
-                let y = CGFloat(canvas.rows - row - 1) * charSize.height
-                let cellRect = NSRect(x: x, y: y, width: charSize.width, height: charSize.height)
-
-                if let background = cell.backgroundColor {
-                    background.nsColor.setFill()
-                    cellRect.fill()
-                }
-
-                guard cell.character != " " else { continue }
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: font,
-                    .foregroundColor: (cell.foregroundColor ?? .black).nsColor,
-                ]
-                NSString(string: String(cell.character)).draw(at: CGPoint(x: x, y: y), withAttributes: attributes)
-            }
-        }
-
-        NSGraphicsContext.restoreGraphicsState()
-        return bitmap.representation(using: .png, properties: [:])
-    }
-
-    func exportSelectedLayerAsSVG(backgroundColor: ShapeColor?) {
-        guard let layer = selectedLayer,
-            let canvas = selectedLayerExportCanvas(),
+    func exportSelectedShapesAsSVG(backgroundColor: ShapeColor?) {
+        guard let canvas = selectedShapesExportCanvas(),
             let data = svgData(from: canvas, backgroundColor: backgroundColor)
         else { return }
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.init(filenameExtension: "svg")!]
-        panel.nameFieldStringValue = "\(layer.name).svg"
+
+        let defaultName: String
+        if let group = isGroupSelected() {
+            defaultName = "\(group.name).svg"
+        } else {
+            defaultName = "Selection.svg"
+        }
+        panel.nameFieldStringValue = defaultName
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {
             try data.write(to: url)
         } catch {
-            print("Failed to export layer SVG: \(error)")
+            print("Failed to export SVG: \(error)")
         }
     }
 
@@ -2425,15 +2092,11 @@ final class EditorViewModel {
 
     func deleteSelectedShapes() {
         recordSnapshot()
-        let deletableIDs = selectedShapeIDs.filter { shapeID in
-            guard let layerIndex = document.layerIndex(containingShape: shapeID) else { return false }
-            return !document.layers[layerIndex].isLocked
-        }
-        for id in deletableIDs {
+        for id in selectedShapeIDs {
             detachArrows(referencing: id)
             document.removeShape(id: id)
         }
-        selectedShapeIDs.subtract(deletableIDs)
+        selectedShapeIDs = []
         enteredGroupID = nil
         rerender()
     }
@@ -2441,69 +2104,11 @@ final class EditorViewModel {
     func moveSelectedShapes(dx: Int, dy: Int) {
         recordSnapshot()
         for id in selectedShapeIDs {
-            guard let layerIndex = document.layerIndex(containingShape: id),
-                !document.layers[layerIndex].isLocked,
-                let shape = document.findShape(id: id)
-            else { continue }
-
+            guard let shape = document.findShape(id: id) else { continue }
             let movedShape = translatedForSelectionMove(shape: shape, dx: dx, dy: dy)
             updateShapeAndAttachments(movedShape)
         }
         rerender()
-    }
-
-    // MARK: - Layer management
-
-    func addLayer() {
-        recordSnapshot()
-        let name = "Layer \(document.layers.count + 1)"
-        document.addLayer(name: name)
-        activeLayerIndex = document.layers.count - 1
-        expandedItemIDs.insert(document.layers[activeLayerIndex].id)
-    }
-
-    func removeLayer(at index: Int) {
-        recordSnapshot()
-        document.removeLayer(at: index)
-        if activeLayerIndex >= document.layers.count {
-            activeLayerIndex = document.layers.count - 1
-        }
-        rerender()
-    }
-
-    func toggleLayerVisibility(at index: Int) {
-        recordSnapshot()
-        guard document.layers.indices.contains(index) else { return }
-        document.layers[index].isVisible.toggle()
-        rerender()
-    }
-
-    func toggleLayerLock(at index: Int) {
-        recordSnapshot()
-        guard document.layers.indices.contains(index) else { return }
-        document.layers[index].isLocked.toggle()
-    }
-
-    func moveActiveLayerUp() {
-        recordSnapshot()
-        guard document.moveLayerUp(at: activeLayerIndex) else { return }
-        activeLayerIndex += 1
-        rerender()
-    }
-
-    func moveActiveLayerDown() {
-        recordSnapshot()
-        guard document.moveLayerDown(at: activeLayerIndex) else { return }
-        activeLayerIndex -= 1
-        rerender()
-    }
-
-    func canMoveActiveLayerUp() -> Bool {
-        activeLayerIndex < document.layers.count - 1
-    }
-
-    func canMoveActiveLayerDown() -> Bool {
-        activeLayerIndex > 0
     }
 
     func moveSelectedShapeForward() {
@@ -2576,44 +2181,38 @@ final class EditorViewModel {
         return canPerformGroupAwareMove(shapeID: shapeID, forward: false)
     }
 
-    // MARK: - Group z-order from LayerPanel
+    // MARK: - Group z-order
 
     func moveGroupForward(_ groupID: UUID) {
-        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
         recordSnapshot()
-        guard document.moveGroupForward(groupID: groupID, inLayerAt: layerIndex) else { return }
+        guard document.moveGroupForward(groupID: groupID) else { return }
         rerender()
     }
 
     func moveGroupBackward(_ groupID: UUID) {
-        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
         recordSnapshot()
-        guard document.moveGroupBackward(groupID: groupID, inLayerAt: layerIndex) else { return }
+        guard document.moveGroupBackward(groupID: groupID) else { return }
         rerender()
     }
 
     func moveGroupToFront(_ groupID: UUID) {
-        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
         recordSnapshot()
-        guard document.moveGroupToFront(groupID: groupID, inLayerAt: layerIndex) else { return }
+        guard document.moveGroupToFront(groupID: groupID) else { return }
         rerender()
     }
 
     func moveGroupToBack(_ groupID: UUID) {
-        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
         recordSnapshot()
-        guard document.moveGroupToBack(groupID: groupID, inLayerAt: layerIndex) else { return }
+        guard document.moveGroupToBack(groupID: groupID) else { return }
         rerender()
     }
 
     func canMoveGroupForward(_ groupID: UUID) -> Bool {
-        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return false }
-        return document.canMoveGroupForward(groupID: groupID, inLayerAt: layerIndex)
+        document.canMoveGroupForward(groupID: groupID)
     }
 
     func canMoveGroupBackward(_ groupID: UUID) -> Bool {
-        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return false }
-        return document.canMoveGroupBackward(groupID: groupID, inLayerAt: layerIndex)
+        document.canMoveGroupBackward(groupID: groupID)
     }
 
     // MARK: - Group-aware move helpers
@@ -2623,23 +2222,20 @@ final class EditorViewModel {
     }
 
     private func performGroupAwareMove(shapeID: UUID, action: ZOrderAction) -> Bool {
-        guard let layerIndex = document.layerIndex(containingShape: shapeID) else { return false }
-        let layer = document.layers[layerIndex]
-
-        if let rootGroup = layer.findRootGroup(containingShape: shapeID) {
+        if let rootGroup = document.findRootGroup(containingShape: shapeID) {
             if enteredGroupID != nil {
                 // Move within the group
                 switch action {
                 case .forward:
                     return document.moveShapeWithinGroup(
-                        id: shapeID, forward: true, groupID: rootGroup.id, inLayerAt: layerIndex)
+                        id: shapeID, forward: true, groupID: rootGroup.id)
                 case .backward:
                     return document.moveShapeWithinGroup(
-                        id: shapeID, forward: false, groupID: rootGroup.id, inLayerAt: layerIndex)
+                        id: shapeID, forward: false, groupID: rootGroup.id)
                 case .toFront:
                     var moved = false
                     while document.moveShapeWithinGroup(
-                        id: shapeID, forward: true, groupID: rootGroup.id, inLayerAt: layerIndex)
+                        id: shapeID, forward: true, groupID: rootGroup.id)
                     {
                         moved = true
                     }
@@ -2647,7 +2243,7 @@ final class EditorViewModel {
                 case .toBack:
                     var moved = false
                     while document.moveShapeWithinGroup(
-                        id: shapeID, forward: false, groupID: rootGroup.id, inLayerAt: layerIndex)
+                        id: shapeID, forward: false, groupID: rootGroup.id)
                     {
                         moved = true
                     }
@@ -2657,13 +2253,13 @@ final class EditorViewModel {
                 // Move the whole group
                 switch action {
                 case .forward:
-                    return document.moveGroupForward(groupID: rootGroup.id, inLayerAt: layerIndex)
+                    return document.moveGroupForward(groupID: rootGroup.id)
                 case .backward:
-                    return document.moveGroupBackward(groupID: rootGroup.id, inLayerAt: layerIndex)
+                    return document.moveGroupBackward(groupID: rootGroup.id)
                 case .toFront:
-                    return document.moveGroupToFront(groupID: rootGroup.id, inLayerAt: layerIndex)
+                    return document.moveGroupToFront(groupID: rootGroup.id)
                 case .toBack:
-                    return document.moveGroupToBack(groupID: rootGroup.id, inLayerAt: layerIndex)
+                    return document.moveGroupToBack(groupID: rootGroup.id)
                 }
             }
         } else {
@@ -2678,19 +2274,15 @@ final class EditorViewModel {
     }
 
     private func canPerformGroupAwareMove(shapeID: UUID, forward: Bool) -> Bool {
-        guard let layerIndex = document.layerIndex(containingShape: shapeID) else { return false }
-        let layer = document.layers[layerIndex]
-
-        if let rootGroup = layer.findRootGroup(containingShape: shapeID) {
+        if let rootGroup = document.findRootGroup(containingShape: shapeID) {
             if enteredGroupID != nil {
                 return document.canMoveShapeWithinGroup(
-                    id: shapeID, forward: forward, groupID: rootGroup.id, inLayerAt: layerIndex)
+                    id: shapeID, forward: forward, groupID: rootGroup.id)
             } else {
                 if forward {
-                    return document.canMoveGroupForward(groupID: rootGroup.id, inLayerAt: layerIndex)
+                    return document.canMoveGroupForward(groupID: rootGroup.id)
                 } else {
-                    return document.canMoveGroupBackward(
-                        groupID: rootGroup.id, inLayerAt: layerIndex)
+                    return document.canMoveGroupBackward(groupID: rootGroup.id)
                 }
             }
         } else {
@@ -2705,17 +2297,8 @@ final class EditorViewModel {
     func canGroupSelectedShapes() -> Bool {
         guard !selectedShapeIDs.isEmpty else { return false }
 
-        var selectedLayerIndex: Int?
         for shapeID in selectedShapeIDs {
-            guard let layerIndex = document.layerIndex(containingShape: shapeID),
-                !document.layers[layerIndex].isLocked
-            else { return false }
-
-            if let selectedLayerIndex {
-                guard selectedLayerIndex == layerIndex else { return false }
-            } else {
-                selectedLayerIndex = layerIndex
-            }
+            guard document.findShape(id: shapeID) != nil else { return false }
         }
 
         return true
@@ -2724,40 +2307,28 @@ final class EditorViewModel {
     func groupSelectedShapes() {
         enteredGroupID = nil
         recordSnapshot()
-        guard canGroupSelectedShapes(),
-            let firstSelectedShapeID = selectedShapeIDs.first,
-            let layerIndex = document.layerIndex(containingShape: firstSelectedShapeID)
-        else { return }
+        guard canGroupSelectedShapes() else { return }
 
-        var layer = document.layers[layerIndex]
         let selectedIDs = selectedShapeIDs
 
         // Ensure shapes belong to one group only by removing them from existing groups first.
-        layer.removeShapesFromGroups(ids: selectedIDs)
+        document.removeShapesFromGroups(ids: selectedIDs)
 
-        let orderedShapeIDs = layer.shapes.map(\.id).filter { selectedIDs.contains($0) }
+        let orderedShapeIDs = document.shapes.map(\.id).filter { selectedIDs.contains($0) }
         guard !orderedShapeIDs.isEmpty else { return }
 
-        let group = ShapeGroup(name: nextGroupName(in: layer), shapeIDs: orderedShapeIDs)
-        layer.groups.append(group)
-        layer.consolidateGroup(group.id)
-        document.layers[layerIndex] = layer
-        expandedItemIDs.insert(layer.id)
+        let group = ShapeGroup(name: nextGroupName(), shapeIDs: orderedShapeIDs)
+        document.groups.append(group)
+        document.consolidateGroup(group.id)
         expandedItemIDs.insert(group.id)
         rerender()
     }
 
     func canUngroupSelectedShapes() -> Bool {
         guard !selectedShapeIDs.isEmpty else { return false }
-        for shapeID in selectedShapeIDs {
-            guard let layerIndex = document.layerIndex(containingShape: shapeID),
-                !document.layers[layerIndex].isLocked
-            else { return false }
-            let layer = document.layers[layerIndex]
-            for group in layer.groups {
-                if !group.allShapeIDs.isDisjoint(with: selectedShapeIDs) {
-                    return true
-                }
+        for group in document.groups {
+            if !group.allShapeIDs.isDisjoint(with: selectedShapeIDs) {
+                return true
             }
         }
         return false
@@ -2767,19 +2338,7 @@ final class EditorViewModel {
         enteredGroupID = nil
         recordSnapshot()
         guard !selectedShapeIDs.isEmpty else { return }
-
-        var layerIndicesProcessed = Set<Int>()
-        for shapeID in selectedShapeIDs {
-            guard let layerIndex = document.layerIndex(containingShape: shapeID) else { continue }
-            layerIndicesProcessed.insert(layerIndex)
-        }
-
-        for layerIndex in layerIndicesProcessed {
-            guard !document.layers[layerIndex].isLocked else { continue }
-            var layer = document.layers[layerIndex]
-            layer.groups = ungroupedGroups(layer.groups, selectedIDs: selectedShapeIDs)
-            document.layers[layerIndex] = layer
-        }
+        document.groups = ungroupedGroups(document.groups, selectedIDs: selectedShapeIDs)
         rerender()
     }
 
@@ -2814,39 +2373,25 @@ final class EditorViewModel {
     }
 
     private func shapeIDsForSelectAll() -> Set<UUID> {
-        if let selectedLayerID,
-           let layerIndex = document.layers.firstIndex(where: { $0.id == selectedLayerID }) {
-            var shapeIDs: Set<UUID> = []
-            for layer in document.layers[layerIndex...] {
-                shapeIDs.formUnion(layer.shapes.map(\.id))
-            }
-            return shapeIDs
-        }
-
         if let selectedGroup = isGroupSelected() {
             return selectedGroup.allShapeIDs
         }
 
         if let groupID = innermostGroupIDForCurrentSelection(),
-           let layerIndex = layerIndexForSelectedShapes(),
-           let group = document.layers[layerIndex].findGroupByID(groupID) {
+           let group = document.findGroupByID(groupID) {
             return group.allShapeIDs
         }
 
-        guard document.layers.indices.contains(activeLayerIndex) else { return [] }
-        return Set(document.layers[activeLayerIndex].shapes.map(\.id))
+        return Set(document.shapes.map(\.id))
     }
 
     private func innermostGroupIDForCurrentSelection() -> UUID? {
-        guard !selectedShapeIDs.isEmpty,
-           let layerIndex = layerIndexForSelectedShapes()
-        else { return nil }
+        guard !selectedShapeIDs.isEmpty else { return nil }
 
-        let layer = document.layers[layerIndex]
         var innermostGroupID: UUID?
 
         for shapeID in selectedShapeIDs {
-            guard let currentGroupID = layer.findGroupAncestry(containingShape: shapeID).last?.id else {
+            guard let currentGroupID = document.findGroupAncestry(containingShape: shapeID).last?.id else {
                 return nil
             }
 
@@ -2878,7 +2423,6 @@ final class EditorViewModel {
             !payload.shapes.isEmpty
         else { return }
 
-        let targetLayerIndex = writableLayerIndexForInsertion(preferredLayerIndex: activeLayerIndex)
         recordSnapshot()
 
         let idMap = Dictionary(uniqueKeysWithValues: payload.shapes.map { ($0.id, UUID()) })
@@ -2892,118 +2436,68 @@ final class EditorViewModel {
                 dx: Self.pasteOffset.column,
                 dy: Self.pasteOffset.row
             )
-            document.addShape(translated, toLayerAt: targetLayerIndex)
+            document.addShape(translated)
             duplicatedIDs.insert(translated.id)
         }
 
         selectedShapeIDs = duplicatedIDs
-        activeLayerIndex = targetLayerIndex
         activeToolType = .select
         rerender()
     }
 
-    func moveLayer(draggedLayerID: UUID, before targetLayerID: UUID) {
+    func moveShape(draggedShapeID: UUID, before targetShapeID: UUID) {
         recordSnapshot()
-        let activeLayerID =
-            document.layers.indices.contains(activeLayerIndex)
-            ? document.layers[activeLayerIndex].id
-            : nil
-        guard document.moveLayer(id: draggedLayerID, before: targetLayerID) else { return }
-        if let activeLayerID,
-            let newActive = document.layers.firstIndex(where: { $0.id == activeLayerID })
-        {
-            activeLayerIndex = newActive
-        }
+        guard document.moveShape(id: draggedShapeID, before: targetShapeID) else { return }
         rerender()
     }
 
-    func moveLayer(draggedLayerID: UUID, after targetLayerID: UUID) {
+    func moveShape(draggedShapeID: UUID, after targetShapeID: UUID) {
         recordSnapshot()
-        let activeLayerID =
-            document.layers.indices.contains(activeLayerIndex)
-            ? document.layers[activeLayerIndex].id
-            : nil
-        guard document.moveLayer(id: draggedLayerID, after: targetLayerID) else { return }
-        if let activeLayerID,
-            let newActive = document.layers.firstIndex(where: { $0.id == activeLayerID })
-        {
-            activeLayerIndex = newActive
-        }
+        guard document.moveShape(id: draggedShapeID, after: targetShapeID) else { return }
         rerender()
     }
 
-    func moveShape(draggedShapeID: UUID, before targetShapeID: UUID, in layerID: UUID) {
+    func moveGroup(draggedGroupID: UUID, beforeShape targetShapeID: UUID) {
         recordSnapshot()
-        guard document.moveShape(id: draggedShapeID, before: targetShapeID, in: layerID) else { return }
-        rerender()
-    }
-
-    func moveShape(draggedShapeID: UUID, after targetShapeID: UUID, in layerID: UUID) {
-        recordSnapshot()
-        guard document.moveShape(id: draggedShapeID, after: targetShapeID, in: layerID) else { return }
-        rerender()
-    }
-
-    func moveShape(draggedShapeID: UUID, toLayer targetLayerID: UUID) {
-        recordSnapshot()
-        guard document.moveShape(id: draggedShapeID, toLayer: targetLayerID) else { return }
-        if let newLayerIndex = document.layerIndex(containingShape: draggedShapeID) {
-            activeLayerIndex = newLayerIndex
-        }
-        rerender()
-    }
-
-    func moveGroup(draggedGroupID: UUID, beforeShape targetShapeID: UUID, in layerID: UUID) {
-        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
-        recordSnapshot()
-        guard document.moveGroup(groupID: draggedGroupID, beforeShape: targetShapeID, inLayerAt: layerIndex)
+        guard document.moveGroup(groupID: draggedGroupID, beforeShape: targetShapeID)
         else { return }
         rerender()
     }
 
-    func moveGroup(draggedGroupID: UUID, afterShape targetShapeID: UUID, in layerID: UUID) {
-        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+    func moveGroup(draggedGroupID: UUID, afterShape targetShapeID: UUID) {
         recordSnapshot()
-        guard document.moveGroup(groupID: draggedGroupID, afterShape: targetShapeID, inLayerAt: layerIndex)
+        guard document.moveGroup(groupID: draggedGroupID, afterShape: targetShapeID)
         else { return }
         rerender()
     }
 
-    func moveGroup(draggedGroupID: UUID, beforeGroup targetGroupID: UUID, in layerID: UUID) {
-        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+    func moveGroup(draggedGroupID: UUID, beforeGroup targetGroupID: UUID) {
         recordSnapshot()
-        guard document.moveGroup(groupID: draggedGroupID, beforeGroup: targetGroupID, inLayerAt: layerIndex)
+        guard document.moveGroup(groupID: draggedGroupID, beforeGroup: targetGroupID)
         else { return }
         rerender()
     }
 
-    func moveGroup(draggedGroupID: UUID, afterGroup targetGroupID: UUID, in layerID: UUID) {
-        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+    func moveGroup(draggedGroupID: UUID, afterGroup targetGroupID: UUID) {
         recordSnapshot()
-        guard document.moveGroup(groupID: draggedGroupID, afterGroup: targetGroupID, inLayerAt: layerIndex)
+        guard document.moveGroup(groupID: draggedGroupID, afterGroup: targetGroupID)
         else { return }
         rerender()
     }
 
-    func moveShapeToGroup(shapeID: UUID, groupID: UUID, in layerID: UUID) {
-        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
-              !document.layers[layerIndex].isLocked,
-              document.layers[layerIndex].findShape(id: shapeID) != nil
-        else { return }
+    func moveShapeToGroup(shapeID: UUID, groupID: UUID) {
+        guard document.findShape(id: shapeID) != nil else { return }
         recordSnapshot()
-        document.layers[layerIndex].removeShapesFromGroups(ids: [shapeID])
-        _ = document.layers[layerIndex].appendShapesToGroup(ids: [shapeID], groupID: groupID)
-        document.layers[layerIndex].consolidateGroup(groupID)
+        document.removeShapesFromGroups(ids: [shapeID])
+        _ = document.appendShapesToGroup(ids: [shapeID], groupID: groupID)
+        document.consolidateGroup(groupID)
         rerender()
     }
 
-    func removeShapeFromGroup(shapeID: UUID, in layerID: UUID) {
-        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
-              !document.layers[layerIndex].isLocked,
-              document.layers[layerIndex].findRootGroup(containingShape: shapeID) != nil
-        else { return }
+    func removeShapeFromGroup(shapeID: UUID) {
+        guard document.findRootGroup(containingShape: shapeID) != nil else { return }
         recordSnapshot()
-        document.layers[layerIndex].removeShapesFromGroups(ids: [shapeID])
+        document.removeShapesFromGroups(ids: [shapeID])
         rerender()
     }
 
@@ -3027,40 +2521,25 @@ final class EditorViewModel {
         } else {
             selectedShapeIDs = [shapeID]
         }
-        for (index, layer) in document.layers.enumerated() {
-            if layer.findShape(id: shapeID) != nil {
-                activeLayerIndex = index
-                break
-            }
-        }
     }
 
     func renameShapeFromPanel(_ shapeID: UUID, to newName: String) {
         recordSnapshot()
-        for layerIndex in document.layers.indices {
-            guard let shapeIndex = document.layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }) else {
-                continue
-            }
-            document.layers[layerIndex].shapes[shapeIndex] = document.layers[layerIndex].shapes[shapeIndex]
-                .renamedForPanel(newName)
+        guard let shapeIndex = document.shapes.firstIndex(where: { $0.id == shapeID }) else {
             return
         }
+        document.shapes[shapeIndex] = document.shapes[shapeIndex].renamedForPanel(newName)
     }
 
     func renameGroupFromPanel(_ groupID: UUID, to newName: String) {
         recordSnapshot()
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-
-        for layerIndex in document.layers.indices {
-            if document.layers[layerIndex].renameGroup(id: groupID, to: trimmed) {
-                return
-            }
-        }
+        _ = document.renameGroup(id: groupID, to: trimmed)
     }
 
-    private func nextGroupName(in layer: Layer) -> String {
-        let existingNames = Set(layer.groups.map(\.name))
+    private func nextGroupName() -> String {
+        let existingNames = Set(document.groups.map(\.name))
         var index = 1
         while existingNames.contains("Group \(index)") {
             index += 1
@@ -3169,64 +2648,60 @@ final class EditorViewModel {
     }
 
     private func detachArrows(referencing shapeID: UUID) {
-        for layerIndex in document.layers.indices {
-            for shapeIndex in document.layers[layerIndex].shapes.indices {
-                guard case .arrow(var arrow) = document.layers[layerIndex].shapes[shapeIndex] else {
-                    continue
-                }
+        for shapeIndex in document.shapes.indices {
+            guard case .arrow(var arrow) = document.shapes[shapeIndex] else {
+                continue
+            }
 
-                var mutated = false
-                if arrow.startAttachment?.shapeID == shapeID {
-                    arrow.startAttachment = nil
-                    mutated = true
-                }
-                if arrow.endAttachment?.shapeID == shapeID {
-                    arrow.endAttachment = nil
-                    mutated = true
-                }
-                if mutated {
-                    document.layers[layerIndex].shapes[shapeIndex] = .arrow(arrow)
-                }
+            var mutated = false
+            if arrow.startAttachment?.shapeID == shapeID {
+                arrow.startAttachment = nil
+                mutated = true
+            }
+            if arrow.endAttachment?.shapeID == shapeID {
+                arrow.endAttachment = nil
+                mutated = true
+            }
+            if mutated {
+                document.shapes[shapeIndex] = .arrow(arrow)
             }
         }
     }
 
     private func rerouteAttachedArrows(for shapeID: UUID) {
-        for layerIndex in document.layers.indices {
-            for shapeIndex in document.layers[layerIndex].shapes.indices {
-                guard case .arrow(var arrow) = document.layers[layerIndex].shapes[shapeIndex] else {
-                    continue
-                }
-
-                let referencesShape =
-                    arrow.startAttachment?.shapeID == shapeID
-                    || arrow.endAttachment?.shapeID == shapeID
-                guard referencesShape else { continue }
-
-                let startResolved = resolveAttachment(arrow.startAttachment)
-                let endResolved = resolveAttachment(arrow.endAttachment)
-
-                if let startResolved {
-                    arrow.start = startResolved.point
-                } else if arrow.startAttachment != nil {
-                    arrow.startAttachment = nil
-                }
-
-                if let endResolved {
-                    arrow.end = endResolved.point
-                } else if arrow.endAttachment != nil {
-                    arrow.endAttachment = nil
-                }
-
-                arrow.bendDirection = ArrowRouter.bendDirection(
-                    start: arrow.start,
-                    end: arrow.end,
-                    startSide: startResolved?.side ?? arrow.startAttachment?.side,
-                    endSide: endResolved?.side ?? arrow.endAttachment?.side
-                )
-
-                document.layers[layerIndex].shapes[shapeIndex] = .arrow(arrow)
+        for shapeIndex in document.shapes.indices {
+            guard case .arrow(var arrow) = document.shapes[shapeIndex] else {
+                continue
             }
+
+            let referencesShape =
+                arrow.startAttachment?.shapeID == shapeID
+                || arrow.endAttachment?.shapeID == shapeID
+            guard referencesShape else { continue }
+
+            let startResolved = resolveAttachment(arrow.startAttachment)
+            let endResolved = resolveAttachment(arrow.endAttachment)
+
+            if let startResolved {
+                arrow.start = startResolved.point
+            } else if arrow.startAttachment != nil {
+                arrow.startAttachment = nil
+            }
+
+            if let endResolved {
+                arrow.end = endResolved.point
+            } else if arrow.endAttachment != nil {
+                arrow.endAttachment = nil
+            }
+
+            arrow.bendDirection = ArrowRouter.bendDirection(
+                start: arrow.start,
+                end: arrow.end,
+                startSide: startResolved?.side ?? arrow.startAttachment?.side,
+                endSide: endResolved?.side ?? arrow.endAttachment?.side
+            )
+
+            document.shapes[shapeIndex] = .arrow(arrow)
         }
     }
 
@@ -3287,17 +2762,80 @@ final class EditorViewModel {
         }
     }
 
-    private func writableLayerIndexForInsertion(preferredLayerIndex: Int) -> Int {
-        if document.layers.indices.contains(preferredLayerIndex),
-           !document.layers[preferredLayerIndex].isLocked
-        {
-            return preferredLayerIndex
+    private func translatedShape(_ shape: AnyShape, dx: Int, dy: Int) -> AnyShape {
+        switch shape {
+        case .rectangle(var rectangle):
+            rectangle.origin = GridPoint(column: rectangle.origin.column + dx, row: rectangle.origin.row + dy)
+            return .rectangle(rectangle)
+        case .arrow(var arrow):
+            arrow.start = GridPoint(column: arrow.start.column + dx, row: arrow.start.row + dy)
+            arrow.end = GridPoint(column: arrow.end.column + dx, row: arrow.end.row + dy)
+            return .arrow(arrow)
+        case .text(var text):
+            text.origin = GridPoint(column: text.origin.column + dx, row: text.origin.row + dy)
+            return .text(text)
+        case .pencil(var pencil):
+            pencil.origin = GridPoint(
+                column: pencil.origin.column + dx,
+                row: pencil.origin.row + dy
+            )
+            return .pencil(pencil)
+        }
+    }
+
+    private func pngData(from canvas: Canvas, scale: Int, backgroundColor: ShapeColor?) -> Data? {
+        let exportScale = min(max(scale, 1), 4)
+        let font = NSFont.monospacedSystemFont(ofSize: 16, weight: .regular)
+        let charSize = ("M" as NSString).size(withAttributes: [.font: font])
+        let baseWidth = max(1, Int(ceil(CGFloat(canvas.columns) * charSize.width)))
+        let baseHeight = max(1, Int(ceil(CGFloat(canvas.rows) * charSize.height)))
+        let width = baseWidth * exportScale
+        let height = baseHeight * exportScale
+
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+
+        (backgroundColor?.nsColor ?? .clear).setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill()
+
+        context.cgContext.scaleBy(x: CGFloat(exportScale), y: CGFloat(exportScale))
+
+        for row in 0..<canvas.rows {
+            for column in 0..<canvas.columns {
+                guard let cell = canvas.cell(atColumn: column, row: row) else { continue }
+                let x = CGFloat(column) * charSize.width
+                let y = CGFloat(canvas.rows - row - 1) * charSize.height
+                let cellRect = NSRect(x: x, y: y, width: charSize.width, height: charSize.height)
+
+                if let background = cell.backgroundColor {
+                    background.nsColor.setFill()
+                    cellRect.fill()
+                }
+
+                guard cell.character != " " else { continue }
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: (cell.foregroundColor ?? .black).nsColor,
+                ]
+                NSString(string: String(cell.character)).draw(at: CGPoint(x: x, y: y), withAttributes: attributes)
+            }
         }
 
-        let name = "Layer \(document.layers.count + 1)"
-        document.addLayer(name: name)
-        let newLayerIndex = document.layers.count - 1
-        expandedItemIDs.insert(document.layers[newLayerIndex].id)
-        return newLayerIndex
+        NSGraphicsContext.restoreGraphicsState()
+        return bitmap.representation(using: .png, properties: [:])
     }
 }

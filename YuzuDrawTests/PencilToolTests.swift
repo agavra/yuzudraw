@@ -11,13 +11,12 @@ struct PencilToolTests {
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
 
         // then
-        if case .addShape(.pencil(let pencil), let layerIndex) = action {
-            #expect(layerIndex == 0)
+        if case .addShape(.pencil(let pencil)) = action {
             #expect(pencil.origin == GridPoint(column: 5, row: 3))
             #expect(pencil.cells.count == 1)
             #expect(pencil.cells[GridPoint(column: 0, row: 0)]?.character == "*")
@@ -33,14 +32,14 @@ struct PencilToolTests {
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         _ = tool.mouseDragged(
-            to: GridPoint(column: 8, row: 3), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 8, row: 3), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 8, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 8, row: 3), in: doc)
 
         // then
-        if case .addShape(.pencil(let pencil), _) = action {
+        if case .addShape(.pencil(let pencil)) = action {
             // Should have cells at columns 5,6,7,8 (all row 3)
             #expect(pencil.cells.count == 4)
             for col in 0...3 {
@@ -82,9 +81,9 @@ struct PencilToolTests {
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         _ = tool.mouseDragged(
-            to: GridPoint(column: 7, row: 3), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 7, row: 3), in: doc)
         let preview = tool.previewShape()
 
         // then
@@ -103,9 +102,9 @@ struct PencilToolTests {
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         _ = tool.mouseUp(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         let preview = tool.previewShape()
 
         // then
@@ -120,12 +119,12 @@ struct PencilToolTests {
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
 
         // then
-        if case .addShape(.pencil(let pencil), _) = action {
+        if case .addShape(.pencil(let pencil)) = action {
             #expect(pencil.cells[GridPoint(column: 0, row: 0)]?.character == "#")
         } else {
             Issue.record("Expected addShape action with pencil")
@@ -139,14 +138,14 @@ struct PencilToolTests {
 
         // when — draw right then left past origin
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         _ = tool.mouseDragged(
-            to: GridPoint(column: 3, row: 3), in: doc, activeLayerIndex: 0)
+            to: GridPoint(column: 3, row: 3), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 3, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 3, row: 3), in: doc)
 
         // then
-        if case .addShape(.pencil(let pencil), _) = action {
+        if case .addShape(.pencil(let pencil)) = action {
             #expect(pencil.origin == GridPoint(column: 3, row: 3))
             // All offsets should be non-negative
             for offset in pencil.cells.keys {
@@ -168,14 +167,14 @@ struct PencilToolTests {
             ]
         )
         var doc = Document()
-        doc.addShape(.pencil(existingPencil), toLayerAt: 0)
+        doc.addShape(.pencil(existingPencil))
         tool.targetShapeID = existingPencil.id
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 6, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 6, row: 3), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 6, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 6, row: 3), in: doc)
 
         // then
         if case .updateShape(.pencil(let pencil)) = action {
@@ -196,12 +195,12 @@ struct PencilToolTests {
 
         // when
         _ = tool.mouseDown(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
         let action = tool.mouseUp(
-            at: GridPoint(column: 5, row: 3), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 5, row: 3), in: doc)
 
         // then
-        if case .addShape(.pencil(let pencil), _) = action {
+        if case .addShape(.pencil(let pencil)) = action {
             #expect(pencil.cells[GridPoint(column: 0, row: 0)]?.color == .red)
         } else {
             Issue.record("Expected addShape action with pencil")

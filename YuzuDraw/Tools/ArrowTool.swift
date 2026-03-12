@@ -21,7 +21,7 @@ final class ArrowTool: Tool, @unchecked Sendable {
     private var currentPoint: GridPoint?
     private var previewArrow: ArrowShape?
 
-    func mouseDown(at point: GridPoint, in document: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDown(at point: GridPoint, in document: Document) -> ToolAction {
         if suppressAttachment {
             startPoint = point
             startRectangle = nil
@@ -50,13 +50,13 @@ final class ArrowTool: Tool, @unchecked Sendable {
         return .none
     }
 
-    func mouseDragged(to point: GridPoint, in document: Document, activeLayerIndex _: Int) -> ToolAction {
+    func mouseDragged(to point: GridPoint, in document: Document) -> ToolAction {
         currentPoint = point
         previewArrow = routedArrow(to: point, in: document)
         return .none
     }
 
-    func mouseUp(at point: GridPoint, in document: Document, activeLayerIndex: Int) -> ToolAction {
+    func mouseUp(at point: GridPoint, in document: Document) -> ToolAction {
         currentPoint = point
 
         guard let arrow = routedArrow(to: point, in: document) else {
@@ -65,7 +65,7 @@ final class ArrowTool: Tool, @unchecked Sendable {
         }
 
         cancel()
-        return .addShape(.arrow(arrow), layerIndex: activeLayerIndex)
+        return .addShape(.arrow(arrow))
     }
 
     func cancel() {
@@ -84,9 +84,7 @@ final class ArrowTool: Tool, @unchecked Sendable {
     func attachmentPreviewPoints(near hoverPoint: GridPoint?, in document: Document) -> [GridPoint] {
         guard !suppressAttachment, let hoverPoint else { return [] }
 
-        let allRectangles = document.layers
-            .filter(\.isVisible)
-            .flatMap(\.shapes)
+        let allRectangles = document.shapes
             .compactMap { shape -> RectangleShape? in
                 guard case .rectangle(let rectangle) = shape else { return nil }
                 return rectangle
@@ -237,20 +235,18 @@ final class ArrowTool: Tool, @unchecked Sendable {
         var best: AttachPoint?
         var bestDistance = Double.greatestFiniteMagnitude
 
-        for layer in document.layers where layer.isVisible {
-            for shape in layer.shapes {
-                guard case .rectangle(let rectangle) = shape else { continue }
-                for side in ArrowAttachmentSide.allCases {
-                    let attachPoint = rectangle.attachmentPoint(for: side)
-                    let distance = hypot(
-                        Double(attachPoint.column - point.column),
-                        Double(attachPoint.row - point.row)
-                    )
-                    guard distance <= Self.attachmentSnapRadius else { continue }
-                    if distance < bestDistance {
-                        bestDistance = distance
-                        best = AttachPoint(rectangle: rectangle, point: attachPoint, side: side)
-                    }
+        for shape in document.shapes {
+            guard case .rectangle(let rectangle) = shape else { continue }
+            for side in ArrowAttachmentSide.allCases {
+                let attachPoint = rectangle.attachmentPoint(for: side)
+                let distance = hypot(
+                    Double(attachPoint.column - point.column),
+                    Double(attachPoint.row - point.row)
+                )
+                guard distance <= Self.attachmentSnapRadius else { continue }
+                if distance < bestDistance {
+                    bestDistance = distance
+                    best = AttachPoint(rectangle: rectangle, point: attachPoint, side: side)
                 }
             }
         }

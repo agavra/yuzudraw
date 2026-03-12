@@ -13,16 +13,15 @@ struct DocumentCodableTests {
             strokeStyle: .double,
             label: "Server"
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        #expect(decoded.layers.count == 1)
-        #expect(decoded.layers[0].shapes.count == 1)
-        if case .rectangle(let decodedRect) = decoded.layers[0].shapes[0] {
+        #expect(decoded.shapes.count == 1)
+        if case .rectangle(let decodedRect) = decoded.shapes[0] {
             #expect(decodedRect.origin == rectangle.origin)
             #expect(decodedRect.size == rectangle.size)
             #expect(decodedRect.strokeStyle == .double)
@@ -55,14 +54,14 @@ struct DocumentCodableTests {
             startAttachment: ArrowAttachment(shapeID: UUID(), side: .right),
             endAttachment: ArrowAttachment(shapeID: UUID(), side: .left)
         )
-        doc.addShape(.arrow(arrow), toLayerAt: 0)
+        doc.addShape(.arrow(arrow))
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .arrow(let decodedArrow) = decoded.layers[0].shapes[0] {
+        if case .arrow(let decodedArrow) = decoded.shapes[0] {
             #expect(decodedArrow.start == arrow.start)
             #expect(decodedArrow.end == arrow.end)
             #expect(decodedArrow.label == "HTTP")
@@ -113,7 +112,7 @@ struct DocumentCodableTests {
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .arrow(let arrow) = decoded.layers[0].shapes[0] {
+        if case .arrow(let arrow) = decoded.shapes[0] {
             #expect(arrow.bendDirection == .horizontalFirst)
             #expect(arrow.strokeStyle == .single)
             #expect(arrow.startAttachment == nil)
@@ -154,7 +153,7 @@ struct DocumentCodableTests {
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .rectangle(let rectangle) = decoded.layers[0].shapes[0] {
+        if case .rectangle(let rectangle) = decoded.shapes[0] {
             #expect(rectangle.strokeStyle == .double)
             #expect(rectangle.hasBorder)
             #expect(rectangle.visibleBorders == Set(RectangleBorderSide.allCases))
@@ -186,14 +185,14 @@ struct DocumentCodableTests {
             origin: GridPoint(column: 0, row: 0),
             text: "Hello\nWorld"
         )
-        doc.addShape(.text(text), toLayerAt: 0)
+        doc.addShape(.text(text))
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .text(let decodedText) = decoded.layers[0].shapes[0] {
+        if case .text(let decodedText) = decoded.shapes[0] {
             #expect(decodedText.origin == text.origin)
             #expect(decodedText.text == "Hello\nWorld")
         } else {
@@ -209,14 +208,14 @@ struct DocumentCodableTests {
             size: GridSize(width: 8, height: 4),
             visibleBorders: [.top, .right]
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .rectangle(let decodedRect) = decoded.layers[0].shapes[0] {
+        if case .rectangle(let decodedRect) = decoded.shapes[0] {
             #expect(decodedRect.visibleBorders == [.top, .right])
         } else {
             Issue.record("Expected rectangle shape")
@@ -233,14 +232,14 @@ struct DocumentCodableTests {
             borderDashLength: 3,
             borderGapLength: 2
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .rectangle(let decodedRect) = decoded.layers[0].shapes[0] {
+        if case .rectangle(let decodedRect) = decoded.shapes[0] {
             #expect(decodedRect.borderLineStyle == .dashed)
             #expect(decodedRect.borderDashLength == 3)
             #expect(decodedRect.borderGapLength == 2)
@@ -258,56 +257,40 @@ struct DocumentCodableTests {
             size: GridSize(width: 6, height: 4),
             label: ""
         )
-        doc.addShape(.rectangle(rectangle), toLayerAt: 0)
+        doc.addShape(.rectangle(rectangle))
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        if case .rectangle(let decodedRect) = decoded.layers[0].shapes[0] {
+        if case .rectangle(let decodedRect) = decoded.shapes[0] {
             #expect(decodedRect.name == "Gateway")
-            #expect(decoded.layers[0].shapes[0].displayName == "Gateway")
+            #expect(decoded.shapes[0].displayName == "Gateway")
             #expect(decodedRect.label == "")
         } else {
             Issue.record("Expected rectangle shape")
         }
     }
 
-    @Test func should_round_trip_multi_layer_document() throws {
+    @Test func should_round_trip_multi_shape_document() throws {
         // given
-        let doc = Document(layers: [
-            Layer(
-                name: "Layer 1",
-                shapes: [
-                    .rectangle(
-                        RectangleShape(
-                            origin: GridPoint(column: 0, row: 0),
-                            size: GridSize(width: 5, height: 3)
-                        ))
-                ]
-            ),
-            Layer(
-                name: "Layer 2",
-                isVisible: false,
-                isLocked: true,
-                shapes: [
-                    .text(TextShape(origin: GridPoint(column: 10, row: 10), text: "Hi"))
-                ]
-            ),
-        ])
+        let doc = Document(
+            shapes: [
+                .rectangle(
+                    RectangleShape(
+                        origin: GridPoint(column: 0, row: 0),
+                        size: GridSize(width: 5, height: 3)
+                    )),
+                .text(TextShape(origin: GridPoint(column: 10, row: 10), text: "Hi")),
+            ]
+        )
 
         // when
         let data = try DocumentCodable.encode(doc)
         let decoded = try DocumentCodable.decode(from: data)
 
         // then
-        #expect(decoded.layers.count == 2)
-        #expect(decoded.layers[0].name == "Layer 1")
-        #expect(decoded.layers[1].name == "Layer 2")
-        #expect(decoded.layers[1].isVisible == false)
-        #expect(decoded.layers[1].isLocked == true)
-        #expect(decoded.layers[0].shapes.count == 1)
-        #expect(decoded.layers[1].shapes.count == 1)
+        #expect(decoded.shapes.count == 2)
     }
 }
