@@ -91,9 +91,16 @@ enum DSLSerializer {
             result += " style \(rectangle.strokeStyle.rawValue)"
         }
 
-        // Fill: omit when default (transparent)
-        if rectangle.fillMode == .solid {
-            result += " fill solid char \"\(String(rectangle.fillCharacter))\""
+        // Fill: omit when default (none)
+        switch rectangle.fillMode {
+        case .none:
+            break
+        case .opaque:
+            result += " fill opaque"
+        case .block:
+            result += " fill block char \"\(String(rectangle.fillCharacter))\""
+        case .character:
+            result += " fill character char \"\(String(rectangle.fillCharacter))\""
         }
 
         // Border: omit when default (visible), use noborder shorthand

@@ -178,7 +178,7 @@ struct RectangleShapeTests {
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 7, height: 5),
             strokeStyle: .single,
-            fillMode: .solid,
+            fillMode: .character,
             fillCharacter: "."
         )
 
@@ -301,7 +301,7 @@ struct RectangleShapeTests {
             origin: GridPoint(column: 0, row: 0),
             size: GridSize(width: 4, height: 3),
             hasBorder: true,
-            fillMode: .transparent,
+            fillMode: .none,
             hasShadow: true,
             shadowOffsetX: 1,
             shadowOffsetY: 1
@@ -378,7 +378,7 @@ struct RectangleShapeTests {
             origin: GridPoint(column: 5, row: 0),
             size: GridSize(width: 10, height: 5),
             strokeStyle: .single,
-            fillMode: .solid
+            fillMode: .opaque
         )
 
         // when

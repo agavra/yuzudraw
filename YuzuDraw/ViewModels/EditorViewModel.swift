@@ -1177,6 +1177,20 @@ final class EditorViewModel {
         for shape in selectedShapes {
             if case .rectangle(var rectangle) = shape {
                 rectangle.fillMode = fillMode
+                switch fillMode {
+                case .none:
+                    break
+                case .opaque:
+                    rectangle.fillCharacter = " "
+                case .block:
+                    if !Self.blockCharacters.contains(rectangle.fillCharacter) {
+                        rectangle.fillCharacter = "\u{2588}"
+                    }
+                case .character:
+                    if rectangle.fillCharacter == " " {
+                        rectangle.fillCharacter = "*"
+                    }
+                }
                 updateShapeAndAttachments(.rectangle(rectangle))
             }
         }
@@ -1184,7 +1198,7 @@ final class EditorViewModel {
     }
 
     func updateMultiSelectRectFillEnabled(_ isEnabled: Bool) {
-        updateMultiSelectRectFillMode(isEnabled ? .solid : .transparent)
+        updateMultiSelectRectFillMode(isEnabled ? .opaque : .none)
     }
 
     func updateMultiSelectRectFillColor(_ color: ShapeColor?) {
@@ -1559,12 +1573,31 @@ final class EditorViewModel {
             case .rectangle(var rectangle) = shape
         else { return }
         rectangle.fillMode = fillMode
+        switch fillMode {
+        case .none:
+            break
+        case .opaque:
+            rectangle.fillCharacter = " "
+        case .block:
+            if !Self.blockCharacters.contains(rectangle.fillCharacter) {
+                rectangle.fillCharacter = "\u{2588}"
+            }
+        case .character:
+            if rectangle.fillCharacter == " " {
+                rectangle.fillCharacter = "*"
+            }
+        }
         updateShapeAndAttachments(.rectangle(rectangle))
         rerender()
     }
 
+    static let blockCharacters: Set<Character> = [
+        "\u{2588}", "\u{2593}", "\u{2592}", "\u{2591}",
+        "\u{00B7}", "#", ".", "~",
+    ]
+
     func updateSelectedRectangleFillEnabled(_ isEnabled: Bool) {
-        updateSelectedRectangleFillMode(isEnabled ? .solid : .transparent)
+        updateSelectedRectangleFillMode(isEnabled ? .opaque : .none)
     }
 
     func updateSelectedRectangleFillCharacter(_ fillCharacter: Character) {

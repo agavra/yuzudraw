@@ -47,7 +47,9 @@ Where `REF` is a `"quoted label"` or unquoted `id`. Side is `right|bottom|left|t
 
 **Properties** (all optional, omit for defaults):
 - `style single|double|rounded|heavy` — border stroke (default: single, omit)
-- `fill solid char "x"` — fill mode (default: transparent, omit)
+- `fill opaque` — solid color fill (default: none, omit)
+- `fill block char "▓"` — fill with block character
+- `fill character char "x"` — fill with custom character
 - `noborder` — hide border (default: visible, omit)
 - `borders top,bottom,left,right` — selective border sides
 - `line dashed dash N gap N` — dashed border
@@ -63,7 +65,7 @@ Where `REF` is a `"quoted label"` or unquoted `id`. Side is `right|bottom|left|t
 ```
 rect "Server" id srv1                  # named for reference
 rect "Server" id srv2                  # disambiguates duplicate label
-rect "" id bar1 size 50x1 fill solid char "▓" noborder  # empty label needs ID
+rect "" id bar1 size 50x1 fill block char "▓" noborder  # empty label needs ID
 ```
 
 ### Arrow
@@ -158,11 +160,11 @@ layer "Diagram" visible
 ```
 
 ## Tips
-- **Omit defaults** — don't write `style single`, `fill transparent`, `border visible`, etc.
+- **Omit defaults** — don't write `style single`, `fill none`, `border visible`, etc.
 - **Use auto-sizing** — omit `size` for label-based rectangles
 - **Use relative positioning** — `right-of`, `below`, reference coords
 - **Use bare arrow refs** — `from "A" to "B"` instead of `from "A".right to "B".left`
-- **Use IDs for empty/duplicate labels** — `rect "" id bar1 size 50x1 fill solid char "▓" noborder`
+- **Use IDs for empty/duplicate labels** — `rect "" id bar1 size 50x1 fill block char "▓" noborder`
 - Rectangles must be defined before arrows that reference them
 - Use `render_ascii` to preview before creating
 - Use `get_diagram` to read back user edits before updating

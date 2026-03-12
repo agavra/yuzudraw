@@ -84,7 +84,7 @@ struct DSLSerializerTests {
             origin: GridPoint(column: 1, row: 1),
             size: GridSize(width: 8, height: 4),
             strokeStyle: .single,
-            fillMode: .solid,
+            fillMode: .character,
             fillCharacter: ".",
             label: "Filled"
         )
@@ -94,7 +94,7 @@ struct DSLSerializerTests {
         let dsl = DSLSerializer.serialize(doc)
 
         // then
-        #expect(dsl.contains("rect \"Filled\" at 1,1 size 8x4 fill solid char \".\""))
+        #expect(dsl.contains("rect \"Filled\" at 1,1 size 8x4 fill character char \".\""))
     }
 
     @Test func should_serialize_rectangle_text_layout_settings() {

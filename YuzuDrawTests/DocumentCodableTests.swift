@@ -161,7 +161,7 @@ struct DocumentCodableTests {
             #expect(rectangle.borderLineStyle == .solid)
             #expect(rectangle.borderDashLength == 1)
             #expect(rectangle.borderGapLength == 1)
-            #expect(rectangle.fillMode == .transparent)
+            #expect(rectangle.fillMode == .none)
             #expect(rectangle.fillCharacter == " ")
             #expect(rectangle.textHorizontalAlignment == .center)
             #expect(rectangle.textVerticalAlignment == .middle)

@@ -181,15 +181,36 @@ enum DSLParser {
             }
         }
 
-        var fillMode: RectangleFillMode = .transparent
+        var fillMode: RectangleFillMode = .none
         var fillCharacter: Character = " "
-        if line.contains(" fill solid") {
-            fillMode = .solid
+        if line.contains(" fill opaque") {
+            fillMode = .opaque
+        } else if line.contains(" fill block") {
+            fillMode = .block
+            if let char = try? parseQuotedString(from: line, after: "char "), let first = char.first {
+                fillCharacter = first
+            } else {
+                fillCharacter = "\u{2588}" // default block: █
+            }
+        } else if line.contains(" fill character") {
+            fillMode = .character
             if let char = try? parseQuotedString(from: line, after: "char "), let first = char.first {
                 fillCharacter = first
             }
-        } else if line.contains(" fill transparent") {
-            fillMode = .transparent
+        } else if line.contains(" fill solid") {
+            // Legacy: migrate "solid" to opaque or character based on char
+            if let char = try? parseQuotedString(from: line, after: "char "), let first = char.first {
+                if first == " " {
+                    fillMode = .opaque
+                } else {
+                    fillMode = .character
+                    fillCharacter = first
+                }
+            } else {
+                fillMode = .opaque
+            }
+        } else if line.contains(" fill transparent") || line.contains(" fill none") {
+            fillMode = .none
         }
 
         // Parse optional name/ID

@@ -154,7 +154,7 @@ struct DSLParserTests {
 
         // then
         if case .rectangle(let rectangle) = doc.layers[0].shapes[0] {
-            #expect(rectangle.fillMode == .solid)
+            #expect(rectangle.fillMode == .character)
             #expect(rectangle.fillCharacter == ".")
         } else {
             Issue.record("Expected rectangle shape")

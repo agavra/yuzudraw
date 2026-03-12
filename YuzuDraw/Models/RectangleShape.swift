@@ -1,8 +1,25 @@
 import Foundation
 
 enum RectangleFillMode: String, Codable, CaseIterable, Sendable {
-    case transparent
-    case solid
+    case none
+    case opaque
+    case block
+    case character
+
+    static let filledCases: [RectangleFillMode] = [.opaque, .block, .character]
+
+    var isFilled: Bool {
+        self != .none
+    }
+
+    var label: String {
+        switch self {
+        case .none: return "None"
+        case .opaque: return "Opaque"
+        case .block: return "Block"
+        case .character: return "Char"
+        }
+    }
 }
 
 enum RectangleTextHorizontalAlignment: String, Codable, CaseIterable, Sendable {
@@ -115,7 +132,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         borderLineStyle: RectangleBorderLineStyle = .solid,
         borderDashLength: Int = 1,
         borderGapLength: Int = 1,
-        fillMode: RectangleFillMode = .transparent,
+        fillMode: RectangleFillMode = .none,
         fillCharacter: Character = " ",
         label: String = "",
         textHorizontalAlignment: RectangleTextHorizontalAlignment = .center,
@@ -286,7 +303,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         let fillAreaHeight =
             h - (bordersWillRender && drawTop ? 1 : 0) - (bordersWillRender && drawBottom ? 1 : 0)
 
-        if fillMode == .solid, fillAreaWidth > 0, fillAreaHeight > 0 {
+        if fillMode.isFilled, fillAreaWidth > 0, fillAreaHeight > 0 {
             for r in fillAreaStartRow..<(fillAreaStartRow + fillAreaHeight) {
                 for c in fillAreaStartCol..<(fillAreaStartCol + fillAreaWidth) {
                     canvas.setCharacter(
@@ -300,7 +317,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
         }
 
         if hasBorder, w >= 2, h >= 2 {
-            let hasFillArea = fillMode == .solid && fillAreaWidth > 0 && fillAreaHeight > 0
+            let hasFillArea = fillMode.isFilled && fillAreaWidth > 0 && fillAreaHeight > 0
             if drawTop {
                 for (index, c) in ((col + 1)..<(col + w - 1)).enumerated() {
                     guard shouldDrawBorderSegment(at: index) else { continue }
@@ -536,7 +553,13 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
             0,
             try container.decodeIfPresent(Int.self, forKey: .borderGapLength) ?? 1
         )
-        fillMode = try container.decodeIfPresent(RectangleFillMode.self, forKey: .fillMode) ?? .transparent
+        // Decode fillMode with migration from legacy "transparent"/"solid" values
+        if let rawFillMode = try container.decodeIfPresent(String.self, forKey: .fillMode) {
+            fillMode = RectangleFillMode(rawValue: rawFillMode)
+                ?? (rawFillMode == "solid" ? .opaque : .none)
+        } else {
+            fillMode = .none
+        }
         let fillCharacterString =
             try container.decodeIfPresent(String.self, forKey: .fillCharacter) ?? " "
         fillCharacter = fillCharacterString.first ?? Character(" ")
@@ -641,7 +664,7 @@ struct RectangleShape: Codable, Equatable, Identifiable, Sendable {
             var base = GlyphMerge.connections(for: existing) ?? StyledLineConnections(up: nil, right: nil, down: nil, left: nil)
             // Strip connections that point into our filled interior — those paths
             // have been overwritten by fill and should not produce junction glyphs.
-            if fillMode == .solid, !occludedDirection.isEmpty {
+            if fillMode.isFilled, !occludedDirection.isEmpty {
                 if occludedDirection.contains(.up) { base.up = nil }
                 if occludedDirection.contains(.down) { base.down = nil }
                 if occludedDirection.contains(.left) { base.left = nil }

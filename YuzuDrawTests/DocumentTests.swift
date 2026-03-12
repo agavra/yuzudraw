@@ -269,8 +269,7 @@ struct DocumentTests {
             origin: GridPoint(column: 2, row: 2),
             size: GridSize(width: 6, height: 3),
             strokeStyle: .single,
-            fillMode: .solid,
-            fillCharacter: " "
+            fillMode: .opaque
         )
         doc.addShape(.rectangle(bottom), toLayerAt: 0)
         doc.addShape(.rectangle(top), toLayerAt: 1)

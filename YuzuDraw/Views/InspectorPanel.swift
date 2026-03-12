@@ -227,31 +227,51 @@ struct InspectorPanel: View {
         mixableToggleSection(
             label: "Fill",
             icon: "square.fill",
-            isEnabled: viewModel.multiSelectRectFillMode.map { $0 == .solid },
+            isEnabled: viewModel.multiSelectRectFillMode.map { $0.isFilled },
             onToggle: { viewModel.updateMultiSelectRectFillEnabled($0) }
         ) {
-            mixableColorSwatchRow(
-                color: viewModel.multiSelectRectFillColor,
-                isMixed: viewModel.isMultiSelectRectFillColorMixed,
-                target: .multiSelectRectFill,
-                onColorSelected: { viewModel.updateMultiSelectRectFillColor($0) }
+            fillModePicker(
+                selected: viewModel.multiSelectRectFillMode ?? .opaque,
+                onChange: { viewModel.updateMultiSelectRectFillMode($0) }
             )
-            HStack {
-                Text("Char")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                TextField("", text: Binding(
-                    get: {
-                        guard let ch = viewModel.multiSelectRectFillCharacter else { return "" }
-                        return ch == " " ? "" : String(ch)
-                    },
-                    set: { newValue in
-                        let char = newValue.first ?? Character(" ")
-                        viewModel.updateMultiSelectRectFillCharacter(char)
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 24)
+
+            if viewModel.multiSelectRectFillMode == .block {
+                mixableColorSwatchRow(
+                    color: viewModel.multiSelectRectFillColor,
+                    isMixed: viewModel.isMultiSelectRectFillColorMixed,
+                    target: .multiSelectRectFill,
+                    onColorSelected: { viewModel.updateMultiSelectRectFillColor($0) }
+                )
+                blockCharacterPicker(
+                    currentChar: viewModel.multiSelectRectFillCharacter ?? "\u{2588}",
+                    onChange: { viewModel.updateMultiSelectRectFillCharacter($0) }
+                )
+            }
+
+            if viewModel.multiSelectRectFillMode == .character {
+                mixableColorSwatchRow(
+                    color: viewModel.multiSelectRectFillColor,
+                    isMixed: viewModel.isMultiSelectRectFillColorMixed,
+                    target: .multiSelectRectFill,
+                    onColorSelected: { viewModel.updateMultiSelectRectFillColor($0) }
+                )
+                HStack {
+                    Text("Char")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    TextField("", text: Binding(
+                        get: {
+                            guard let ch = viewModel.multiSelectRectFillCharacter else { return "" }
+                            return ch == " " ? "" : String(ch)
+                        },
+                        set: { newValue in
+                            let char = newValue.first ?? Character(" ")
+                            viewModel.updateMultiSelectRectFillCharacter(char)
+                        }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 32)
+                }
             }
         }
 
@@ -782,29 +802,48 @@ struct InspectorPanel: View {
         toggleSection(
             label: "Fill",
             icon: "square.fill",
-            isEnabled: rectangle.fillMode == .solid,
+            isEnabled: rectangle.fillMode.isFilled,
             onToggle: { viewModel.updateSelectedRectangleFillEnabled($0) }
         ) {
-            colorSwatchRow(
-                color: rectangle.fillColor,
-                target: .rectangleFill,
-                onColorSelected: { viewModel.updateSelectedRectangleFillColor($0) }
+            fillModePicker(
+                selected: rectangle.fillMode,
+                onChange: { viewModel.updateSelectedRectangleFillMode($0) }
             )
-            HStack {
-                Text("Char")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                TextField("", text: Binding(
-                    get: {
-                        rectangle.fillCharacter == " " ? "" : String(rectangle.fillCharacter)
-                    },
-                    set: { newValue in
-                        let char = newValue.first ?? Character(" ")
-                        viewModel.updateSelectedRectangleFillCharacter(char)
-                    }
-                ))
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 24)
+
+            if rectangle.fillMode == .block {
+                colorSwatchRow(
+                    color: rectangle.fillColor,
+                    target: .rectangleFill,
+                    onColorSelected: { viewModel.updateSelectedRectangleFillColor($0) }
+                )
+                blockCharacterPicker(
+                    currentChar: rectangle.fillCharacter,
+                    onChange: { viewModel.updateSelectedRectangleFillCharacter($0) }
+                )
+            }
+
+            if rectangle.fillMode == .character {
+                colorSwatchRow(
+                    color: rectangle.fillColor,
+                    target: .rectangleFill,
+                    onColorSelected: { viewModel.updateSelectedRectangleFillColor($0) }
+                )
+                HStack {
+                    Text("Char")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    TextField("", text: Binding(
+                        get: {
+                            rectangle.fillCharacter == " " ? "" : String(rectangle.fillCharacter)
+                        },
+                        set: { newValue in
+                            let char = newValue.first ?? Character(" ")
+                            viewModel.updateSelectedRectangleFillCharacter(char)
+                        }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 32)
+                }
             }
         }
 
@@ -1213,6 +1252,84 @@ struct InspectorPanel: View {
         case .rounded: return (18, -4)
         case .heavy: return (16, -4)
         }
+    }
+
+    private func blockCharacterPicker(
+        currentChar: Character,
+        onChange: @escaping (Character) -> Void
+    ) -> some View {
+        let blockPresets: [Character] = [
+            "\u{2588}", "\u{2593}", "\u{2592}", "\u{2591}",
+            "\u{00B7}", "#", ".", "~",
+        ]
+
+        return LazyVGrid(
+            columns: Array(repeating: GridItem(.fixed(32), spacing: 0), count: 4),
+            spacing: 0
+        ) {
+            ForEach(blockPresets, id: \.self) { char in
+                Button {
+                    onChange(char)
+                } label: {
+                    ZStack {
+                        Rectangle()
+                            .fill(
+                                currentChar == char
+                                    ? Color.accentColor.opacity(0.16) : Color.clear
+                            )
+                        Text(String(char))
+                            .font(.system(size: 14, design: .monospaced))
+                    }
+                    .frame(width: 32, height: 24)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
+    }
+
+    private func fillModePicker(
+        selected: RectangleFillMode,
+        onChange: @escaping (RectangleFillMode) -> Void
+    ) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(RectangleFillMode.filledCases.enumerated()), id: \.element) { index, mode in
+                if index > 0 {
+                    Divider()
+                        .frame(height: 16)
+                }
+                Button(action: { onChange(mode) }) {
+                    ZStack {
+                        Rectangle()
+                            .fill(selected == mode ? Color.accentColor.opacity(0.16) : Color.clear)
+                        Text(mode.label)
+                            .font(.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 24)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .background(
+            RoundedRectangle(cornerRadius: 7)
+                .fill(Color(NSColor.controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7)
+                .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+        )
     }
 
     private func staticSection<Content: View>(
