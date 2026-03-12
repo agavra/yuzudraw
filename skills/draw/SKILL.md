@@ -15,18 +15,33 @@ Use this as the single entrypoint for diagram work. Select one family, open the 
 3. Classify the request into one primary diagram family.
 4. Open the matching reference file under `references/`.
 5. Follow that reference's defaults instead of improvising a generic style.
-6. Write DSL to `/tmp/yuzudraw-draft.yuzudraw` using the Write tool, then call CLI commands with `--dsl-file /tmp/yuzudraw-draft.yuzudraw`.
+6. Pass DSL to CLI commands using a heredoc with `--dsl-stdin` (see CLI Invocation Rules below).
 7. Always display the rendered ASCII output in a fenced code block in your response so the user can see it directly without expanding tool results.
 
 ## CLI Invocation Rules
 
-Always pass DSL via `--dsl-file`, never via stdin pipes. This ensures every CLI call starts with `yuzudraw-cli` so it can be allowlisted.
+Every CLI call MUST start with `yuzudraw-cli` so it can be allowlisted. Pass DSL inline via heredoc — no temp files, no pipes, no `cat`/`echo`.
 
-- **Render:** `yuzudraw-cli render-ascii --dsl-file /tmp/yuzudraw-draft.yuzudraw`
-- **Create:** `yuzudraw-cli create-diagram --name <name> --dsl-file /tmp/yuzudraw-draft.yuzudraw`
-- **Update:** `yuzudraw-cli update-diagram --name <name> --dsl-file /tmp/yuzudraw-draft.yuzudraw`
+- **Render:**
+  ```
+  yuzudraw-cli render-ascii --dsl-stdin <<'EOF'
+  rect "hello" id box at 5,5 size 10x3
+  EOF
+  ```
+- **Create:**
+  ```
+  yuzudraw-cli create-diagram --name <name> --dsl-stdin <<'EOF'
+  ...DSL...
+  EOF
+  ```
+- **Update:**
+  ```
+  yuzudraw-cli update-diagram --name <name> --dsl-stdin <<'EOF'
+  ...DSL...
+  EOF
+  ```
 
-Do NOT use `cat`, `echo`, or any pipe to pass DSL to the CLI. Do NOT use `--dsl-stdin`.
+Do NOT use pipes (`cat file | yuzudraw-cli`), `--dsl-file`, or any command that does not start with `yuzudraw-cli`.
 
 ## Family Selection
 
