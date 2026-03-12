@@ -25,6 +25,9 @@ build/
 *.swp
 *~
 
+# LLVM profiling data
+*.profraw
+
 # Eval workspace
 draw-eval-workspace/
 
