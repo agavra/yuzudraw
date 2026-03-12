@@ -328,11 +328,43 @@ struct CanvasView: View {
     // MARK: - Canvas text
 
     private var canvasText: some View {
-        Text(viewModel.canvas.renderAttributed(defaultForeground: .black))
-            .font(.system(size: canvasFontSize, design: .monospaced))
-            .textSelection(.disabled)
-            .fixedSize()
-            .contentShape(Rectangle())
+        let grid = viewModel.canvas.grid
+        let cols = viewModel.canvas.columns
+        let rows = viewModel.canvas.rows
+        let cw = charSize.width
+        let ch = charSize.height
+        return SwiftUI.Canvas { context, _ in
+            let font = Font.system(size: canvasFontSize, design: .monospaced)
+            for rowIndex in 0..<rows {
+                let row = grid[rowIndex]
+                let y = CGFloat(rowIndex) * ch
+                for colIndex in 0..<cols {
+                    let cell = row[colIndex]
+                    let x = CGFloat(colIndex) * cw
+                    if let bg = cell.backgroundColor {
+                        context.fill(
+                            Path(CGRect(x: x, y: y, width: cw, height: ch)),
+                            with: .color(bg.swiftUIColor)
+                        )
+                    }
+                    guard cell.character != " " else { continue }
+                    let fg = (cell.foregroundColor ?? .black).swiftUIColor
+                    let text = Text(String(cell.character))
+                        .font(font)
+                        .foregroundColor(fg)
+                    context.draw(
+                        text,
+                        at: CGPoint(x: x + cw / 2, y: y + ch / 2),
+                        anchor: .center
+                    )
+                }
+            }
+        }
+        .frame(
+            width: CGFloat(cols) * cw,
+            height: CGFloat(rows) * ch
+        )
+        .contentShape(Rectangle())
     }
 
     // MARK: - Selection overlay
