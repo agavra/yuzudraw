@@ -30,17 +30,69 @@ html {
 }
 
 .copy-button {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  transform: translateY(-50%);
   border: 1px solid #d1d5db;
   background: #fff;
-  padding: 0.4rem 0.7rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  line-height: 1;
   color: #4b5563;
-  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.copy-button__icon {
+  position: absolute;
+  width: 0.95rem;
+  height: 0.95rem;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.copy-button__icon--check {
+  opacity: 0;
+  transform: scale(0.7);
 }
 
 .copy-button:hover {
   border-color: #111827;
   color: #111827;
+}
+
+.copy-button[data-copy-state='success'] {
+  border-color: #15803d;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.copy-button[data-copy-state='success'] .copy-button__icon--copy {
+  opacity: 0;
+  transform: scale(0.7);
+}
+
+.copy-button[data-copy-state='success'] .copy-button__icon--check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copy-button[data-copy-state='error'] {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.copy-button:focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+
+.copy-button:active {
+  transform: translateY(-50%) scale(0.96);
 }

@@ -209,19 +209,46 @@ const stars = (data.stargazers_count ?? 0).toLocaleString();
             <span class="text-brand font-bold shrink-0">2.</span>
             <div class="min-w-0">
               <p class="font-semibold mb-1">Install the CLI + skill</p>
-              <div class="border border-gray-200 bg-gray-50">
-                <div class="flex items-center justify-end gap-2 border-b border-gray-200 px-3 py-2 sm:px-4">
-                  <button
-                    type="button"
-                    class="copy-button"
-                    data-copy-button
-                    data-copy-text="curl -fsSL https://www.yuzudraw.com/install.sh | sh"
-                    aria-label="Copy install command to clipboard"
+              <div class="relative border border-gray-200 bg-gray-50">
+                <button
+                  type="button"
+                  class="copy-button"
+                  data-copy-button
+                  data-copy-text="curl -fsSL https://www.yuzudraw.com/install.sh | sh"
+                  data-copy-default-label="Copy install command to clipboard"
+                  data-copy-success-label="Copied install command"
+                  data-copy-failed-label="Copy failed"
+                  aria-label="Copy install command to clipboard"
+                  title="Copy install command to clipboard"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="copy-button__icon copy-button__icon--copy"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
                   >
-                    Copy to clipboard
-                  </button>
-                </div>
-                <pre class="px-3 py-3 overflow-x-auto text-[11px] leading-relaxed sm:px-4 sm:text-xs"><code class="whitespace-pre-wrap break-all">curl -fsSL https://www.yuzudraw.com/install.sh | sh</code></pre>
+                    <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                    <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <svg
+                    aria-hidden="true"
+                    class="copy-button__icon copy-button__icon--check"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5"></path>
+                  </svg>
+                  <span class="sr-only">Copy install command to clipboard</span>
+                </button>
+                <pre class="px-3 py-3 pr-12 overflow-x-auto text-[11px] leading-relaxed sm:px-4 sm:pr-14 sm:text-xs"><code class="whitespace-pre-wrap break-all">curl -fsSL https://www.yuzudraw.com/install.sh | sh</code></pre>
               </div>
             </div>
           </li>
@@ -257,16 +284,26 @@ const stars = (data.stargazers_count ?? 0).toLocaleString();
           const text = button.getAttribute('data-copy-text');
           if (!text) return;
 
+          const defaultLabel = button.getAttribute('data-copy-default-label') ?? 'Copy to clipboard';
+          const successLabel = button.getAttribute('data-copy-success-label') ?? 'Copied';
+          const failedLabel = button.getAttribute('data-copy-failed-label') ?? 'Copy failed';
+
           const resetLabel = () => {
-            button.textContent = 'Copy to clipboard';
+            button.dataset.copyState = 'idle';
+            button.setAttribute('aria-label', defaultLabel);
+            button.setAttribute('title', defaultLabel);
           };
 
           try {
             await navigator.clipboard.writeText(text);
-            button.textContent = 'Copied';
+            button.dataset.copyState = 'success';
+            button.setAttribute('aria-label', successLabel);
+            button.setAttribute('title', successLabel);
             window.setTimeout(resetLabel, 1500);
           } catch {
-            button.textContent = 'Copy failed';
+            button.dataset.copyState = 'error';
+            button.setAttribute('aria-label', failedLabel);
+            button.setAttribute('title', failedLabel);
             window.setTimeout(resetLabel, 2000);
           }
         });
