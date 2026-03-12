@@ -19,3 +19,12 @@ html {
     linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
