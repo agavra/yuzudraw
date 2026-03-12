@@ -33,7 +33,9 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath build/arm64 \
             ARCHS=arm64 \
-            ONLY_ACTIVE_ARCH=YES
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY='' \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Build CLI for x86_64
         run: |
@@ -43,7 +45,9 @@ jobs:
             -destination 'generic/platform=macOS' \
             -derivedDataPath build/x86_64 \
             ARCHS=x86_64 \
-            ONLY_ACTIVE_ARCH=YES
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY='' \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Create universal binary
         run: |

@@ -44,6 +44,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDrawCLI
         SWIFT_STRICT_CONCURRENCY: complete
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_ALLOWED: NO
 
   YuzuDrawTests:
     type: bundle.unit-test
