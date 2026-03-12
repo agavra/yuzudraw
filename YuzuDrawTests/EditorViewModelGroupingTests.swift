@@ -502,4 +502,50 @@ struct EditorViewModelGroupingTests {
         // then
         #expect(viewModel.document.canvasSize.width == 120)
     }
+
+    @Test func should_select_shapes_from_top_layer_down_to_selected_layer() {
+        // given
+        var document = Document(layers: [Layer(name: "Bottom"), Layer(name: "Middle"), Layer(name: "Top")])
+        let bottomRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let middleRect = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        let topRect = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(bottomRect), toLayerAt: 0)
+        document.addShape(.rectangle(middleRect), toLayerAt: 1)
+        document.addShape(.rectangle(topRect), toLayerAt: 2)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeLayerIndex = 1
+        viewModel.selectedShapeIDs = [middleRect.id]
+        viewModel.selectedLayerID = viewModel.document.layers[1].id
+
+        // when
+        viewModel.selectAllShapes()
+
+        // then
+        #expect(viewModel.selectedShapeIDs == [middleRect.id, topRect.id])
+    }
+
+    @Test func should_select_only_members_of_group_when_selecting_shape_in_group() {
+        // given
+        var document = Document(layers: [Layer(name: "Main"), Layer(name: "Top")])
+        let bottomRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let groupedRectA = RectangleShape(origin: GridPoint(column: 10, row: 0), size: GridSize(width: 4, height: 3))
+        let groupedRectB = RectangleShape(origin: GridPoint(column: 15, row: 0), size: GridSize(width: 4, height: 3))
+        let topOfLayerRect = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        let topLayerRect = RectangleShape(origin: GridPoint(column: 30, row: 0), size: GridSize(width: 4, height: 3))
+        document.addShape(.rectangle(bottomRect), toLayerAt: 0)
+        document.addShape(.rectangle(groupedRectA), toLayerAt: 0)
+        document.addShape(.rectangle(groupedRectB), toLayerAt: 0)
+        document.addShape(.rectangle(topOfLayerRect), toLayerAt: 0)
+        document.layers[0].groups = [ShapeGroup(name: "Middle Group", shapeIDs: [groupedRectA.id, groupedRectB.id])]
+        document.addShape(.rectangle(topLayerRect), toLayerAt: 1)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeLayerIndex = 0
+        viewModel.selectedShapeIDs = [groupedRectA.id]
+
+        // when
+        viewModel.selectAllShapes()
+
+        // then
+        #expect(viewModel.selectedShapeIDs == [groupedRectA.id, groupedRectB.id])
+    }
 }

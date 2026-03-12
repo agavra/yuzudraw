@@ -2765,17 +2765,62 @@ final class EditorViewModel {
     }
 
     func canSelectAllShapes() -> Bool {
-        guard !isEditingText,
-            document.layers.indices.contains(activeLayerIndex)
-        else { return false }
-        return !document.layers[activeLayerIndex].shapes.isEmpty
+        guard !isEditingText else { return false }
+        return !shapeIDsForSelectAll().isEmpty
     }
 
     func selectAllShapes() {
-        guard canSelectAllShapes() else { return }
-        let layer = document.layers[activeLayerIndex]
-        selectedShapeIDs = Set(layer.shapes.map(\.id))
+        guard !isEditingText else { return }
+        let shapeIDs = shapeIDsForSelectAll()
+        guard !shapeIDs.isEmpty else { return }
+        selectedShapeIDs = shapeIDs
         activeToolType = .select
+    }
+
+    private func shapeIDsForSelectAll() -> Set<UUID> {
+        if let selectedLayerID,
+           let layerIndex = document.layers.firstIndex(where: { $0.id == selectedLayerID }) {
+            var shapeIDs: Set<UUID> = []
+            for layer in document.layers[layerIndex...] {
+                shapeIDs.formUnion(layer.shapes.map(\.id))
+            }
+            return shapeIDs
+        }
+
+        if let selectedGroup = isGroupSelected() {
+            return selectedGroup.allShapeIDs
+        }
+
+        if let groupID = innermostGroupIDForCurrentSelection(),
+           let layerIndex = layerIndexForSelectedShapes(),
+           let group = document.layers[layerIndex].findGroupByID(groupID) {
+            return group.allShapeIDs
+        }
+
+        guard document.layers.indices.contains(activeLayerIndex) else { return [] }
+        return Set(document.layers[activeLayerIndex].shapes.map(\.id))
+    }
+
+    private func innermostGroupIDForCurrentSelection() -> UUID? {
+        guard !selectedShapeIDs.isEmpty,
+           let layerIndex = layerIndexForSelectedShapes()
+        else { return nil }
+
+        let layer = document.layers[layerIndex]
+        var innermostGroupID: UUID?
+
+        for shapeID in selectedShapeIDs {
+            guard let currentGroupID = layer.findGroupAncestry(containingShape: shapeID).last?.id else {
+                return nil
+            }
+
+            if let innermostGroupID, innermostGroupID != currentGroupID {
+                return nil
+            }
+            innermostGroupID = currentGroupID
+        }
+
+        return innermostGroupID
     }
 
     func canCutSelectedShapes() -> Bool {
