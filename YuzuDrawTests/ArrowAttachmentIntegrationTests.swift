@@ -20,8 +20,9 @@ struct ArrowAttachmentIntegrationTests {
         vm.document.addShape(.rectangle(rightRect), toLayerAt: 0)
 
         vm.activeToolType = .arrow
-        vm.mouseDown(at: GridPoint(column: 5, row: 4))
-        vm.mouseUp(at: GridPoint(column: 23, row: 4))
+        // Click near attachment points (right side of leftRect, left side of rightRect)
+        vm.mouseDown(at: GridPoint(column: 9, row: 4))
+        vm.mouseUp(at: GridPoint(column: 20, row: 4))
 
         // when
         vm.activeToolType = .select

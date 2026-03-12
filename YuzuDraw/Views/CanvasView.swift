@@ -84,6 +84,12 @@ struct CanvasView: View {
                 .onContinuousHover(coordinateSpace: .local) { phase in
                     handleCanvasHover(phase)
                 }
+                .contextMenu {
+                    Button("Copy to Clipboard as PNG") {
+                        viewModel.copySelectionAsPNGToClipboard()
+                    }
+                    .disabled(!viewModel.canCopySelectionAsPNG())
+                }
                 .overlay(alignment: .topLeading) {
                     textEditOverlay
                         .offset(x: rulerGutterLeft, y: rulerGutterTop)

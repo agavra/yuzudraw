@@ -41,10 +41,10 @@ struct ArrowToolTests {
         doc.addShape(.rectangle(leftRect), toLayerAt: 0)
         doc.addShape(.rectangle(rightRect), toLayerAt: 0)
 
-        // when
-        _ = tool.mouseDown(at: GridPoint(column: 5, row: 4), in: doc, activeLayerIndex: 0)
+        // when – click near the right attachment of leftRect and left attachment of rightRect
+        _ = tool.mouseDown(at: GridPoint(column: 9, row: 4), in: doc, activeLayerIndex: 0)
         let action = tool.mouseUp(
-            at: GridPoint(column: 23, row: 4), in: doc, activeLayerIndex: 0)
+            at: GridPoint(column: 20, row: 4), in: doc, activeLayerIndex: 0)
 
         // then
         if case .addShape(.arrow(let arrow), _) = action {

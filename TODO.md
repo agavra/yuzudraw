@@ -2,58 +2,40 @@
 
 ## Bugs
 
-- [x] Small rectangles have should not have midpoint selectors
-- [x] The edit menu is all sorts of weird
-- [x] Attach points for destination aren't showing (they are snapping)
-- [x] highlighted options in inspector panel show square corners on rounded pills
-- [x] dragging color takes up too many undo/redo slots
-- [x] deleting all emenets in a group doesn't delete the group
-- [x] cant' drag rectange to height 1
-- [x] show the cursor tool when selecting a tool (and highlight in toolbar)
-- [x] sometimes resize cursor shows when the action is drag, we should make sure this is impossible for any action, may require refactor
-- [x] use proper glyphs with overlapping boxes (make it optional)
 - [ ] double clicking in selected group edits text? is thsi good behavior?
-- [x] copy paste in group should remain in group if group is still selected
-- [x] too easy to accidentally move when selecting, press delay should be more
-- [x] rename action should select existing text
-- [x] copy pasting shadow for box doesn't seem to work?
-- [ ] selecting locked layer should allow you to select inner components for copy/paste but not edit
-- [ ] click and drag across layers doesnt work
-- [x] can't delete layers
+- [ ] cant draw unconnected arrows easily
+- [ ] shift clikc should select all between, not just individual (confirm behavior with figma)
 - [ ] should be able to select items in other layers to select the layerA
-- [ ] hitbox should always be layers/objects higher up the stack
-- [ ] allow groups of size 1
+- [ ] opening and collapsing groups is slow
 - [ ] the build release pipelien takes too long to run, taking up my actions minutes
+- [ ] up/down when selecting in layers pane should select other itemsA
 - [ ] selecting a full group in layer pane doesn't allow for deleting it with "delete" button
+- [ ] command+A to select all doesn't always work (it seems sometimes it does)
+- [ ] fill doesn't respect layering properly
+- [ ] should not support inserting/deleting elemetns from locked layers
+- [ ] initial fill should show up as white not black (#ffffff)
+- [ ] Wrap text by default (and option to inspector)
 
 ## Core Features
 
-- [x] add the ability to move many items at once
-- [x] add copy-cut-paste support (shorctus)
-- [x] update keyboard shortcuts in general
-- [ ] configurable attachment points
-- [x] Shift+Click to edit properties of multiple items (use the same mechanism as group layer selection)
+- [ ] copy as png to clipboard
+- [ ] Support align / distribute vertical/horziontal multiple items
+- [ ] support renaming layers
 - [ ] Eraser functionality for when drawing with pencils
-- [x] SVG export
-- [x] Add hand tool to move around canvas (as drop down)
+- [ ] configurable attachment points
 - [ ] Export should compute bounding boxes so that it doesnt have too mcuh padding.
 - [ ] Cmd+R to rename selected shape (needs focus management for inline rename)
 - [ ] Shift+arrow keys to move shapes by 10 cells (larger step movement)
-- [ ] option+click to copy and drag selection 
+- [ ] option+click to copy and drag selection
 - [ ] shift+up/down to move more cells
-- [x] optimize DSL, it can take a very long time for claude to figure out positioning
 - [ ] add user settings to set defaults for certain inspector panel properties
-
-## AI Integration Features
-
-- [x] Build basic Claude integration with bi-direcitonal editing
+- [ ] text box behavior is a bit clunky
+- [ ] support zoom in/out
+- [ ] support resize in both directions with option-resize
 
 ## Advanced Features
 
 - [ ] Add line tool for custom polygon shapes (as drop down on arrow)
 - [ ] Alignment guides for multiple item alignment
-
-## Super Features
-
 - [ ] Add a comprehensive component library, possibly with a scaling mechanism for some of them (pre-defined scaling operations so I can decide the size before inserting in a special window)
-- [ ] Auto-Layouts
+- [ ] Split up skill into library of diagram tools (e.g. bar-chart works really well)

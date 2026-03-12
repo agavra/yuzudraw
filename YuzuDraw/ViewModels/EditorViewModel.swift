@@ -156,6 +156,7 @@ final class EditorViewModel {
     }
 
     var arrowAttachmentPreviewPoints: [GridPoint] {
+        if isOptionKeyPressed { return [] }
         switch activeToolType {
         case .arrow:
             return arrowTool.attachmentPreviewPoints(near: hoverGridPoint, in: document)
@@ -207,7 +208,9 @@ final class EditorViewModel {
         if isEditingText {
             commitTextEdit()
         }
-        arrowTool.suppressAttachment = isOptionKeyPressed
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        isOptionKeyPressed = optionDown
+        arrowTool.suppressAttachment = optionDown
         selectionTool.selectedShapeIDs = selectedShapeIDs
         selectionTool.isShiftKeyPressed = isShiftKeyPressed
 
@@ -308,7 +311,9 @@ final class EditorViewModel {
     }
 
     func mouseDragged(to point: GridPoint) {
-        arrowTool.suppressAttachment = isOptionKeyPressed
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        isOptionKeyPressed = optionDown
+        arrowTool.suppressAttachment = optionDown
         if activeToolType == .arrow {
             hoverGridPoint = point
         }
@@ -319,7 +324,9 @@ final class EditorViewModel {
     }
 
     func mouseUp(at point: GridPoint) {
-        arrowTool.suppressAttachment = isOptionKeyPressed
+        let optionDown = NSEvent.modifierFlags.contains(.option)
+        isOptionKeyPressed = optionDown
+        arrowTool.suppressAttachment = optionDown
         selectionTool.isShiftKeyPressed = isShiftKeyPressed
         let action = activeTool.mouseUp(
             at: point, in: document, activeLayerIndex: activeLayerIndex)
@@ -1834,6 +1841,10 @@ final class EditorViewModel {
         !isEditingText && (document.hasContent || !selectedShapesInDocumentOrder().isEmpty)
     }
 
+    func canCopySelectionAsPNG() -> Bool {
+        !isEditingText && !selectedShapesInDocumentOrder().isEmpty
+    }
+
     func canPasteShapesFromClipboard() -> Bool {
         guard !isEditingText,
             let payloadData = clipboardPayloadData(from: NSPasteboard.general)
@@ -1969,6 +1980,17 @@ final class EditorViewModel {
         pasteboard.setString(text, forType: .string)
     }
 
+    func copySelectionAsPNGToClipboard(scale: Int = 1, backgroundColor: ShapeColor? = nil) {
+        guard
+            let canvas = selectedShapesExportCanvas(),
+            let data = pngData(from: canvas, scale: scale, backgroundColor: backgroundColor)
+        else { return }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(data, forType: .png)
+    }
+
     func selectionOrCanvasPlainText() -> String? {
         let selectedShapes = selectedShapesInDocumentOrder()
         if !selectedShapes.isEmpty {
@@ -1998,6 +2020,31 @@ final class EditorViewModel {
             }
         }
         return ordered
+    }
+
+    private func selectedShapesExportCanvas() -> Canvas? {
+        let shapes = selectedShapesInDocumentOrder()
+        guard !shapes.isEmpty else { return nil }
+
+        let first = shapes[0].renderBoundingRect
+        let bounds = shapes.dropFirst().reduce(first) { result, shape in
+            let rect = shape.renderBoundingRect
+            let minColumn = min(result.minColumn, rect.minColumn)
+            let minRow = min(result.minRow, rect.minRow)
+            let maxColumn = max(result.maxColumn, rect.maxColumn)
+            let maxRow = max(result.maxRow, rect.maxRow)
+            return GridRect(
+                origin: GridPoint(column: minColumn, row: minRow),
+                size: GridSize(width: maxColumn - minColumn + 1, height: maxRow - minRow + 1)
+            )
+        }
+
+        var exportCanvas = Canvas(columns: bounds.size.width, rows: bounds.size.height)
+        for shape in shapes {
+            translatedShape(shape, dx: -bounds.origin.column, dy: -bounds.origin.row)
+                .render(into: &exportCanvas)
+        }
+        return exportCanvas
     }
 
     private func clipboardPayloadData(from pasteboard: NSPasteboard) -> Data? {

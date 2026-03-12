@@ -1,8 +1,8 @@
 import Foundation
 
 final class ArrowTool: Tool, @unchecked Sendable {
-    private static let attachmentSnapRadius: Double = 1.5
-    private static let attachmentDisplayRadius: Double = 3.0
+    private static let attachmentSnapRadius: Double = 0.75
+    private static let attachmentDisplayRadius: Double = 2.0
 
     private struct AttachPoint {
         let rectangle: RectangleShape
@@ -26,21 +26,16 @@ final class ArrowTool: Tool, @unchecked Sendable {
             startPoint = point
             startRectangle = nil
             startAttachmentSide = nil
-        } else if let containingRectangle = rectangle(at: point, in: document) {
-            if let side = attachmentSide(at: point, on: containingRectangle) {
-                let snapped = AttachPoint(
-                    rectangle: containingRectangle,
-                    point: containingRectangle.attachmentPoint(for: side),
-                    side: side
-                )
-                startPoint = snapped.point
-                startRectangle = snapped.rectangle
-                startAttachmentSide = snapped.side
-            } else {
-                startPoint = point
-                startRectangle = containingRectangle
-                startAttachmentSide = nil
-            }
+        } else if let containingRectangle = rectangle(at: point, in: document),
+                  let side = attachmentSide(at: point, on: containingRectangle) {
+            let snapped = AttachPoint(
+                rectangle: containingRectangle,
+                point: containingRectangle.attachmentPoint(for: side),
+                side: side
+            )
+            startPoint = snapped.point
+            startRectangle = snapped.rectangle
+            startAttachmentSide = snapped.side
         } else if let snapped = snappedAttachment(near: point, in: document) {
             startPoint = snapped.point
             startRectangle = snapped.rectangle
@@ -124,11 +119,18 @@ final class ArrowTool: Tool, @unchecked Sendable {
     private func routedArrow(to endPoint: GridPoint, in document: Document) -> ArrowShape? {
         guard let startPoint else { return nil }
 
-        let containingEndRectangle = suppressAttachment ? nil : rectangle(at: endPoint, in: document)
-        let snappedEnd = containingEndRectangle == nil && !suppressAttachment ? snappedAttachment(near: endPoint, in: document) : nil
-        let endRectangle = containingEndRectangle ?? snappedEnd?.rectangle
+        // For the end point, only snap to a rectangle if near an attachment point.
+        let endSnapped: AttachPoint? = suppressAttachment ? nil : {
+            // First check rectangles the cursor is inside of
+            if let rect = rectangle(at: endPoint, in: document),
+               let side = attachmentSide(at: endPoint, on: rect) {
+                return AttachPoint(rectangle: rect, point: rect.attachmentPoint(for: side), side: side)
+            }
+            // Then check nearby attachment points
+            return snappedAttachment(near: endPoint, in: document)
+        }()
+        let endRectangle = endSnapped?.rectangle
 
-        let endTarget = startRectangle.map(\.boundingRect.centerPoint) ?? startPoint
         let startTarget = endRectangle.map(\.boundingRect.centerPoint) ?? endPoint
 
         let startAttach = startRectangle.map { rectangle in
@@ -141,15 +143,7 @@ final class ArrowTool: Tool, @unchecked Sendable {
             }
             return attachPoint(on: rectangle, toward: startTarget)
         }
-        let endAttach = endRectangle.map { rectangle in
-            if let snappedEnd, snappedEnd.rectangle.id == rectangle.id {
-                return snappedEnd
-            }
-            if let side = attachmentSide(at: endPoint, on: rectangle) {
-                return AttachPoint(rectangle: rectangle, point: rectangle.attachmentPoint(for: side), side: side)
-            }
-            return attachPoint(on: rectangle, toward: endTarget)
-        }
+        let endAttach = endSnapped
 
         let start = startAttach?.point ?? startPoint
         var end = endAttach?.point ?? endPoint
