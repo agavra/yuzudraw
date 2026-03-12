@@ -4,21 +4,26 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pendingFileURLs: [URL] = []
     private weak var workspace: WorkspaceViewModel?
+    private weak var primaryWindow: NSWindow?
 
     func attach(workspace: WorkspaceViewModel) {
         self.workspace = workspace
+        primaryWindow = NSApp.windows.first { $0.isVisible }
         flushPendingFileURLs()
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        // Prevent opening a blank window when the app is reactivated with no files
         false
     }
 
-    func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        let urls = filenames.map(URL.init(fileURLWithPath:))
+    func application(_ application: NSApplication, open urls: [URL]) {
         handleOpenFiles(urls)
-        sender.reply(toOpenOrPrint: .success)
+
+        // WindowGroup may spawn an extra window for this event — close it
+        // on the next run-loop tick so the window has been created by then.
+        DispatchQueue.main.async { [self] in
+            closeExtraWindows()
+        }
     }
 
     private func handleOpenFiles(_ urls: [URL]) {
@@ -37,9 +42,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             workspace.openProject(from: url)
         }
 
-        // Bring existing window to front instead of creating a new one
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first { $0.isVisible }?.makeKeyAndOrderFront(nil)
+        primaryWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    private func closeExtraWindows() {
+        guard let primaryWindow else { return }
+        for window in NSApp.windows where window !== primaryWindow && window.isVisible && !window.isMiniaturized {
+            // Only close regular windows (not panels, sheets, popovers, etc.)
+            guard type(of: window) == type(of: primaryWindow) else { continue }
+            window.close()
+        }
     }
 
     private func flushPendingFileURLs() {
