@@ -25,5 +25,8 @@ build/
 *.swp
 *~
 
+# Eval workspace
+draw-eval-workspace/
+
 # Generated Xcode project (regenerate with xcodegen)
 *.xcodeproj

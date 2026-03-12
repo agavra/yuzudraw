@@ -1,6 +1,6 @@
 ---
 name: draw
-description: Create YuzuDraw diagrams by choosing the right family and following a short reference for architecture, components, flow, bar charts, or ASCII drawing
+description: Create YuzuDraw diagrams by choosing the right family and following a short reference for architecture, components, flow, bar charts, or ASCII art
 user_invocable: true
 ---
 
@@ -44,7 +44,7 @@ Open [bar-chart.md](/Users/agavra/dev/yuzudraw/skills/draw/references/bar-chart.
 - before or after metrics
 - stacked composition bars
 
-Open [ascii-drawing.md](/Users/agavra/dev/yuzudraw/skills/draw/references/ascii-drawing.md) when the request is about:
+Open [ascii-art.md](/Users/agavra/dev/yuzudraw/skills/draw/references/ascii-art.md) when the request is about:
 - illustrations, icons, scenes, mascots
 - title art or decorative callouts
 - “draw” / “sketch” / “ASCII art” requests
@@ -60,7 +60,7 @@ Choose one dominant family:
 - components if internal parts matter most
 - flow if order matters most
 - bar-chart if comparison matters most
-- ascii-drawing if illustration is the deliverable
+- ascii-art if illustration is the deliverable
 
 ## Shared Rules
 
