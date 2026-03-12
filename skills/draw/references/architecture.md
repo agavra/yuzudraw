@@ -29,8 +29,8 @@ If labels or connectors start colliding, simplify before adding more structure.
 
 ### Regions and repeated nodes
 ```dsl
-rect "Region" id region at 0,0 size 88x20 style double
-rect "Zone A" id a at 2,2 size 25x14
+rect "Region" id region at 2,1 size 88x20 style double
+rect "Zone A" id a at 4,3 size 25x14
 rect "Zone B" id b right-of a gap 4 size 25x14
 rect "Zone C" id c right-of b gap 4 size 25x14
 rect "Node A" at a.left+4,5
@@ -40,9 +40,9 @@ rect "Node C" at c.left+4,5
 
 ### Split regions
 ```dsl
-rect "Region A" id leftRegion at 0,0 size 38x18 style double
-rect "Region B" id rightRegion at 46,0 size 38x18 style double
-rect "Node A" id n1 at 6,3 size 18x3
+rect "Region A" id leftRegion at 2,1 size 38x18 style double
+rect "Region B" id rightRegion at 48,1 size 38x18 style double
+rect "Node A" id n1 at 8,4 size 18x3
 rect "Node B" id n2 below n1
 rect "" id block1 at rightRegion.left+3,3 size 28x2 fill solid char "■" noborder
 rect "" id block2 at rightRegion.left+5,8 size 24x2 fill solid char "█" noborder

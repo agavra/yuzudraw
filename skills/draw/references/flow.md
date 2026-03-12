@@ -19,7 +19,7 @@ Use this reference for workflows, pipelines, lifecycles, and ordered request pat
 
 ### Straight pipeline
 ```dsl
-rect "Input" id input at 0,0
+rect "Input" id input at 2,1
 rect "Validate" id validate right-of input
 rect "Transform" id transform right-of validate
 rect "Store" id store right-of transform
@@ -30,7 +30,7 @@ arrow from transform to store
 
 ### Decision branch
 ```dsl
-rect "Request" id req at 0,0
+rect "Request" id req at 2,1
 rect "Check?" id check right-of req gap 5
 rect "Process" id process right-of check gap 5
 rect "Reject" id reject below check

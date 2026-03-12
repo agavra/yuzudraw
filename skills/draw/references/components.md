@@ -27,8 +27,8 @@ Many component diagrams should stay simple: a few named components inside one or
 
 ### Components inside a framed subsystem
 ```dsl
-rect "App" id app at 0,0 size 64x16 style double
-rect "Frontend" id fe at 3,3 style rounded
+rect "App" id app at 2,1 size 64x16 style double
+rect "Frontend" id fe at 5,4 style rounded
 rect "API" id api right-of fe gap 10
 rect "Worker" id worker below api gap 3
 rect "Project File" id file below fe gap 3 style double
@@ -39,7 +39,7 @@ arrow from api.bottom to worker.top
 
 ### Public API vs internals
 ```dsl
-rect "Public API" id public at 0,0
+rect "Public API" id public at 2,1
 rect "Core Engine" id core below public
 rect "Plugin Host" id plugins right-of core gap 6
 arrow from public to core
@@ -48,21 +48,21 @@ arrow from plugins to core
 
 ### Dense tiled internals
 ```dsl
-text "Source" at 31,0
-rect "" id input at 33,1 size 7x3 fill solid char "█"
-text "entry path" at 0,4
-rect "" id frame at 0,7 size 54x6 style double
-rect "" id c1 at 2,8 size 7x3 fill solid char "█"
+text "Source" at 33,1
+rect "" id input at 35,2 size 7x3 fill solid char "█"
+text "entry path" at 2,5
+rect "" id frame at 2,8 size 54x6 style double
+rect "" id c1 at 4,9 size 7x3 fill solid char "█"
 rect "" id c2 right-of c1 gap 2 size 7x3 fill solid char "█"
 rect "" id c3 right-of c2 gap 2 size 7x3 fill solid char "█"
 rect "" id c4 right-of c3 gap 2 size 7x3 fill solid char "█"
-text "001" at 3,11
-text "002" at 12,11
-text "003" at 21,11
-text "004" at 30,11
+text "001" at 5,12
+text "002" at 14,12
+text "003" at 23,12
+text "004" at 32,12
 arrow from input.bottom to frame.top
 rect "" id shade at frame.right,8 size 2x6 fill solid char "░" noborder
-rect "" id base at 1,13 size 55x1 fill solid char "░" noborder
+rect "" id base at 3,14 size 55x1 fill solid char "░" noborder
 ```
 
 ## Don’ts

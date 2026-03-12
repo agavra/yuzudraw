@@ -19,10 +19,10 @@ Use this reference for illustrations, icons, scenes, and decorative ASCII work.
 ## Example
 
 ```dsl
-rect "" id head at 8,2 size 16x8 fill solid char "▒" noborder
-rect "" id eye1 at 12,4 size 2x1 fill solid char "▓" noborder
-rect "" id eye2 at 18,4 size 2x1 fill solid char "▓" noborder
-rect "" id mouth at 13,7 size 6x1 fill solid char "▓" noborder
+rect "" id head at 10,3 size 16x8 fill solid char "▒" noborder
+rect "" id eye1 at 14,5 size 2x1 fill solid char "▓" noborder
+rect "" id eye2 at 20,5 size 2x1 fill solid char "▓" noborder
+rect "" id mouth at 15,8 size 6x1 fill solid char "▓" noborder
 ```
 
 ## Don’ts

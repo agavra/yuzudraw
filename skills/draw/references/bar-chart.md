@@ -57,17 +57,17 @@ rect "" id seg2 at <bar_col + seg1_width>,<row> size <seg2_width>x1 fill solid c
 ## Example
 
 ```dsl
-rect "Latency by tier" at 0,0 size 19x3
-rect "" id container at 0,2 size 48x5
-text "hot" at 2,3
-rect "" id hot at 10,3 size 8x1 fill solid char "▓" noborder
-text "8ms" at 42,3
-text "warm" at 2,4
-rect "" id warm at 10,4 size 20x1 fill solid char "▓" noborder
-text "32ms" at 41,4
-text "cold" at 2,5
-rect "" id cold at 10,5 size 32x1 fill solid char "▓" noborder
-text "120ms" at 40,5
+rect "Latency by tier" at 2,1 size 19x3
+rect "" id container at 2,3 size 48x5
+text "hot" at 4,4
+rect "" id hot at 12,4 size 8x1 fill solid char "▓" noborder
+text "8ms" at 44,4
+text "warm" at 4,5
+rect "" id warm at 12,5 size 20x1 fill solid char "▓" noborder
+text "32ms" at 43,5
+text "cold" at 4,6
+rect "" id cold at 12,6 size 32x1 fill solid char "▓" noborder
+text "120ms" at 42,6
 ```
 
 If the fixed value column makes short rows look too sparse, reduce `B`.
