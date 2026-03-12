@@ -15,7 +15,18 @@ Use this as the single entrypoint for diagram work. Select one family, open the 
 3. Classify the request into one primary diagram family.
 4. Open the matching reference file under `references/`.
 5. Follow that reference's defaults instead of improvising a generic style.
-6. Write YuzuDraw DSL, render with `render-ascii` when useful, then create or update the diagram.
+6. Write DSL to `/tmp/yuzudraw-draft.yuzudraw` using the Write tool, then call CLI commands with `--dsl-file /tmp/yuzudraw-draft.yuzudraw`.
+7. Always display the rendered ASCII output in a fenced code block in your response so the user can see it directly without expanding tool results.
+
+## CLI Invocation Rules
+
+Always pass DSL via `--dsl-file`, never via stdin pipes. This ensures every CLI call starts with `yuzudraw-cli` so it can be allowlisted.
+
+- **Render:** `yuzudraw-cli render-ascii --dsl-file /tmp/yuzudraw-draft.yuzudraw`
+- **Create:** `yuzudraw-cli create-diagram --name <name> --dsl-file /tmp/yuzudraw-draft.yuzudraw`
+- **Update:** `yuzudraw-cli update-diagram --name <name> --dsl-file /tmp/yuzudraw-draft.yuzudraw`
+
+Do NOT use `cat`, `echo`, or any pipe to pass DSL to the CLI. Do NOT use `--dsl-stdin`.
 
 ## Family Selection
 
