@@ -35,21 +35,18 @@ When modifying any of the following, also update the corresponding components:
 
 | Change | Also update |
 |--------|-------------|
-| DSL syntax (parser/serializer) | `skills/diagram/SKILL.md` DSL reference section |
-| CLI command names, arguments, or behavior | `skills/diagram/SKILL.md` and `skills/bar-chart/SKILL.md` workflow sections |
-| New shape types or properties | `DSLParser.swift`, `DSLSerializer.swift`, `skills/diagram/SKILL.md`, and `skills/bar-chart/SKILL.md` |
+| DSL syntax (parser/serializer) | `skills/draw/SKILL.md` and relevant reference files |
+| CLI command names, arguments, or behavior | `skills/draw/SKILL.md` and `skills/draw/references/flow.md` |
+| New shape types or properties | `DSLParser.swift`, `DSLSerializer.swift`, `skills/draw/references/components.md` |
 
 ## Claude Code Skills (`skills/`)
 
-### `/diagram` (`skills/diagram/SKILL.md`)
-General-purpose diagramming skill for flowcharts, architecture diagrams, and other box-and-arrow layouts. Contains DSL syntax reference, layout heuristics, and CLI workflow.
-
-### `/bar-chart` (`skills/bar-chart/SKILL.md`)
-Specialized skill for horizontal bar charts (simple, stacked, multi-section with legends). Contains bar chart layout variables, bar styles, and CLI workflow.
+### `/draw` (`skills/draw/SKILL.md`)
+Unified drawing skill for all diagram types: architecture diagrams, component diagrams, flowcharts, bar charts, and ASCII art. Contains references for each diagram family in `skills/draw/references/`.
 
 To install skills for Claude Code, copy them:
 ```sh
-mkdir -p ~/.claude/skills/diagram ~/.claude/skills/bar-chart
-cp skills/diagram/SKILL.md ~/.claude/skills/diagram/SKILL.md
-cp skills/bar-chart/SKILL.md ~/.claude/skills/bar-chart/SKILL.md
+mkdir -p ~/.claude/skills/draw/references
+cp skills/draw/SKILL.md ~/.claude/skills/draw/SKILL.md
+cp skills/draw/references/*.md ~/.claude/skills/draw/references/
 ```
