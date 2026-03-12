@@ -1,5 +1,8 @@
+import os
 import SwiftUI
 import UniformTypeIdentifiers
+
+private let layerPanelLog = OSLog(subsystem: "com.yuzudraw", category: "LayerPanel")
 
 private let indentStep: CGFloat = 14
 private let dropMidlineY: CGFloat = 12
@@ -20,6 +23,13 @@ private struct PanelSelectionEntry {
     let representedShapeIDs: Set<UUID>
 }
 
+private func panelRowBackground(isSelected: Bool, isHovered: Bool) -> Color {
+    if isSelected {
+        return Color.accentColor.opacity(0.22)
+    }
+    return isHovered ? Color.gray.opacity(0.18) : Color.clear
+}
+
 struct LayerPanel: View {
     @Bindable var viewModel: EditorViewModel
     @State private var draggedLayerID: UUID?
@@ -31,6 +41,7 @@ struct LayerPanel: View {
     @State private var groupReorderTarget: (id: UUID, edge: DropEdge)?
     @State private var ignoreNextRowTap = false
     @State private var selectionAnchorItem: PanelSelectionItem?
+    @State private var hoveredLayerID: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -78,7 +89,7 @@ struct LayerPanel: View {
 
     private var layerList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(viewModel.document.layers.enumerated().reversed()), id: \.element.id) {
                     index, layer in
                     layerSection(layer: layer, index: index)
@@ -103,6 +114,7 @@ struct LayerPanel: View {
 
     private func layerSection(layer: Layer, index: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            let _ = os_signpost(.event, log: layerPanelLog, name: "layerSection", "%{public}s shapes=%d", layer.name, layer.shapes.count)
             HStack(spacing: 2) {
                 chevron(isExpanded: viewModel.expandedItemIDs.contains(layer.id)) {
                     ignoreNextRowTap = true
@@ -146,13 +158,18 @@ struct LayerPanel: View {
                 }
             }
             .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                viewModel.selectedLayerID == layer.id
-                    ? Color.accentColor.opacity(0.2)
-                    : Color.clear
+                panelRowBackground(
+                    isSelected: viewModel.selectedLayerID == layer.id,
+                    isHovered: hoveredLayerID == layer.id
+                )
             )
             .cornerRadius(3)
+            .onHover { isHovering in
+                hoveredLayerID = isHovering ? layer.id : (hoveredLayerID == layer.id ? nil : hoveredLayerID)
+            }
             .onTapGesture {
                 dismissInlineRenameFocus()
                 guard !ignoreNextRowTap else {
@@ -405,16 +422,23 @@ private struct GroupRow: View {
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
+    @State private var isHovered = false
     @FocusState private var nameFieldFocused: Bool
 
     private var orderedGroupShapeIDs: [UUID] {
+        os_signpost(.begin, log: layerPanelLog, name: "orderedGroupShapeIDs", "%{public}s members=%d layerShapes=%d", group.name, group.shapeIDs.count, layer.shapes.count)
         let memberIDs = Set(group.shapeIDs)
-        return layer.shapes.map(\.id).filter { memberIDs.contains($0) }.reversed()
+        let result = Array(layer.shapes.map(\.id).filter { memberIDs.contains($0) }.reversed())
+        os_signpost(.end, log: layerPanelLog, name: "orderedGroupShapeIDs")
+        return result
     }
 
     private var isSelected: Bool {
+        os_signpost(.begin, log: layerPanelLog, name: "GroupRow.isSelected", "%{public}s", group.name)
         let groupShapeIDs = Set(group.allShapeIDs)
-        return !groupShapeIDs.isEmpty && groupShapeIDs.isSubset(of: viewModel.selectedShapeIDs)
+        let result = !groupShapeIDs.isEmpty && groupShapeIDs.isSubset(of: viewModel.selectedShapeIDs)
+        os_signpost(.end, log: layerPanelLog, name: "GroupRow.isSelected")
+        return result
     }
 
     private var selectedSingleShapeID: UUID? {
@@ -424,6 +448,7 @@ private struct GroupRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            let _ = os_signpost(.event, log: layerPanelLog, name: "GroupRow.body", "%{public}s depth=%d", group.name, depth)
             HStack(spacing: 2) {
                 chevron(isExpanded: viewModel.expandedItemIDs.contains(group.id)) {
                     ignoreNextRowTap = true
@@ -471,11 +496,10 @@ private struct GroupRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                isSelected
-                    ? Color.accentColor.opacity(0.2)
-                    : Color.clear
+                panelRowBackground(isSelected: isSelected, isHovered: isHovered)
             )
             .cornerRadius(3)
+            .onHover { isHovered = $0 }
             .onTapGesture {
                 if isEditingName {
                     NSApp.keyWindow?.makeFirstResponder(nil)
@@ -628,6 +652,7 @@ private struct ShapeRow: View {
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
+    @State private var isHovered = false
     @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
@@ -669,13 +694,16 @@ private struct ShapeRow: View {
         }
         .padding(.leading, CGFloat(depth) * indentStep + 12)
         .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .background(
-            viewModel.selectedShapeIDs.contains(shape.id)
-                ? Color.accentColor.opacity(0.2)
-                : Color.clear
+            panelRowBackground(
+                isSelected: viewModel.selectedShapeIDs.contains(shape.id),
+                isHovered: isHovered
+            )
         )
         .cornerRadius(3)
+        .onHover { isHovered = $0 }
         .onTapGesture {
             if isEditingName {
                 NSApp.keyWindow?.makeFirstResponder(nil)
