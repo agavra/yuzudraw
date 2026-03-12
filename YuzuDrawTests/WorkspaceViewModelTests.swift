@@ -154,7 +154,14 @@ struct WorkspaceViewModelTests {
         try ProjectFileManager.save(document: onDiskDocument, to: projectURL)
 
         var inMemoryDocument = Document()
-        inMemoryDocument.addLayer(name: "Unsaved Layer")
+        inMemoryDocument.addShape(
+            .rectangle(
+                RectangleShape(
+                    origin: GridPoint(column: 0, row: 0),
+                    size: GridSize(width: 4, height: 3)
+                )
+            )
+        )
 
         let metadata = ProjectMetadata(name: "Reload Test", fileURL: projectURL)
         let tab = ProjectTab(metadata: metadata, hasUnsavedChanges: false)

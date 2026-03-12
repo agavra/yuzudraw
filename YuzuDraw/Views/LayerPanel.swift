@@ -5,6 +5,25 @@ import UniformTypeIdentifiers
 private let layerPanelLog = OSLog(subsystem: "com.yuzudraw", category: "LayerPanel")
 
 private let indentStep: CGFloat = 14
+
+private struct PanelIconButton: View {
+    let systemName: String
+    let help: String
+    let action: () -> Void
+
+    @State private var isButtonHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.caption2)
+                .foregroundStyle(isButtonHovered ? .primary : .secondary)
+        }
+        .buttonStyle(.plain)
+        .onHover { isButtonHovered = $0 }
+        .help(help)
+    }
+}
 private let dropMidlineY: CGFloat = 12
 
 private enum DropEdge {
@@ -187,6 +206,13 @@ struct LayerPanel: View {
         for item: PanelSelectionItem,
         representedShapeIDs: Set<UUID>
     ) {
+        let selectableShapeIDs = Set(representedShapeIDs.filter { viewModel.document.isShapeSelectable($0) })
+        guard !selectableShapeIDs.isEmpty else {
+            viewModel.selectedShapeIDs = []
+            selectionAnchorItem = nil
+            return
+        }
+
         let modifiers = NSApp.currentEvent?.modifierFlags ?? []
         let isShift = modifiers.contains(.shift)
         let isCommand = modifiers.contains(.command)
@@ -196,12 +222,12 @@ struct LayerPanel: View {
             nextSelection = rangeSelectionShapeIDs(
                 from: selectionAnchorItem,
                 to: item,
-                fallback: representedShapeIDs
+                fallback: selectableShapeIDs
             )
         } else if isCommand {
-            nextSelection = viewModel.selectedShapeIDs.symmetricDifference(representedShapeIDs)
+            nextSelection = viewModel.selectedShapeIDs.symmetricDifference(selectableShapeIDs)
         } else {
-            nextSelection = representedShapeIDs
+            nextSelection = selectableShapeIDs
         }
 
         viewModel.selectedShapeIDs = nextSelection
@@ -222,7 +248,8 @@ struct LayerPanel: View {
         }
         let lower = min(anchorIndex, targetIndex)
         let upper = max(anchorIndex, targetIndex)
-        return Set(entries[lower...upper].flatMap(\.representedShapeIDs))
+        let ids = Set(entries[lower...upper].flatMap(\.representedShapeIDs))
+        return Set(ids.filter { viewModel.document.isShapeSelectable($0) })
     }
 
     private func dismissInlineRenameFocus() {
@@ -273,6 +300,14 @@ private struct GroupRow: View {
         return viewModel.selectedShapeIDs.first
     }
 
+    private var isHidden: Bool {
+        viewModel.isGroupHiddenInPanel(group.id)
+    }
+
+    private var isLocked: Bool {
+        viewModel.isGroupLockedInPanel(group.id)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             let _ = os_signpost(
@@ -317,8 +352,30 @@ private struct GroupRow: View {
                     Text(group.name)
                         .font(.caption)
                         .lineLimit(1)
+                        .opacity(isHidden ? 0.55 : 1)
                 }
                 Spacer(minLength: 0)
+                if isHovered || isHidden || isLocked {
+                    HStack(spacing: 6) {
+                        if isHovered || isHidden {
+                            PanelIconButton(
+                                systemName: isHidden ? "eye.slash" : "eye",
+                                help: isHidden ? "Show group" : "Hide group"
+                            ) {
+                                viewModel.toggleGroupHiddenFromPanel(group.id)
+                            }
+                        }
+                        if isHovered || isLocked {
+                            PanelIconButton(
+                                systemName: isLocked ? "lock" : "lock.open",
+                                help: isLocked ? "Unlock group" : "Lock group"
+                            ) {
+                                viewModel.toggleGroupLockedFromPanel(group.id)
+                            }
+                        }
+                    }
+                    .padding(.trailing, 4)
+                }
             }
             .padding(.leading, CGFloat(depth) * indentStep)
             .padding(.vertical, 2)
@@ -334,6 +391,7 @@ private struct GroupRow: View {
                     NSApp.keyWindow?.makeFirstResponder(nil)
                     return
                 }
+                guard !isHidden, !isLocked else { return }
                 guard !ignoreNextRowTap else {
                     ignoreNextRowTap = false
                     return
@@ -343,6 +401,7 @@ private struct GroupRow: View {
                 onSelect(.group(group.id), groupIDs)
             }
             .onTapGesture(count: 2) {
+                guard !isHidden, !isLocked else { return }
                 beginRename()
             }
             .onDrag {
@@ -391,12 +450,14 @@ private struct GroupRow: View {
                     viewModel.ungroupSelectedShapes()
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(isHidden || isLocked)
 
                 Divider()
 
                 Button("Rename") {
                     beginRename()
                 }
+                .disabled(isHidden || isLocked)
 
                 Divider()
 
@@ -486,6 +547,14 @@ private struct ShapeRow: View {
     @State private var isHovered = false
     @FocusState private var nameFieldFocused: Bool
 
+    private var isHidden: Bool {
+        viewModel.isShapeHiddenInPanel(shape.id)
+    }
+
+    private var isLocked: Bool {
+        viewModel.isShapeLockedInPanel(shape.id)
+    }
+
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: shapeTypeIcon)
@@ -520,8 +589,30 @@ private struct ShapeRow: View {
                 Text(shape.displayName)
                     .font(.caption)
                     .lineLimit(1)
+                    .opacity(isHidden ? 0.55 : 1)
             }
             Spacer()
+            if isHovered || isHidden || isLocked {
+                HStack(spacing: 6) {
+                    if isHovered || isHidden {
+                        PanelIconButton(
+                            systemName: isHidden ? "eye.slash" : "eye",
+                            help: isHidden ? "Show item" : "Hide item"
+                        ) {
+                            viewModel.toggleShapeHiddenFromPanel(shape.id)
+                        }
+                    }
+                    if isHovered || isLocked {
+                        PanelIconButton(
+                            systemName: isLocked ? "lock" : "lock.open",
+                            help: isLocked ? "Unlock item" : "Lock item"
+                        ) {
+                            viewModel.toggleShapeLockedFromPanel(shape.id)
+                        }
+                    }
+                }
+                .padding(.trailing, 4)
+            }
         }
         .padding(.leading, CGFloat(depth) * indentStep + 12)
         .padding(.vertical, 2)
@@ -540,6 +631,7 @@ private struct ShapeRow: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
                 return
             }
+            guard !isHidden, !isLocked else { return }
             // If the shape is inside a group, set enteredGroupID to the innermost containing group
             if let rootGroup = viewModel.document.findRootGroup(containingShape: shape.id) {
                 let ancestry = viewModel.document.findGroupAncestry(containingShape: shape.id)
@@ -555,6 +647,7 @@ private struct ShapeRow: View {
             onSelect(.shape(shape.id), [shape.id])
         }
         .onTapGesture(count: 2) {
+            guard !isHidden, !isLocked else { return }
             beginRename()
         }
         .onDrag {

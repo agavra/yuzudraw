@@ -6,12 +6,20 @@ private let layerPanelLog = OSLog(subsystem: "com.yuzudraw", category: "LayerPan
 struct Document: Codable, Equatable, Sendable {
     var shapes: [AnyShape]
     var groups: [ShapeGroup]
+    var hiddenShapeIDs: Set<UUID>
+    var lockedShapeIDs: Set<UUID>
+    var hiddenGroupIDs: Set<UUID>
+    var lockedGroupIDs: Set<UUID>
     var canvasSize: GridSize
     var palette: ColorPalette
 
     private enum CodingKeys: String, CodingKey {
         case shapes
         case groups
+        case hiddenShapeIDs
+        case lockedShapeIDs
+        case hiddenGroupIDs
+        case lockedGroupIDs
         case layers
         case canvasSize
         case palette
@@ -20,13 +28,22 @@ struct Document: Codable, Equatable, Sendable {
     init(
         shapes: [AnyShape] = [],
         groups: [ShapeGroup] = [],
+        hiddenShapeIDs: Set<UUID> = [],
+        lockedShapeIDs: Set<UUID> = [],
+        hiddenGroupIDs: Set<UUID> = [],
+        lockedGroupIDs: Set<UUID> = [],
         canvasSize: GridSize = GridSize(width: Canvas.defaultColumns, height: Canvas.defaultRows),
         palette: ColorPalette = .default
     ) {
         self.shapes = shapes
         self.groups = groups
+        self.hiddenShapeIDs = hiddenShapeIDs
+        self.lockedShapeIDs = lockedShapeIDs
+        self.hiddenGroupIDs = hiddenGroupIDs
+        self.lockedGroupIDs = lockedGroupIDs
         self.canvasSize = canvasSize
         self.palette = palette
+        pruneState()
     }
 
     init(from decoder: any Decoder) throws {
@@ -38,6 +55,14 @@ struct Document: Codable, Equatable, Sendable {
         if let decodedShapes = try container.decodeIfPresent([AnyShape].self, forKey: .shapes) {
             shapes = decodedShapes
             groups = try container.decodeIfPresent([ShapeGroup].self, forKey: .groups) ?? []
+            hiddenShapeIDs =
+                try container.decodeIfPresent(Set<UUID>.self, forKey: .hiddenShapeIDs) ?? []
+            lockedShapeIDs =
+                try container.decodeIfPresent(Set<UUID>.self, forKey: .lockedShapeIDs) ?? []
+            hiddenGroupIDs =
+                try container.decodeIfPresent(Set<UUID>.self, forKey: .hiddenGroupIDs) ?? []
+            lockedGroupIDs =
+                try container.decodeIfPresent(Set<UUID>.self, forKey: .lockedGroupIDs) ?? []
         } else if let layers = try container.decodeIfPresent([LegacyLayer].self, forKey: .layers) {
             // Flatten legacy layers into shapes/groups
             var allShapes: [AnyShape] = []
@@ -48,22 +73,43 @@ struct Document: Codable, Equatable, Sendable {
             }
             shapes = allShapes
             groups = allGroups
+            hiddenShapeIDs = []
+            lockedShapeIDs = []
+            hiddenGroupIDs = []
+            lockedGroupIDs = []
         } else {
             shapes = []
             groups = []
+            hiddenShapeIDs = []
+            lockedShapeIDs = []
+            hiddenGroupIDs = []
+            lockedGroupIDs = []
         }
+        pruneState()
     }
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(shapes, forKey: .shapes)
         try container.encode(groups, forKey: .groups)
+        try container.encode(hiddenShapeIDs, forKey: .hiddenShapeIDs)
+        try container.encode(lockedShapeIDs, forKey: .lockedShapeIDs)
+        try container.encode(hiddenGroupIDs, forKey: .hiddenGroupIDs)
+        try container.encode(lockedGroupIDs, forKey: .lockedGroupIDs)
         try container.encode(canvasSize, forKey: .canvasSize)
         try container.encode(palette, forKey: .palette)
     }
 
     var hasContent: Bool {
-        !shapes.isEmpty
+        !visibleShapes.isEmpty
+    }
+
+    var visibleShapes: [AnyShape] {
+        shapes.filter { !isShapeHidden($0.id) }
+    }
+
+    var selectableShapes: [AnyShape] {
+        shapes.filter { isShapeSelectable($0.id) }
     }
 
     // MARK: - Group helpers
@@ -119,6 +165,7 @@ struct Document: Codable, Equatable, Sendable {
             groups[index].removeShapeRecursively(id: shapeID)
         }
         groups.removeAll { $0.allShapeIDs.isEmpty }
+        pruneState()
     }
 
     mutating func updateShape(_ shape: AnyShape) {
@@ -156,11 +203,82 @@ struct Document: Codable, Equatable, Sendable {
         return nil
     }
 
+    func isShapeHidden(_ shapeID: UUID) -> Bool {
+        if hiddenShapeIDs.contains(shapeID) {
+            return true
+        }
+        return findGroupAncestry(containingShape: shapeID)
+            .contains(where: { hiddenGroupIDs.contains($0.id) })
+    }
+
+    func isShapeLocked(_ shapeID: UUID) -> Bool {
+        if lockedShapeIDs.contains(shapeID) {
+            return true
+        }
+        return findGroupAncestry(containingShape: shapeID)
+            .contains(where: { lockedGroupIDs.contains($0.id) })
+    }
+
+    func isShapeSelectable(_ shapeID: UUID) -> Bool {
+        !isShapeHidden(shapeID) && !isShapeLocked(shapeID)
+    }
+
+    func isGroupHiddenEffectively(_ groupID: UUID) -> Bool {
+        if hiddenGroupIDs.contains(groupID) {
+            return true
+        }
+        return groupAncestorIDs(for: groupID).contains(where: { hiddenGroupIDs.contains($0) })
+    }
+
+    func isGroupLockedEffectively(_ groupID: UUID) -> Bool {
+        if lockedGroupIDs.contains(groupID) {
+            return true
+        }
+        return groupAncestorIDs(for: groupID).contains(where: { lockedGroupIDs.contains($0) })
+    }
+
+    mutating func setShapeHidden(_ shapeID: UUID, isHidden: Bool) {
+        if isHidden {
+            hiddenShapeIDs.insert(shapeID)
+        } else {
+            hiddenShapeIDs.remove(shapeID)
+        }
+    }
+
+    mutating func setShapeLocked(_ shapeID: UUID, isLocked: Bool) {
+        if isLocked {
+            lockedShapeIDs.insert(shapeID)
+        } else {
+            lockedShapeIDs.remove(shapeID)
+        }
+    }
+
+    mutating func setGroupHidden(_ groupID: UUID, isHidden: Bool) {
+        if isHidden {
+            hiddenGroupIDs.insert(groupID)
+        } else {
+            hiddenGroupIDs.remove(groupID)
+        }
+    }
+
+    mutating func setGroupLocked(_ groupID: UUID, isLocked: Bool) {
+        if isLocked {
+            lockedGroupIDs.insert(groupID)
+        } else {
+            lockedGroupIDs.remove(groupID)
+        }
+    }
+
+    mutating func pruneOrphanedVisibilityAndLockState() {
+        pruneState()
+    }
+
     mutating func removeShapesFromGroups(ids: Set<UUID>) {
         for index in groups.indices {
             groups[index].removeShapesRecursively(ids: ids)
         }
         groups.removeAll { $0.allShapeIDs.isEmpty }
+        pruneState()
     }
 
     mutating func renameGroup(id groupID: UUID, to newName: String) -> Bool {
@@ -497,7 +615,7 @@ struct Document: Codable, Equatable, Sendable {
 
     func shapesInRect(_ rect: GridRect) -> [AnyShape] {
         var result: [AnyShape] = []
-        for shape in shapes {
+        for shape in selectableShapes {
             if shape.boundingRect.intersects(rect) {
                 result.append(shape)
             }
@@ -510,14 +628,14 @@ struct Document: Codable, Equatable, Sendable {
     /// Hit-test in reverse render order (last shape first).
     func hitTest(at point: GridPoint) -> AnyShape? {
         // First, strict geometry hit-testing.
-        for shape in shapes.reversed() {
+        for shape in selectableShapes.reversed() {
             if shape.contains(point: point) {
                 return shape
             }
         }
 
         // Then, allow a small proximity pick radius for arrows to make selecting thin lines easier.
-        for shape in shapes.reversed() {
+        for shape in selectableShapes.reversed() {
             guard case .arrow(let arrow) = shape else { continue }
             if isNearArrow(arrow, point: point, tolerance: 1.0) {
                 return shape
@@ -537,7 +655,7 @@ struct Document: Codable, Equatable, Sendable {
         var maxRow = Int.min
         var found = false
 
-        for shape in shapes {
+        for shape in visibleShapes {
             let rect = shape.boundingRect
             minCol = min(minCol, rect.minColumn)
             minRow = min(minRow, rect.minRow)
@@ -557,7 +675,7 @@ struct Document: Codable, Equatable, Sendable {
 
     func render(into canvas: inout Canvas) {
         canvas.clear()
-        for shape in shapes {
+        for shape in visibleShapes {
             shape.render(into: &canvas)
         }
     }
@@ -590,6 +708,42 @@ struct Document: Codable, Equatable, Sendable {
         }
 
         return .greatestFiniteMagnitude
+    }
+
+    private func groupAncestorIDs(for groupID: UUID) -> [UUID] {
+        func pathToGroup(_ searchID: UUID, in groups: [ShapeGroup], path: [UUID]) -> [UUID]? {
+            for group in groups {
+                let nextPath = path + [group.id]
+                if group.id == searchID {
+                    return path
+                }
+                if let found = pathToGroup(searchID, in: group.children, path: nextPath) {
+                    return found
+                }
+            }
+            return nil
+        }
+
+        return pathToGroup(groupID, in: groups, path: []) ?? []
+    }
+
+    private mutating func pruneState() {
+        let validShapeIDs = Set(shapes.map(\.id))
+        hiddenShapeIDs = hiddenShapeIDs.intersection(validShapeIDs)
+        lockedShapeIDs = lockedShapeIDs.intersection(validShapeIDs)
+
+        let validGroupIDs = Set(flattenGroupIDs(from: groups))
+        hiddenGroupIDs = hiddenGroupIDs.intersection(validGroupIDs)
+        lockedGroupIDs = lockedGroupIDs.intersection(validGroupIDs)
+    }
+
+    private func flattenGroupIDs(from groups: [ShapeGroup]) -> [UUID] {
+        var result: [UUID] = []
+        for group in groups {
+            result.append(group.id)
+            result.append(contentsOf: flattenGroupIDs(from: group.children))
+        }
+        return result
     }
 }
 

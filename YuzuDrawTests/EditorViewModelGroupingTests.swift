@@ -143,6 +143,39 @@ struct EditorViewModelGroupingTests {
         #expect(viewModel.document.groups[0].children[0].name == "Database")
     }
 
+    @Test func should_clear_selection_when_locking_shape_from_panel() {
+        // given
+        var document = Document()
+        let rect = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 6, height: 4))
+        document.addShape(.rectangle(rect))
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rect.id]
+
+        // when
+        viewModel.toggleShapeLockedFromPanel(rect.id)
+
+        // then
+        #expect(viewModel.document.isShapeLocked(rect.id))
+        #expect(viewModel.selectedShapeIDs.isEmpty)
+    }
+
+    @Test func should_not_select_locked_shape_on_canvas_click() {
+        // given
+        var document = Document()
+        let rect = RectangleShape(origin: GridPoint(column: 2, row: 2), size: GridSize(width: 6, height: 4))
+        document.addShape(.rectangle(rect))
+        let viewModel = EditorViewModel(document: document)
+        viewModel.activeToolType = .select
+        viewModel.toggleShapeLockedFromPanel(rect.id)
+
+        // when
+        viewModel.mouseDown(at: GridPoint(column: 3, row: 3))
+        viewModel.mouseUp(at: GridPoint(column: 3, row: 3))
+
+        // then
+        #expect(viewModel.selectedShapeIDs.isEmpty)
+    }
+
     @Test func should_expand_canvas_width_when_scrolling_right_near_edge() {
         // given
         let viewModel = EditorViewModel()

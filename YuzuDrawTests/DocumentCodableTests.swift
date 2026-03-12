@@ -200,6 +200,30 @@ struct DocumentCodableTests {
         }
     }
 
+    @Test func should_round_trip_visibility_and_lock_state() throws {
+        // given
+        var doc = Document()
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 1, row: 1),
+            size: GridSize(width: 8, height: 4)
+        )
+        doc.addShape(.rectangle(rectangle))
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rectangle.id])
+        doc.groups = [group]
+        doc.setShapeHidden(rectangle.id, isHidden: true)
+        doc.setGroupLocked(group.id, isLocked: true)
+
+        // when
+        let data = try DocumentCodable.encode(doc)
+        let decoded = try DocumentCodable.decode(from: data)
+
+        // then
+        #expect(decoded.hiddenShapeIDs.contains(rectangle.id))
+        #expect(decoded.lockedGroupIDs.contains(group.id))
+        #expect(decoded.isShapeHidden(rectangle.id))
+        #expect(decoded.isShapeLocked(rectangle.id))
+    }
+
     @Test func should_round_trip_rectangle_visible_borders() throws {
         // given
         var doc = Document()

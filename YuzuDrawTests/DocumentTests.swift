@@ -234,6 +234,42 @@ struct DocumentTests {
         #expect(canvas.character(atColumn: 0, row: 2) == "└")
     }
 
+    @Test func should_not_render_hidden_shape() {
+        // given
+        var doc = Document(canvasSize: GridSize(width: 20, height: 5))
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 6, height: 3),
+            strokeStyle: .single
+        )
+        doc.addShape(.rectangle(rectangle))
+        doc.setShapeHidden(rectangle.id, isHidden: true)
+        var canvas = Canvas(size: doc.canvasSize)
+
+        // when
+        doc.render(into: &canvas)
+
+        // then
+        #expect(canvas.character(atColumn: 0, row: 0) == " ")
+    }
+
+    @Test func should_not_hit_test_locked_shape() {
+        // given
+        var doc = Document()
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 2, row: 2),
+            size: GridSize(width: 8, height: 4)
+        )
+        doc.addShape(.rectangle(rectangle))
+        doc.setShapeLocked(rectangle.id, isLocked: true)
+
+        // when
+        let hit = doc.hitTest(at: GridPoint(column: 3, row: 3))
+
+        // then
+        #expect(hit == nil)
+    }
+
     @Test func should_move_shape_before_target() {
         // given
         var doc = Document()

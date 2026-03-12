@@ -2,25 +2,19 @@
 
 ## Bugs
 
-- [ ] double clicking in selected group edits text? is thsi good behavior?
-- [ ] cant draw unconnected arrows easily
-- [ ] shift clikc should select all between, not just individual (confirm behavior with figma)
-- [ ] should be able to select items in other layers to select the layerA
 - [ ] opening and collapsing groups is slow
 - [ ] the build release pipelien takes too long to run, taking up my actions minutes
-- [ ] up/down when selecting in layers pane should select other itemsA
-- [ ] selecting a full group in layer pane doesn't allow for deleting it with "delete" button
-- [ ] command+A to select all doesn't always work (it seems sometimes it does)
-- [ ] fill doesn't respect layering properly
-- [ ] should not support inserting/deleting elemetns from locked layers
-- [ ] initial fill should show up as white not black (#ffffff)
-- [ ] Wrap text by default (and option to inspector)
+- [ ] up/down when selecting in object pane should select other itemsA
+- [ ] selecting a full group in object pane doesn't allow for deleting it with "delete" button
+- [ ] diagrams tend to have arrows that are cut off in negative x axis. simple fix is to just always start with a bit of room from top/left sides
+- [ ] use a CLI library instead of hardcoding it
+- [ ] clicking on canvas sometimes doesnt remove highlight box from previous selection
 
 ## Core Features
 
-- [ ] copy as png to clipboard
+- [x] replace MCP with CLI
+- [ ] Wrap text by default (and option to inspector)
 - [ ] Support align / distribute vertical/horziontal multiple items
-- [ ] support renaming layers
 - [ ] Eraser functionality for when drawing with pencils
 - [ ] configurable attachment points
 - [ ] Export should compute bounding boxes so that it doesnt have too mcuh padding.
@@ -32,10 +26,10 @@
 - [ ] text box behavior is a bit clunky
 - [ ] support zoom in/out
 - [ ] support resize in both directions with option-resize
+- [ ] more comprehensive integration tests
 
 ## Advanced Features
 
-- [ ] Add line tool for custom polygon shapes (as drop down on arrow)
 - [ ] Alignment guides for multiple item alignment
 - [ ] Add a comprehensive component library, possibly with a scaling mechanism for some of them (pre-defined scaling operations so I can decide the size before inserting in a special window)
 - [ ] Split up skill into library of diagram tools (e.g. bar-chart works really well)

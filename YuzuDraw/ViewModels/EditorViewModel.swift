@@ -205,6 +205,7 @@ final class EditorViewModel {
     // MARK: - Mouse events
 
     func mouseDown(at point: GridPoint) {
+        sanitizeSelectionAndEnteredGroup()
         if activeColorTarget != nil {
             closeColorPicker()
         }
@@ -366,9 +367,13 @@ final class EditorViewModel {
             }
             rerender()
         case .selectShape(let id):
-            selectedShapeIDs = id.map { [$0] } ?? []
+            if let id, document.isShapeSelectable(id) {
+                selectedShapeIDs = [id]
+            } else {
+                selectedShapeIDs = []
+            }
         case .selectShapes(let ids):
-            selectedShapeIDs = ids
+            selectedShapeIDs = Set(ids.filter { document.isShapeSelectable($0) })
         case .moveShape(_, _):
             // Legacy - handled by updateShape now
             break
@@ -385,17 +390,21 @@ final class EditorViewModel {
             }
             rerender()
         case .addShapeToSelection(let id):
+            guard document.isShapeSelectable(id) else { break }
             selectedShapeIDs.insert(id)
         case .removeShapeFromSelection(let id):
             selectedShapeIDs.remove(id)
         case .addShapesToSelection(let ids):
-            selectedShapeIDs.formUnion(ids)
+            selectedShapeIDs.formUnion(ids.filter { document.isShapeSelectable($0) })
         }
     }
 
     // MARK: - Group-aware selection
 
     func resolveGroupSelection(forShapeID shapeID: UUID) -> (shapeIDs: Set<UUID>, groupID: UUID?) {
+        guard document.isShapeSelectable(shapeID) else {
+            return ([], nil)
+        }
         guard let rootGroup = document.findRootGroup(containingShape: shapeID) else {
             return ([shapeID], nil)
         }
@@ -479,7 +488,7 @@ final class EditorViewModel {
             } else {
                 // Group not selected — select entire root group
                 enteredGroupID = nil
-                selectedShapeIDs = rootGroup.allShapeIDs
+                selectedShapeIDs = Set(rootGroup.allShapeIDs.filter { document.isShapeSelectable($0) })
             }
 
         case .addShapeToSelection(let id):
@@ -493,7 +502,7 @@ final class EditorViewModel {
                 let resolved = resolveGroupSelection(forShapeID: id)
                 selectedShapeIDs.formUnion(resolved.shapeIDs)
             } else {
-                selectedShapeIDs.formUnion(rootGroup.allShapeIDs)
+                selectedShapeIDs.formUnion(rootGroup.allShapeIDs.filter { document.isShapeSelectable($0) })
             }
 
         case .removeShapeFromSelection(let id):
@@ -506,7 +515,7 @@ final class EditorViewModel {
                 let resolved = resolveGroupSelection(forShapeID: id)
                 selectedShapeIDs.subtract(resolved.shapeIDs)
             } else {
-                selectedShapeIDs.subtract(rootGroup.allShapeIDs)
+                selectedShapeIDs.subtract(rootGroup.allShapeIDs.filter { document.isShapeSelectable($0) })
             }
 
         default:
@@ -575,12 +584,12 @@ final class EditorViewModel {
             let ancestry = findGroupContaining(groupID: enteredGroupID, in: document.groups)
             if let parentGroup = ancestry {
                 // Re-select the parent group
-                selectedShapeIDs = parentGroup.allShapeIDs
+                selectedShapeIDs = Set(parentGroup.allShapeIDs.filter { document.isShapeSelectable($0) })
                 self.enteredGroupID = nil
             } else {
                 // enteredGroupID is a root group — find it and select it
                 if let group = document.groups.first(where: { $0.id == enteredGroupID }) {
-                    selectedShapeIDs = group.allShapeIDs
+                    selectedShapeIDs = Set(group.allShapeIDs.filter { document.isShapeSelectable($0) })
                 }
                 self.enteredGroupID = nil
             }
@@ -667,11 +676,15 @@ final class EditorViewModel {
     // MARK: - Shape property editing
 
     var selectedShapes: [AnyShape] {
-        selectedShapeIDs.compactMap { document.findShape(id: $0) }
+        selectedShapeIDs.compactMap { id in
+            guard document.isShapeSelectable(id) else { return nil }
+            return document.findShape(id: id)
+        }
     }
 
     var selectedShape: AnyShape? {
         guard selectedShapeIDs.count == 1, let id = selectedShapeIDs.first else { return nil }
+        guard document.isShapeSelectable(id) else { return nil }
         return document.findShape(id: id)
     }
 
@@ -1814,7 +1827,9 @@ final class EditorViewModel {
     }
 
     private func selectedShapesInDocumentOrder() -> [AnyShape] {
-        document.shapes.filter { selectedShapeIDs.contains($0.id) }
+        document.shapes.filter {
+            selectedShapeIDs.contains($0.id) && document.isShapeSelectable($0.id)
+        }
     }
 
     private func selectedShapesExportCanvas() -> Canvas? {
@@ -2093,6 +2108,7 @@ final class EditorViewModel {
     func deleteSelectedShapes() {
         recordSnapshot()
         for id in selectedShapeIDs {
+            guard document.isShapeSelectable(id) else { continue }
             detachArrows(referencing: id)
             document.removeShape(id: id)
         }
@@ -2104,6 +2120,7 @@ final class EditorViewModel {
     func moveSelectedShapes(dx: Int, dy: Int) {
         recordSnapshot()
         for id in selectedShapeIDs {
+            guard document.isShapeSelectable(id) else { continue }
             guard let shape = document.findShape(id: id) else { continue }
             let movedShape = translatedForSelectionMove(shape: shape, dx: dx, dy: dy)
             updateShapeAndAttachments(movedShape)
@@ -2184,35 +2201,53 @@ final class EditorViewModel {
     // MARK: - Group z-order
 
     func moveGroupForward(_ groupID: UUID) {
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return }
         recordSnapshot()
         guard document.moveGroupForward(groupID: groupID) else { return }
         rerender()
     }
 
     func moveGroupBackward(_ groupID: UUID) {
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return }
         recordSnapshot()
         guard document.moveGroupBackward(groupID: groupID) else { return }
         rerender()
     }
 
     func moveGroupToFront(_ groupID: UUID) {
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return }
         recordSnapshot()
         guard document.moveGroupToFront(groupID: groupID) else { return }
         rerender()
     }
 
     func moveGroupToBack(_ groupID: UUID) {
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return }
         recordSnapshot()
         guard document.moveGroupToBack(groupID: groupID) else { return }
         rerender()
     }
 
     func canMoveGroupForward(_ groupID: UUID) -> Bool {
-        document.canMoveGroupForward(groupID: groupID)
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return false }
+        return document.canMoveGroupForward(groupID: groupID)
     }
 
     func canMoveGroupBackward(_ groupID: UUID) -> Bool {
-        document.canMoveGroupBackward(groupID: groupID)
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return false }
+        return document.canMoveGroupBackward(groupID: groupID)
     }
 
     // MARK: - Group-aware move helpers
@@ -2222,7 +2257,11 @@ final class EditorViewModel {
     }
 
     private func performGroupAwareMove(shapeID: UUID, action: ZOrderAction) -> Bool {
+        guard document.isShapeSelectable(shapeID) else { return false }
         if let rootGroup = document.findRootGroup(containingShape: shapeID) {
+            guard !document.isGroupLockedEffectively(rootGroup.id),
+                  !document.isGroupHiddenEffectively(rootGroup.id)
+            else { return false }
             if enteredGroupID != nil {
                 // Move within the group
                 switch action {
@@ -2274,7 +2313,11 @@ final class EditorViewModel {
     }
 
     private func canPerformGroupAwareMove(shapeID: UUID, forward: Bool) -> Bool {
+        guard document.isShapeSelectable(shapeID) else { return false }
         if let rootGroup = document.findRootGroup(containingShape: shapeID) {
+            guard !document.isGroupLockedEffectively(rootGroup.id),
+                  !document.isGroupHiddenEffectively(rootGroup.id)
+            else { return false }
             if enteredGroupID != nil {
                 return document.canMoveShapeWithinGroup(
                     id: shapeID, forward: forward, groupID: rootGroup.id)
@@ -2298,7 +2341,9 @@ final class EditorViewModel {
         guard !selectedShapeIDs.isEmpty else { return false }
 
         for shapeID in selectedShapeIDs {
-            guard document.findShape(id: shapeID) != nil else { return false }
+            guard document.findShape(id: shapeID) != nil,
+                  document.isShapeSelectable(shapeID)
+            else { return false }
         }
 
         return true
@@ -2339,6 +2384,8 @@ final class EditorViewModel {
         recordSnapshot()
         guard !selectedShapeIDs.isEmpty else { return }
         document.groups = ungroupedGroups(document.groups, selectedIDs: selectedShapeIDs)
+        document.pruneOrphanedVisibilityAndLockState()
+        sanitizeSelectionAndEnteredGroup()
         rerender()
     }
 
@@ -2374,15 +2421,15 @@ final class EditorViewModel {
 
     private func shapeIDsForSelectAll() -> Set<UUID> {
         if let selectedGroup = isGroupSelected() {
-            return selectedGroup.allShapeIDs
+            return Set(selectedGroup.allShapeIDs.filter { document.isShapeSelectable($0) })
         }
 
         if let groupID = innermostGroupIDForCurrentSelection(),
            let group = document.findGroupByID(groupID) {
-            return group.allShapeIDs
+            return Set(group.allShapeIDs.filter { document.isShapeSelectable($0) })
         }
 
-        return Set(document.shapes.map(\.id))
+        return Set(document.shapes.map(\.id).filter { document.isShapeSelectable($0) })
     }
 
     private func innermostGroupIDForCurrentSelection() -> UUID? {
@@ -2446,18 +2493,28 @@ final class EditorViewModel {
     }
 
     func moveShape(draggedShapeID: UUID, before targetShapeID: UUID) {
+        guard document.isShapeSelectable(draggedShapeID),
+              document.isShapeSelectable(targetShapeID)
+        else { return }
         recordSnapshot()
         guard document.moveShape(id: draggedShapeID, before: targetShapeID) else { return }
         rerender()
     }
 
     func moveShape(draggedShapeID: UUID, after targetShapeID: UUID) {
+        guard document.isShapeSelectable(draggedShapeID),
+              document.isShapeSelectable(targetShapeID)
+        else { return }
         recordSnapshot()
         guard document.moveShape(id: draggedShapeID, after: targetShapeID) else { return }
         rerender()
     }
 
     func moveGroup(draggedGroupID: UUID, beforeShape targetShapeID: UUID) {
+        guard !document.isGroupLockedEffectively(draggedGroupID),
+              !document.isGroupHiddenEffectively(draggedGroupID),
+              document.isShapeSelectable(targetShapeID)
+        else { return }
         recordSnapshot()
         guard document.moveGroup(groupID: draggedGroupID, beforeShape: targetShapeID)
         else { return }
@@ -2465,6 +2522,10 @@ final class EditorViewModel {
     }
 
     func moveGroup(draggedGroupID: UUID, afterShape targetShapeID: UUID) {
+        guard !document.isGroupLockedEffectively(draggedGroupID),
+              !document.isGroupHiddenEffectively(draggedGroupID),
+              document.isShapeSelectable(targetShapeID)
+        else { return }
         recordSnapshot()
         guard document.moveGroup(groupID: draggedGroupID, afterShape: targetShapeID)
         else { return }
@@ -2472,6 +2533,11 @@ final class EditorViewModel {
     }
 
     func moveGroup(draggedGroupID: UUID, beforeGroup targetGroupID: UUID) {
+        guard !document.isGroupLockedEffectively(draggedGroupID),
+              !document.isGroupHiddenEffectively(draggedGroupID),
+              !document.isGroupLockedEffectively(targetGroupID),
+              !document.isGroupHiddenEffectively(targetGroupID)
+        else { return }
         recordSnapshot()
         guard document.moveGroup(groupID: draggedGroupID, beforeGroup: targetGroupID)
         else { return }
@@ -2479,6 +2545,11 @@ final class EditorViewModel {
     }
 
     func moveGroup(draggedGroupID: UUID, afterGroup targetGroupID: UUID) {
+        guard !document.isGroupLockedEffectively(draggedGroupID),
+              !document.isGroupHiddenEffectively(draggedGroupID),
+              !document.isGroupLockedEffectively(targetGroupID),
+              !document.isGroupHiddenEffectively(targetGroupID)
+        else { return }
         recordSnapshot()
         guard document.moveGroup(groupID: draggedGroupID, afterGroup: targetGroupID)
         else { return }
@@ -2486,7 +2557,11 @@ final class EditorViewModel {
     }
 
     func moveShapeToGroup(shapeID: UUID, groupID: UUID) {
-        guard document.findShape(id: shapeID) != nil else { return }
+        guard document.findShape(id: shapeID) != nil,
+              document.isShapeSelectable(shapeID),
+              !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return }
         recordSnapshot()
         document.removeShapesFromGroups(ids: [shapeID])
         _ = document.appendShapesToGroup(ids: [shapeID], groupID: groupID)
@@ -2495,7 +2570,9 @@ final class EditorViewModel {
     }
 
     func removeShapeFromGroup(shapeID: UUID) {
-        guard document.findRootGroup(containingShape: shapeID) != nil else { return }
+        guard document.findRootGroup(containingShape: shapeID) != nil,
+              document.isShapeSelectable(shapeID)
+        else { return }
         recordSnapshot()
         document.removeShapesFromGroups(ids: [shapeID])
         rerender()
@@ -2512,6 +2589,7 @@ final class EditorViewModel {
     }
 
     func selectShapeFromPanel(_ shapeID: UUID, extending: Bool = false) {
+        guard document.isShapeSelectable(shapeID) else { return }
         if extending {
             if selectedShapeIDs.contains(shapeID) {
                 selectedShapeIDs.remove(shapeID)
@@ -2524,6 +2602,7 @@ final class EditorViewModel {
     }
 
     func renameShapeFromPanel(_ shapeID: UUID, to newName: String) {
+        guard document.isShapeSelectable(shapeID) else { return }
         recordSnapshot()
         guard let shapeIndex = document.shapes.firstIndex(where: { $0.id == shapeID }) else {
             return
@@ -2532,10 +2611,76 @@ final class EditorViewModel {
     }
 
     func renameGroupFromPanel(_ groupID: UUID, to newName: String) {
+        guard !document.isGroupLockedEffectively(groupID),
+              !document.isGroupHiddenEffectively(groupID)
+        else { return }
         recordSnapshot()
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         _ = document.renameGroup(id: groupID, to: trimmed)
+    }
+
+    func isShapeHiddenInPanel(_ shapeID: UUID) -> Bool {
+        document.hiddenShapeIDs.contains(shapeID)
+    }
+
+    func isShapeLockedInPanel(_ shapeID: UUID) -> Bool {
+        document.lockedShapeIDs.contains(shapeID)
+    }
+
+    func isGroupHiddenInPanel(_ groupID: UUID) -> Bool {
+        document.hiddenGroupIDs.contains(groupID)
+    }
+
+    func isGroupLockedInPanel(_ groupID: UUID) -> Bool {
+        document.lockedGroupIDs.contains(groupID)
+    }
+
+    func toggleShapeHiddenFromPanel(_ shapeID: UUID) {
+        guard document.findShape(id: shapeID) != nil else { return }
+        recordSnapshot()
+        let shouldHide = !document.hiddenShapeIDs.contains(shapeID)
+        document.setShapeHidden(shapeID, isHidden: shouldHide)
+        sanitizeSelectionAndEnteredGroup()
+        rerender()
+    }
+
+    func toggleShapeLockedFromPanel(_ shapeID: UUID) {
+        guard document.findShape(id: shapeID) != nil else { return }
+        recordSnapshot()
+        let shouldLock = !document.lockedShapeIDs.contains(shapeID)
+        document.setShapeLocked(shapeID, isLocked: shouldLock)
+        sanitizeSelectionAndEnteredGroup()
+        rerender()
+    }
+
+    func toggleGroupHiddenFromPanel(_ groupID: UUID) {
+        guard document.findGroupByID(groupID) != nil else { return }
+        recordSnapshot()
+        let shouldHide = !document.hiddenGroupIDs.contains(groupID)
+        document.setGroupHidden(groupID, isHidden: shouldHide)
+        sanitizeSelectionAndEnteredGroup()
+        rerender()
+    }
+
+    func toggleGroupLockedFromPanel(_ groupID: UUID) {
+        guard document.findGroupByID(groupID) != nil else { return }
+        recordSnapshot()
+        let shouldLock = !document.lockedGroupIDs.contains(groupID)
+        document.setGroupLocked(groupID, isLocked: shouldLock)
+        sanitizeSelectionAndEnteredGroup()
+        rerender()
+    }
+
+    private func sanitizeSelectionAndEnteredGroup() {
+        selectedShapeIDs = Set(selectedShapeIDs.filter { document.isShapeSelectable($0) })
+
+        if let enteredGroupID,
+           document.isGroupHiddenEffectively(enteredGroupID)
+                || document.isGroupLockedEffectively(enteredGroupID)
+        {
+            self.enteredGroupID = nil
+        }
     }
 
     private func nextGroupName() -> String {

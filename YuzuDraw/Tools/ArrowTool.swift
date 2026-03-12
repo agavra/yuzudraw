@@ -84,7 +84,7 @@ final class ArrowTool: Tool, @unchecked Sendable {
     func attachmentPreviewPoints(near hoverPoint: GridPoint?, in document: Document) -> [GridPoint] {
         guard !suppressAttachment, let hoverPoint else { return [] }
 
-        let allRectangles = document.shapes
+        let allRectangles = document.selectableShapes
             .compactMap { shape -> RectangleShape? in
                 guard case .rectangle(let rectangle) = shape else { return nil }
                 return rectangle
@@ -235,7 +235,7 @@ final class ArrowTool: Tool, @unchecked Sendable {
         var best: AttachPoint?
         var bestDistance = Double.greatestFiniteMagnitude
 
-        for shape in document.shapes {
+        for shape in document.selectableShapes {
             guard case .rectangle(let rectangle) = shape else { continue }
             for side in ArrowAttachmentSide.allCases {
                 let attachPoint = rectangle.attachmentPoint(for: side)

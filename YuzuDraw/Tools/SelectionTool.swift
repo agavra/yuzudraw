@@ -375,7 +375,7 @@ final class SelectionTool: Tool, @unchecked Sendable {
         var best: (rectangle: RectangleShape, side: ArrowAttachmentSide, point: GridPoint)?
         var bestDistance = Double.greatestFiniteMagnitude
 
-        for shape in document.shapes.reversed() {
+        for shape in document.selectableShapes.reversed() {
             guard shape.id != excludingShapeID else { continue }
             guard case .rectangle(let rectangle) = shape else { continue }
             for side in ArrowAttachmentSide.allCases {
