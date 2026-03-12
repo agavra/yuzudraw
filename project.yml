@@ -32,6 +32,19 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         ENABLE_HARDENED_RUNTIME: true
 
+  YuzuDrawCLI:
+    type: tool
+    platform: macOS
+    sources:
+      - YuzuDrawCLI
+      - YuzuDraw/Automation
+      - YuzuDraw/Models
+      - YuzuDraw/Serialization
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDrawCLI
+        SWIFT_STRICT_CONCURRENCY: complete
+
   YuzuDrawTests:
     type: bundle.unit-test
     platform: macOS

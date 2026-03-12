@@ -2,7 +2,7 @@
 
 ## Overview
 
-The YuzuDraw DSL is a text format for describing ASCII diagrams. It's used in `.yuzudraw` files and via the MCP tools (`create_diagram`, `update_diagram`, `get_diagram`).
+The YuzuDraw DSL is a text format for describing ASCII diagrams. It's used in `.yuzudraw` files and via the CLI commands (`create-diagram`, `update-diagram`, `get-diagram`, `render-ascii`).
 
 ## Document Structure
 

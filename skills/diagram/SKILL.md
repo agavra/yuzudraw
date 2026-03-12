@@ -6,16 +6,17 @@ user_invocable: true
 
 # /diagram — Create ASCII Diagrams in YuzuDraw
 
-When the user invokes `/diagram <description>`, create a diagram using the YuzuDraw MCP server.
+When the user invokes `/diagram <description>`, create a diagram using the YuzuDraw CLI.
 
 ## Workflow
 
 1. Parse the user's description to determine what kind of diagram to create
 2. Write YuzuDraw DSL text following the syntax reference below
-3. Call the `create_diagram` MCP tool with a name and the DSL
-4. The diagram appears live in the YuzuDraw app and the ASCII render is returned
+3. Save the DSL to a temporary file (for example `/tmp/diagram.dsl`)
+4. Run `./scripts/yuzudraw-cli.sh create-diagram --name "<name>" --dsl-file /tmp/diagram.dsl`
+5. The CLI writes a `.yuzudraw` file and returns the ASCII render
 
-For updates, use `update_diagram`. To read back user edits, use `get_diagram`.
+For updates, use `update-diagram`. To read back user edits, use `get-diagram`.
 
 ## DSL Syntax Reference
 
@@ -166,6 +167,6 @@ layer "Diagram" visible
 - **Use bare arrow refs** — `from "A" to "B"` instead of `from "A".right to "B".left`
 - **Use IDs for empty/duplicate labels** — `rect "" id bar1 size 50x1 fill block char "▓" noborder`
 - Rectangles must be defined before arrows that reference them
-- Use `render_ascii` to preview before creating
-- Use `get_diagram` to read back user edits before updating
+- Use `render-ascii` to preview before creating
+- Use `get-diagram` to read back user edits before updating
 - Prefer `style rounded` for UI components, `style double` for databases/storage

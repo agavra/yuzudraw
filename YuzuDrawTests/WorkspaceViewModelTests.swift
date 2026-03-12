@@ -123,4 +123,53 @@ struct WorkspaceViewModelTests {
         // then
         #expect(workspace.recentProjects.contains { $0.fileURL == fileURL })
     }
+
+    @Test func should_enable_reload_only_for_file_backed_tabs() {
+        // given
+        let workspace = WorkspaceViewModel(tabs: [], editors: [:], activeTabID: nil)
+        workspace.openStartPageTab()
+
+        // then
+        #expect(workspace.canReloadFromDisk == false)
+
+        // when
+        workspace.newProject()
+
+        // then
+        #expect(workspace.canReloadFromDisk == false)
+    }
+
+    @Test func should_reload_active_tab_document_from_disk() throws {
+        // given
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let projectURL = tempDirectory
+            .appendingPathComponent("Reload Test")
+            .appendingPathExtension(ProjectFileManager.fileExtension)
+
+        let onDiskDocument = Document()
+        try ProjectFileManager.save(document: onDiskDocument, to: projectURL)
+
+        var inMemoryDocument = Document()
+        inMemoryDocument.addLayer(name: "Unsaved Layer")
+
+        let metadata = ProjectMetadata(name: "Reload Test", fileURL: projectURL)
+        let tab = ProjectTab(metadata: metadata, hasUnsavedChanges: false)
+        let editor = EditorViewModel(document: inMemoryDocument)
+        let workspace = WorkspaceViewModel(
+            tabs: [tab],
+            editors: [tab.id: editor],
+            activeTabID: tab.id
+        )
+
+        // when
+        workspace.reloadFromDisk()
+
+        // then
+        #expect(workspace.activeEditor?.document == onDiskDocument)
+        #expect(workspace.tabs[0].hasUnsavedChanges == false)
+    }
 }

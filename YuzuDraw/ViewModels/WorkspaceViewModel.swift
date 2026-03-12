@@ -25,6 +25,13 @@ final class WorkspaceViewModel {
         return editors[activeTabID]
     }
 
+    var canReloadFromDisk: Bool {
+        guard let activeTabID,
+              let tab = tabs.first(where: { $0.id == activeTabID })
+        else { return false }
+        return tab.metadata.fileURL != nil && !tab.isStartPage
+    }
+
     init() {
         loadRecentProjects()
         startAutoSave()
@@ -212,6 +219,37 @@ final class WorkspaceViewModel {
             addToRecentProjects(metadata: tabs[tabIndex].metadata)
         } catch {
             print("Failed to save: \(error)")
+        }
+    }
+
+    func reloadFromDisk() {
+        guard let activeTabID,
+              let tabIndex = tabs.firstIndex(where: { $0.id == activeTabID }),
+              let fileURL = tabs[tabIndex].metadata.fileURL
+        else { return }
+
+        if tabs[tabIndex].hasUnsavedChanges {
+            let alert = NSAlert()
+            alert.messageText = "Discard unsaved changes?"
+            alert.informativeText =
+                "This will reload '\(tabs[tabIndex].metadata.name)' from disk and replace unsaved edits."
+            alert.addButton(withTitle: "Reload")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .warning
+            if alert.runModal() != .alertFirstButtonReturn {
+                return
+            }
+        }
+
+        do {
+            let document = try ProjectFileManager.load(from: fileURL)
+            guard let editor = editors[activeTabID] else { return }
+            editor.document = document
+            editor.rerender()
+            tabs[tabIndex].hasUnsavedChanges = false
+            tabs[tabIndex].metadata.lastModified = Date()
+        } catch {
+            print("Failed to reload project: \(error)")
         }
     }
 
