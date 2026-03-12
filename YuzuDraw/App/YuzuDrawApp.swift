@@ -2,11 +2,15 @@ import SwiftUI
 
 @main
 struct YuzuDrawApp: App {
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var workspace = WorkspaceViewModel()
 
     var body: some Scene {
         WindowGroup {
             RootView(workspace: workspace)
+                .onAppear {
+                    appDelegate.attach(workspace: workspace)
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 700)

@@ -10,6 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         flushPendingFileURLs()
     }
 
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        // Prevent opening a blank window when the app is reactivated with no files
+        false
+    }
+
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         let urls = filenames.map(URL.init(fileURLWithPath:))
         handleOpenFiles(urls)
@@ -31,6 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in normalizedURLs {
             workspace.openProject(from: url)
         }
+
+        // Bring existing window to front instead of creating a new one
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first { $0.isVisible }?.makeKeyAndOrderFront(nil)
     }
 
     private func flushPendingFileURLs() {
