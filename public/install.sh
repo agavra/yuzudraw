@@ -2,13 +2,47 @@
 set -eu
 
 REPO="agavra/yuzudraw"
+GITHUB_API_URL="https://api.github.com/repos/${REPO}"
 RAW_BASE_URL="https://raw.githubusercontent.com/${REPO}/main"
+SKILL_PATH="skills/draw"
 INSTALL_DIR="$HOME/.yuzudraw/bin"
 BIN_NAME="yuzudraw-cli"
 AGENT_SELECTION=""
 SKIP_SKILLS=0
 UNINSTALL=0
-DRAW_REFERENCE_FILES="architecture.md components.md flow.md bar-chart.md ascii-drawing.md"
+DRAW_SKILL_FILES="SKILL.md references/architecture.md references/ascii-art.md references/bar-chart.md references/components.md references/flow.md"
+
+fail() {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+download_file() {
+    URL=$1
+    DEST=$2
+    DESCRIPTION=$3
+
+    DEST_DIR=$(dirname "$DEST")
+    mkdir -p "$DEST_DIR" || fail "could not create directory ${DEST_DIR} for ${DESCRIPTION}."
+    curl -fsSL "$URL" -o "$DEST" || fail "could not download ${DESCRIPTION} from ${URL}."
+}
+
+download_file_with_progress() {
+    URL=$1
+    DEST=$2
+    DESCRIPTION=$3
+
+    DEST_DIR=$(dirname "$DEST")
+    mkdir -p "$DEST_DIR" || fail "could not create directory ${DEST_DIR} for ${DESCRIPTION}."
+    curl -fSL --progress-bar "$URL" -o "$DEST" || fail "could not download ${DESCRIPTION} from ${URL}."
+}
+
+fetch_url() {
+    URL=$1
+    DESCRIPTION=$2
+
+    curl -fsSL "$URL" || fail "could not fetch ${DESCRIPTION} from ${URL}."
+}
 
 main() {
     parse_args "$@"
@@ -23,17 +57,18 @@ main() {
     ASSET_NAME="${BIN_NAME}-${VERSION}-${ARCH}-apple-darwin.tar.gz"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET_NAME}"
 
-    TMPDIR=$(mktemp -d)
+    TMPDIR=$(mktemp -d) || fail "could not create a temporary directory."
     trap 'rm -rf "$TMPDIR"' EXIT
 
     echo "Downloading ${BIN_NAME} v${VERSION} (${ARCH})..."
-    curl -fSL --progress-bar "$DOWNLOAD_URL" -o "${TMPDIR}/${ASSET_NAME}"
+    download_file_with_progress "$DOWNLOAD_URL" "${TMPDIR}/${ASSET_NAME}" "${BIN_NAME} v${VERSION} (${ARCH})"
 
     echo "Installing to ${INSTALL_DIR}..."
-    mkdir -p "$INSTALL_DIR"
-    tar -xzf "${TMPDIR}/${ASSET_NAME}" -C "$TMPDIR"
-    mv "${TMPDIR}/${BIN_NAME}" "${INSTALL_DIR}/${BIN_NAME}"
-    chmod +x "${INSTALL_DIR}/${BIN_NAME}"
+    mkdir -p "$INSTALL_DIR" || fail "could not create install directory ${INSTALL_DIR}."
+    tar -xzf "${TMPDIR}/${ASSET_NAME}" -C "$TMPDIR" || fail "could not extract ${ASSET_NAME}."
+    [ -f "${TMPDIR}/${BIN_NAME}" ] || fail "archive ${ASSET_NAME} did not contain ${BIN_NAME}."
+    mv "${TMPDIR}/${BIN_NAME}" "${INSTALL_DIR}/${BIN_NAME}" || fail "could not move ${BIN_NAME} into ${INSTALL_DIR}."
+    chmod +x "${INSTALL_DIR}/${BIN_NAME}" || fail "could not mark ${INSTALL_DIR}/${BIN_NAME} as executable."
 
     configure_path
 
@@ -118,11 +153,10 @@ detect_arch() {
 }
 
 fetch_latest_version() {
-    RELEASE_URL="https://api.github.com/repos/${REPO}/releases/latest"
-    TAG=$(curl -fsSL "$RELEASE_URL" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/')
+    RELEASE_URL="${GITHUB_API_URL}/releases/latest"
+    TAG=$(fetch_url "$RELEASE_URL" "latest release metadata" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/')
     if [ -z "$TAG" ]; then
-        echo "Error: could not determine latest version from GitHub." >&2
-        exit 1
+        fail "could not determine the latest version from ${RELEASE_URL}."
     fi
     echo "$TAG"
 }
@@ -289,14 +323,16 @@ install_draw_skill() {
     TARGET_DIR="${TARGET_ROOT}/draw"
 
     echo "Installing draw skill to ${TARGET_DIR}..."
-    mkdir -p "$TARGET_DIR"
-    mkdir -p "${TARGET_DIR}/references"
+    mkdir -p "$TARGET_DIR" || fail "could not create skill directory ${TARGET_DIR}."
 
-    curl -fsSL "${RAW_BASE_URL}/skills/draw/SKILL.md" -o "${TARGET_DIR}/SKILL.md"
+    FILE_COUNT=$(printf '%s\n' "$DRAW_SKILL_FILES" | wc -w | tr -d ' ')
+    echo "Found ${FILE_COUNT} draw skill file(s) in ${REPO}/${SKILL_PATH}."
 
-    for REFERENCE_FILE in $DRAW_REFERENCE_FILES; do
-        curl -fsSL "${RAW_BASE_URL}/skills/draw/references/${REFERENCE_FILE}" \
-            -o "${TARGET_DIR}/references/${REFERENCE_FILE}"
+    for SKILL_FILE in $DRAW_SKILL_FILES; do
+        [ -n "$SKILL_FILE" ] || continue
+
+        echo "  - ${SKILL_FILE}"
+        download_file "${RAW_BASE_URL}/${SKILL_PATH}/${SKILL_FILE}" "${TARGET_DIR}/${SKILL_FILE}" "draw skill file ${SKILL_FILE}"
     done
 }
 
@@ -412,8 +448,8 @@ configure_path() {
     fi
 
     echo "" >> "$PROFILE"
-    echo "# YuzuDraw CLI" >> "$PROFILE"
-    echo "export PATH=\"${INSTALL_DIR}:\$PATH\"" >> "$PROFILE"
+    echo "# YuzuDraw CLI" >> "$PROFILE" || fail "could not update PATH in ${PROFILE}."
+    echo "export PATH=\"${INSTALL_DIR}:\$PATH\"" >> "$PROFILE" || fail "could not update PATH in ${PROFILE}."
     echo "Added ${INSTALL_DIR} to PATH in ${PROFILE}. Restart your shell or run:"
     echo "  export PATH=\"${INSTALL_DIR}:\$PATH\""
 }

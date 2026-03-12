@@ -28,3 +28,19 @@ html {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.copy-button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  padding: 0.4rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1;
+  color: #4b5563;
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+
+.copy-button:hover {
+  border-color: #111827;
+  color: #111827;
+}

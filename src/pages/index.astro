@@ -209,7 +209,20 @@ const stars = (data.stargazers_count ?? 0).toLocaleString();
             <span class="text-brand font-bold shrink-0">2.</span>
             <div class="min-w-0">
               <p class="font-semibold mb-1">Install the CLI + skill</p>
-              <pre class="bg-gray-50 border border-gray-200 px-3 py-3 overflow-x-auto text-[11px] leading-relaxed sm:px-4 sm:text-xs"><code class="whitespace-pre-wrap break-all">curl -fsSL https://www.yuzudraw.com/install.sh | sh</code></pre>
+              <div class="border border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-end gap-2 border-b border-gray-200 px-3 py-2 sm:px-4">
+                  <button
+                    type="button"
+                    class="copy-button"
+                    data-copy-button
+                    data-copy-text="curl -fsSL https://www.yuzudraw.com/install.sh | sh"
+                    aria-label="Copy install command to clipboard"
+                  >
+                    Copy to clipboard
+                  </button>
+                </div>
+                <pre class="px-3 py-3 overflow-x-auto text-[11px] leading-relaxed sm:px-4 sm:text-xs"><code class="whitespace-pre-wrap break-all">curl -fsSL https://www.yuzudraw.com/install.sh | sh</code></pre>
+              </div>
             </div>
           </li>
           <li class="flex gap-3 sm:gap-4">
@@ -239,6 +252,26 @@ const stars = (data.stargazers_count ?? 0).toLocaleString();
     </section>
 
     <script type="module" is:inline>
+      for (const button of document.querySelectorAll('[data-copy-button]')) {
+        button.addEventListener('click', async () => {
+          const text = button.getAttribute('data-copy-text');
+          if (!text) return;
+
+          const resetLabel = () => {
+            button.textContent = 'Copy to clipboard';
+          };
+
+          try {
+            await navigator.clipboard.writeText(text);
+            button.textContent = 'Copied';
+            window.setTimeout(resetLabel, 1500);
+          } catch {
+            button.textContent = 'Copy failed';
+            window.setTimeout(resetLabel, 2000);
+          }
+        });
+      }
+
       for (const root of document.querySelectorAll('[data-draw-carousel]')) {
         const viewport = root.querySelector('[data-draw-carousel-viewport]');
         const container = root.querySelector('[data-draw-carousel-container]');
