@@ -9,6 +9,17 @@ private enum DropEdge {
     case after
 }
 
+private enum PanelSelectionItem: Hashable {
+    case layer(UUID)
+    case group(UUID)
+    case shape(UUID)
+}
+
+private struct PanelSelectionEntry {
+    let item: PanelSelectionItem
+    let representedShapeIDs: Set<UUID>
+}
+
 struct LayerPanel: View {
     @Bindable var viewModel: EditorViewModel
     @State private var draggedLayerID: UUID?
@@ -19,6 +30,7 @@ struct LayerPanel: View {
     @State private var groupDropTarget: UUID?
     @State private var groupReorderTarget: (id: UUID, edge: DropEdge)?
     @State private var ignoreNextRowTap = false
+    @State private var selectionAnchorItem: PanelSelectionItem?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -45,6 +57,23 @@ struct LayerPanel: View {
     private var selectedSingleShapeID: UUID? {
         guard viewModel.selectedShapeIDs.count == 1 else { return nil }
         return viewModel.selectedShapeIDs.first
+    }
+
+    private var visibleSelectionEntries: [PanelSelectionEntry] {
+        var entries: [PanelSelectionEntry] = []
+        for layer in viewModel.document.layers.reversed() {
+            entries.append(
+                PanelSelectionEntry(
+                    item: .layer(layer.id),
+                    representedShapeIDs: Set(layer.shapes.map(\.id))
+                )
+            )
+            guard viewModel.expandedItemIDs.contains(layer.id) else { continue }
+            for item in layer.orderedItems.reversed() {
+                appendVisibleEntries(for: item, in: layer, to: &entries)
+            }
+        }
+        return entries
     }
 
     private var layerList: some View {
@@ -130,14 +159,11 @@ struct LayerPanel: View {
                     ignoreNextRowTap = false
                     return
                 }
-                viewModel.activeLayerIndex = index
-                let layerShapeIDs = Set(layer.shapes.map(\.id))
-                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
-                    viewModel.selectedShapeIDs.formSymmetricDifference(layerShapeIDs)
-                } else {
-                    viewModel.selectedShapeIDs = layerShapeIDs
-                }
-                viewModel.selectedLayerID = layer.id
+                applyPanelSelection(
+                    for: .layer(layer.id),
+                    representedShapeIDs: Set(layer.shapes.map(\.id)),
+                    in: layer.id
+                )
             }
             .onDrag {
                 draggedLayerID = layer.id
@@ -171,6 +197,13 @@ struct LayerPanel: View {
                             shapeDropTarget: $shapeDropTarget,
                             groupDropTarget: $groupDropTarget,
                             groupReorderTarget: $groupReorderTarget,
+                            onSelect: { item, representedShapeIDs, layerID in
+                                applyPanelSelection(
+                                    for: item,
+                                    representedShapeIDs: representedShapeIDs,
+                                    in: layerID
+                                )
+                            },
                             depth: 1
                         )
                     case .shape(let shape):
@@ -182,6 +215,13 @@ struct LayerPanel: View {
                             draggedShapeID: $draggedShapeID,
                             draggedGroupID: $draggedGroupID,
                             shapeDropTarget: $shapeDropTarget,
+                            onSelect: { item, representedShapeIDs, layerID in
+                                applyPanelSelection(
+                                    for: item,
+                                    representedShapeIDs: representedShapeIDs,
+                                    in: layerID
+                                )
+                            },
                             depth: 1
                         )
                     }
@@ -237,6 +277,115 @@ struct LayerPanel: View {
         .padding(8)
     }
 
+    private func appendVisibleEntries(
+        for item: Layer.LayerItem,
+        in layer: Layer,
+        to entries: inout [PanelSelectionEntry]
+    ) {
+        switch item {
+        case .group(let group):
+            entries.append(
+                PanelSelectionEntry(
+                    item: .group(group.id),
+                    representedShapeIDs: Set(group.allShapeIDs)
+                )
+            )
+            guard viewModel.expandedItemIDs.contains(group.id) else { return }
+            appendVisibleEntries(for: group, in: layer, to: &entries)
+        case .shape(let shape):
+            entries.append(
+                PanelSelectionEntry(
+                    item: .shape(shape.id),
+                    representedShapeIDs: [shape.id]
+                )
+            )
+        }
+    }
+
+    private func appendVisibleEntries(
+        for group: ShapeGroup,
+        in layer: Layer,
+        to entries: inout [PanelSelectionEntry]
+    ) {
+        for child in group.children {
+            entries.append(
+                PanelSelectionEntry(
+                    item: .group(child.id),
+                    representedShapeIDs: Set(child.allShapeIDs)
+                )
+            )
+            if viewModel.expandedItemIDs.contains(child.id) {
+                appendVisibleEntries(for: child, in: layer, to: &entries)
+            }
+        }
+
+        let directShapeIDs = Set(group.shapeIDs)
+        for shapeID in layer.shapes.map(\.id).reversed() where directShapeIDs.contains(shapeID) {
+            entries.append(
+                PanelSelectionEntry(
+                    item: .shape(shapeID),
+                    representedShapeIDs: [shapeID]
+                )
+            )
+        }
+    }
+
+    private func applyPanelSelection(
+        for item: PanelSelectionItem,
+        representedShapeIDs: Set<UUID>,
+        in layerID: UUID
+    ) {
+        let modifiers = NSApp.currentEvent?.modifierFlags ?? []
+        let isShift = modifiers.contains(.shift)
+        let isCommand = modifiers.contains(.command)
+
+        let nextSelection: Set<UUID>
+        if isShift {
+            nextSelection = rangeSelectionShapeIDs(
+                from: selectionAnchorItem,
+                to: item,
+                fallback: representedShapeIDs
+            )
+        } else if isCommand {
+            nextSelection = viewModel.selectedShapeIDs.symmetricDifference(representedShapeIDs)
+        } else {
+            nextSelection = representedShapeIDs
+        }
+
+        viewModel.selectedShapeIDs = nextSelection
+
+        if case .layer(let selectedLayerID) = item {
+            let layerShapeIDs = Set(
+                viewModel.document.layers.first(where: { $0.id == selectedLayerID })?.shapes.map(\.id) ?? []
+            )
+            viewModel.selectedLayerID = nextSelection == layerShapeIDs ? selectedLayerID : nil
+        } else {
+            viewModel.selectedLayerID = nil
+        }
+
+        if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }) {
+            viewModel.activeLayerIndex = layerIndex
+        }
+        selectionAnchorItem = item
+    }
+
+    private func rangeSelectionShapeIDs(
+        from anchor: PanelSelectionItem?,
+        to item: PanelSelectionItem,
+        fallback: Set<UUID>
+    ) -> Set<UUID> {
+        guard let anchor else { return fallback }
+        let entries = visibleSelectionEntries
+        guard let anchorIndex = entries.firstIndex(where: { $0.item == anchor }),
+              let targetIndex = entries.firstIndex(where: { $0.item == item })
+        else {
+            return fallback
+        }
+        let lower = min(anchorIndex, targetIndex)
+        let upper = max(anchorIndex, targetIndex)
+        return Set(entries[lower...upper].flatMap(\.representedShapeIDs))
+    }
+
     private func dismissInlineRenameFocus() {
         NSApp.keyWindow?.makeFirstResponder(nil)
     }
@@ -252,6 +401,7 @@ private struct GroupRow: View {
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @Binding var groupDropTarget: UUID?
     @Binding var groupReorderTarget: (id: UUID, edge: DropEdge)?
+    let onSelect: (PanelSelectionItem, Set<UUID>, UUID) -> Void
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
@@ -337,14 +487,7 @@ private struct GroupRow: View {
                 }
                 let groupIDs = Set(group.allShapeIDs)
                 viewModel.enteredGroupID = nil
-                if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
-                    viewModel.selectedShapeIDs.formSymmetricDifference(groupIDs)
-                } else {
-                    viewModel.selectedShapeIDs = groupIDs
-                }
-                if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layer.id }) {
-                    viewModel.activeLayerIndex = layerIndex
-                }
+                onSelect(.group(group.id), groupIDs, layer.id)
             }
             .onTapGesture(count: 2) {
                 beginRename()
@@ -420,6 +563,7 @@ private struct GroupRow: View {
                         shapeDropTarget: $shapeDropTarget,
                         groupDropTarget: $groupDropTarget,
                         groupReorderTarget: $groupReorderTarget,
+                        onSelect: onSelect,
                         depth: depth + 1
                     )
                 }
@@ -433,6 +577,7 @@ private struct GroupRow: View {
                             draggedShapeID: $draggedShapeID,
                             draggedGroupID: $draggedGroupID,
                             shapeDropTarget: $shapeDropTarget,
+                            onSelect: onSelect,
                             depth: depth + 1
                         )
                     }
@@ -479,6 +624,7 @@ private struct ShapeRow: View {
     @Binding var draggedShapeID: UUID?
     @Binding var draggedGroupID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
+    let onSelect: (PanelSelectionItem, Set<UUID>, UUID) -> Void
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
@@ -535,7 +681,6 @@ private struct ShapeRow: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
                 return
             }
-            let extending = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
             // If the shape is inside a group, set enteredGroupID to the innermost containing group
             if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }),
                let rootGroup = viewModel.document.layers[layerIndex].findRootGroup(containingShape: shape.id)
@@ -550,7 +695,7 @@ private struct ShapeRow: View {
             } else {
                 viewModel.enteredGroupID = nil
             }
-            viewModel.selectShapeFromPanel(shape.id, extending: extending)
+            onSelect(.shape(shape.id), [shape.id], layerID)
         }
         .onTapGesture(count: 2) {
             beginRename()
