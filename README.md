@@ -20,7 +20,7 @@
 
 ASCII diagrams live in code comments, markdown docs, and terminal output — but creating them by hand is tedious. YuzuDraw gives you a real diagram editor that outputs plain text. Draw with your mouse, export as characters.
 
-It also ships with a built-in **MCP server**, so Claude Code (or any MCP client) can create and edit diagrams programmatically.
+It also ships with a built-in **CLI**, so agents can create and edit diagrams programmatically without an MCP server.
 
 ## Download
 
@@ -47,8 +47,8 @@ Or build from source (see [below](#building-from-source)).
 - **Groups** — nest shapes hierarchically with Cmd+G
 - **Multi-tab workspace** — work on multiple diagrams side-by-side with auto-save
 
-### AI integration (MCP)
-YuzuDraw embeds an [MCP](https://modelcontextprotocol.io) server on `localhost:7842`. Claude Code can:
+### AI integration (CLI)
+YuzuDraw includes a CLI (`YuzuDrawCLI`) for agent workflows. Claude Code can:
 - **Create diagrams** from a text description via `/diagram`
 - **Read back** your manual edits
 - **Update** existing diagrams in-place
@@ -90,6 +90,7 @@ The DSL supports all shape types, properties, layers, groups, and colors. See [`
 | **Cmd+O** | Open project |
 | **Cmd+S** | Save |
 | **Cmd+Shift+S** | Save as |
+| **Cmd+Shift+R** | Reload from disk |
 | **Cmd+W** | Close tab |
 | **Cmd+G** | Group selected shapes |
 | **Cmd+A** | Select all |
@@ -106,14 +107,18 @@ The DSL supports all shape types, properties, layers, groups, and colors. See [`
    ln -sf "$(pwd)/skills/diagram/SKILL.md" ~/.claude/skills/diagram/SKILL.md
    ```
 
-2. **Copy the MCP config** — the repo includes `.mcp.json`, which Claude Code picks up automatically when you run it from the project root.
+2. **Build the CLI**:
+   ```bash
+   xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawCLI -configuration Debug build
+   ```
 
-3. **Launch YuzuDraw**, then use `/diagram` in Claude Code:
+3. **Use `/diagram` in Claude Code**:
    ```
    /diagram a 3-tier web architecture with load balancer, app servers, and database
    ```
 
-The MCP server exposes five tools: `create_diagram`, `update_diagram`, `get_diagram`, `list_diagrams`, and `render_ascii`.
+The CLI exposes five commands: `create-diagram`, `update-diagram`, `get-diagram`, `list-diagrams`, and `render-ascii`.
+You can run them with `./scripts/yuzudraw-cli.sh`.
 
 ## Building from source
 
@@ -150,8 +155,10 @@ YuzuDraw/
 ├── Views/           # SwiftUI views (canvas, panels, toolbar)
 ├── Tools/           # Stateless drawing tools returning ToolActions
 ├── Serialization/   # JSON codable, DSL parser/serializer
-├── MCP/             # Embedded MCP server for AI integration
+├── Automation/      # Shared automation service used by CLI
 └── Resources/       # Assets, entitlements, Info.plist
+YuzuDrawCLI/
+└── main.swift       # CLI entrypoint and command parsing
 ```
 
 ## Support YuzuDraw

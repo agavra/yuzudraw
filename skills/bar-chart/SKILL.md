@@ -6,17 +6,18 @@ user_invocable: true
 
 # /bar-chart — Create Horizontal Bar Charts in YuzuDraw
 
-When the user invokes `/bar-chart <description>`, create a horizontal bar chart using the YuzuDraw MCP server.
+When the user invokes `/bar-chart <description>`, create a horizontal bar chart using the YuzuDraw CLI.
 
 ## Workflow
 
 1. Parse the user's description to extract data (labels, values, optional segments)
 2. Compute layout variables from the data (see below)
 3. Write YuzuDraw DSL following the bar chart pattern
-4. Call `create_diagram` with a name and the DSL
-5. The chart appears live in YuzuDraw and the ASCII render is returned
+4. Save the DSL to a temporary file (for example `/tmp/bar-chart.dsl`)
+5. Run `./scripts/yuzudraw-cli.sh create-diagram --name "<name>" --dsl-file /tmp/bar-chart.dsl`
+6. The chart is written to a `.yuzudraw` file and the ASCII render is returned
 
-For updates, use `update_diagram`. To read back user edits, use `get_diagram`.
+For updates, use `update-diagram`. To read back user edits, use `get-diagram`.
 
 ## Bar Chart Structure
 

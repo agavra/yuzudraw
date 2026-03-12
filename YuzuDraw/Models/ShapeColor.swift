@@ -1,4 +1,12 @@
+import Foundation
+
+#if canImport(SwiftUI)
 import SwiftUI
+#endif
+
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct ShapeColor: Codable, Equatable, Hashable, Sendable {
     var red: Double
@@ -44,13 +52,17 @@ struct ShapeColor: Codable, Equatable, Hashable, Sendable {
         return String(format: "#%02X%02X%02X", r, g, b)
     }
 
+    #if canImport(SwiftUI)
     var swiftUIColor: Color {
         Color(red: red, green: green, blue: blue, opacity: alpha)
     }
+    #endif
 
+    #if canImport(AppKit)
     var nsColor: NSColor {
         NSColor(red: red, green: green, blue: blue, alpha: alpha)
     }
+    #endif
 
     // MARK: - HSB
 

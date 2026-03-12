@@ -13,6 +13,9 @@ xcodebuild -scheme YuzuDraw -destination 'platform=macOS' build
 
 # Run tests
 xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
+
+# Build CLI
+xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawCLI -configuration Debug build
 ```
 
 ## Project Structure
@@ -24,6 +27,8 @@ xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
 - `YuzuDraw/ViewModels/` — Observable view models (WorkspaceViewModel, EditorViewModel)
 - `YuzuDraw/Tools/` — Drawing tool system (Tool protocol, SelectionTool, RectangleTool, ArrowTool, TextTool)
 - `YuzuDraw/Serialization/` — Document persistence (JSON via DocumentCodable, DSL via DSLSerializer/DSLParser, ProjectFileManager for file I/O)
+- `YuzuDraw/Automation/` — Shared automation service for CLI workflows (`DiagramAutomationService`)
+- `YuzuDrawCLI/` — CLI entrypoint and command handling
 - `YuzuDraw/Resources/` — Assets, Info.plist, entitlements
 - `YuzuDrawTests/` — Unit tests
 
