@@ -62,8 +62,8 @@ fetch_latest_version() {
 }
 
 configure_path() {
-    case "$INSTALL_DIR" in
-        *"$PATH"*) return ;;
+    case ":$PATH:" in
+        *":$INSTALL_DIR:"*) return ;;
     esac
 
     # Check if already on PATH
