@@ -85,10 +85,45 @@ struct CanvasView: View {
                     handleCanvasHover(phase)
                 }
                 .contextMenu {
+                    Button("Copy") {
+                        viewModel.copySelectedShapesToClipboard()
+                    }
+                    .keyboardShortcut("c", modifiers: .command)
+                    .disabled(!viewModel.canCopySelectedShapes())
+
+                    Button("Copy as Plain Text") {
+                        viewModel.copySelectionAsPlainTextToClipboard()
+                    }
+                    .keyboardShortcut("c", modifiers: [.command, .shift])
+                    .disabled(!viewModel.canCopySelectionAsPlainText())
+
                     Button("Copy to Clipboard as PNG") {
                         viewModel.copySelectionAsPNGToClipboard()
                     }
                     .disabled(!viewModel.canCopySelectionAsPNG())
+
+                    Divider()
+
+                    Button("Delete") {
+                        viewModel.deleteSelectedShapes()
+                    }
+                    .keyboardShortcut(.delete, modifiers: [])
+                    .disabled(!viewModel.canCutSelectedShapes())
+
+                    Divider()
+
+                    Button("Group") {
+                        viewModel.groupSelectedShapes()
+                    }
+                    .keyboardShortcut("g", modifiers: .command)
+                    .disabled(!viewModel.canGroupSelectedShapes())
+
+                    if viewModel.canUngroupSelectedShapes() {
+                        Button("Ungroup") {
+                            viewModel.ungroupSelectedShapes()
+                        }
+                        .keyboardShortcut("g", modifiers: [.command, .shift])
+                    }
                 }
                 .overlay(alignment: .topLeading) {
                     textEditOverlay
