@@ -1,4 +1,7 @@
+import os
 import SwiftUI
+
+private let layerPanelLog = OSLog(subsystem: "com.yuzudraw", category: "LayerPanel")
 
 enum ColorTarget: Hashable {
     case rectangleBorder
@@ -2972,11 +2975,13 @@ final class EditorViewModel {
     }
 
     func toggleExpanded(_ itemID: UUID) {
+        os_signpost(.begin, log: layerPanelLog, name: "toggleExpanded")
         if expandedItemIDs.contains(itemID) {
             expandedItemIDs.remove(itemID)
         } else {
             expandedItemIDs.insert(itemID)
         }
+        os_signpost(.end, log: layerPanelLog, name: "toggleExpanded")
     }
 
     func selectShapeFromPanel(_ shapeID: UUID, extending: Bool = false) {

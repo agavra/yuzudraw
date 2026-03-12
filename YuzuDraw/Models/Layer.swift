@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let layerPanelLog = OSLog(subsystem: "com.yuzudraw", category: "LayerPanel")
 
 struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
@@ -176,6 +179,7 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
     }
 
     var orderedItems: [LayerItem] {
+        os_signpost(.begin, log: layerPanelLog, name: "orderedItems", "%{public}s shapes=%d groups=%d", name, shapes.count, groups.count)
         let grouped = groupedShapeIDs
         var emittedGroupIDs = Set<UUID>()
         var items: [LayerItem] = []
@@ -190,6 +194,7 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
                 items.append(.shape(shape))
             }
         }
+        os_signpost(.end, log: layerPanelLog, name: "orderedItems")
         return items
     }
 

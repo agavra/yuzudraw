@@ -89,7 +89,7 @@ struct LayerPanel: View {
 
     private var layerList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(viewModel.document.layers.enumerated().reversed()), id: \.element.id) {
                     index, layer in
                     layerSection(layer: layer, index: index)
@@ -200,50 +200,52 @@ struct LayerPanel: View {
                 LayerRowContextMenu(viewModel: viewModel, layerIndex: index)
             }
 
-            if viewModel.expandedItemIDs.contains(layer.id) {
-                ForEach(Array(layer.orderedItems.reversed()), id: \.id) { item in
-                    switch item {
-                    case .group(let group):
-                        GroupRow(
-                            group: group,
-                            layer: layer,
-                            viewModel: viewModel,
-                            ignoreNextRowTap: $ignoreNextRowTap,
-                            draggedShapeID: $draggedShapeID,
-                            draggedGroupID: $draggedGroupID,
-                            shapeDropTarget: $shapeDropTarget,
-                            groupDropTarget: $groupDropTarget,
-                            groupReorderTarget: $groupReorderTarget,
-                            onSelect: { item, representedShapeIDs, layerID in
-                                applyPanelSelection(
-                                    for: item,
-                                    representedShapeIDs: representedShapeIDs,
-                                    in: layerID
-                                )
-                            },
-                            depth: 1
-                        )
-                    case .shape(let shape):
-                        ShapeRow(
-                            shape: shape,
-                            layerID: layer.id,
-                            containingGroupID: nil,
-                            viewModel: viewModel,
-                            draggedShapeID: $draggedShapeID,
-                            draggedGroupID: $draggedGroupID,
-                            shapeDropTarget: $shapeDropTarget,
-                            onSelect: { item, representedShapeIDs, layerID in
-                                applyPanelSelection(
-                                    for: item,
-                                    representedShapeIDs: representedShapeIDs,
-                                    in: layerID
-                                )
-                            },
-                            depth: 1
-                        )
-                    }
+            let isLayerExpanded = viewModel.expandedItemIDs.contains(layer.id)
+            ForEach(Array(layer.orderedItems.reversed()), id: \.id) { item in
+                switch item {
+                case .group(let group):
+                    GroupRow(
+                        group: group,
+                        layer: layer,
+                        viewModel: viewModel,
+                        ignoreNextRowTap: $ignoreNextRowTap,
+                        draggedShapeID: $draggedShapeID,
+                        draggedGroupID: $draggedGroupID,
+                        shapeDropTarget: $shapeDropTarget,
+                        groupDropTarget: $groupDropTarget,
+                        groupReorderTarget: $groupReorderTarget,
+                        onSelect: { item, representedShapeIDs, layerID in
+                            applyPanelSelection(
+                                for: item,
+                                representedShapeIDs: representedShapeIDs,
+                                in: layerID
+                            )
+                        },
+                        depth: 1
+                    )
+                case .shape(let shape):
+                    ShapeRow(
+                        shape: shape,
+                        layerID: layer.id,
+                        containingGroupID: nil,
+                        viewModel: viewModel,
+                        draggedShapeID: $draggedShapeID,
+                        draggedGroupID: $draggedGroupID,
+                        shapeDropTarget: $shapeDropTarget,
+                        onSelect: { item, representedShapeIDs, layerID in
+                            applyPanelSelection(
+                                for: item,
+                                representedShapeIDs: representedShapeIDs,
+                                in: layerID
+                            )
+                        },
+                        depth: 1
+                    )
                 }
             }
+            .frame(maxHeight: isLayerExpanded ? .infinity : 0)
+            .clipped()
+            .opacity(isLayerExpanded ? 1 : 0)
         }
         .overlay(alignment: .top) {
             if draggedLayerID != nil, layerDropTarget?.id == layer.id, layerDropTarget?.edge == .before {
@@ -270,6 +272,8 @@ struct LayerPanel: View {
                 .frame(width: 12, height: 12)
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .frame(width: 20, height: 20)
     }
 
     private var bottomButtons: some View {
@@ -575,7 +579,8 @@ private struct GroupRow: View {
                 GroupReorderContextMenu(viewModel: viewModel, groupID: group.id)
             }
 
-            if viewModel.expandedItemIDs.contains(group.id) {
+            let isGroupExpanded = viewModel.expandedItemIDs.contains(group.id)
+            Group {
                 ForEach(group.children) { child in
                     GroupRow(
                         group: child,
@@ -607,6 +612,9 @@ private struct GroupRow: View {
                     }
                 }
             }
+            .frame(maxHeight: isGroupExpanded ? .infinity : 0)
+            .clipped()
+            .opacity(isGroupExpanded ? 1 : 0)
         }
     }
 
@@ -637,6 +645,8 @@ private struct GroupRow: View {
                 .frame(width: 12, height: 12)
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .frame(width: 20, height: 20)
     }
 }
 
