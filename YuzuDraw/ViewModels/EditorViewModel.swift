@@ -2426,71 +2426,197 @@ final class EditorViewModel {
     func moveSelectedShapeForward() {
         recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
-        guard document.moveShapeForward(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .forward) else { return }
         rerender()
     }
 
     func moveSelectedShapeBackward() {
         recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
-        guard document.moveShapeBackward(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .backward) else { return }
         rerender()
     }
 
     func moveSelectedShapeToFront() {
         recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
-        guard document.moveShapeToFront(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .toFront) else { return }
         rerender()
     }
 
     func moveSelectedShapeToBack() {
         recordSnapshot()
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return }
-        guard document.moveShapeToBack(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .toBack) else { return }
         rerender()
     }
 
     func moveShapeForward(_ shapeID: UUID) {
         recordSnapshot()
-        guard document.moveShapeForward(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .forward) else { return }
         rerender()
     }
 
     func moveShapeBackward(_ shapeID: UUID) {
         recordSnapshot()
-        guard document.moveShapeBackward(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .backward) else { return }
         rerender()
     }
 
     func moveShapeToFront(_ shapeID: UUID) {
         recordSnapshot()
-        guard document.moveShapeToFront(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .toFront) else { return }
         rerender()
     }
 
     func moveShapeToBack(_ shapeID: UUID) {
         recordSnapshot()
-        guard document.moveShapeToBack(id: shapeID) else { return }
+        guard performGroupAwareMove(shapeID: shapeID, action: .toBack) else { return }
         rerender()
     }
 
     func canMoveShapeForward(_ shapeID: UUID) -> Bool {
-        document.canMoveShapeForward(id: shapeID)
+        canPerformGroupAwareMove(shapeID: shapeID, forward: true)
     }
 
     func canMoveShapeBackward(_ shapeID: UUID) -> Bool {
-        document.canMoveShapeBackward(id: shapeID)
+        canPerformGroupAwareMove(shapeID: shapeID, forward: false)
     }
 
     func canMoveSelectedShapeForward() -> Bool {
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return false }
-        return document.canMoveShapeForward(id: shapeID)
+        return canPerformGroupAwareMove(shapeID: shapeID, forward: true)
     }
 
     func canMoveSelectedShapeBackward() -> Bool {
         guard selectedShapeIDs.count == 1, let shapeID = selectedShapeIDs.first else { return false }
-        return document.canMoveShapeBackward(id: shapeID)
+        return canPerformGroupAwareMove(shapeID: shapeID, forward: false)
+    }
+
+    // MARK: - Group z-order from LayerPanel
+
+    func moveGroupForward(_ groupID: UUID) {
+        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
+        recordSnapshot()
+        guard document.moveGroupForward(groupID: groupID, inLayerAt: layerIndex) else { return }
+        rerender()
+    }
+
+    func moveGroupBackward(_ groupID: UUID) {
+        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
+        recordSnapshot()
+        guard document.moveGroupBackward(groupID: groupID, inLayerAt: layerIndex) else { return }
+        rerender()
+    }
+
+    func moveGroupToFront(_ groupID: UUID) {
+        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
+        recordSnapshot()
+        guard document.moveGroupToFront(groupID: groupID, inLayerAt: layerIndex) else { return }
+        rerender()
+    }
+
+    func moveGroupToBack(_ groupID: UUID) {
+        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return }
+        recordSnapshot()
+        guard document.moveGroupToBack(groupID: groupID, inLayerAt: layerIndex) else { return }
+        rerender()
+    }
+
+    func canMoveGroupForward(_ groupID: UUID) -> Bool {
+        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return false }
+        return document.canMoveGroupForward(groupID: groupID, inLayerAt: layerIndex)
+    }
+
+    func canMoveGroupBackward(_ groupID: UUID) -> Bool {
+        guard let layerIndex = document.layerIndexContainingGroup(groupID) else { return false }
+        return document.canMoveGroupBackward(groupID: groupID, inLayerAt: layerIndex)
+    }
+
+    // MARK: - Group-aware move helpers
+
+    private enum ZOrderAction {
+        case forward, backward, toFront, toBack
+    }
+
+    private func performGroupAwareMove(shapeID: UUID, action: ZOrderAction) -> Bool {
+        guard let layerIndex = document.layerIndex(containingShape: shapeID) else { return false }
+        let layer = document.layers[layerIndex]
+
+        if let rootGroup = layer.findRootGroup(containingShape: shapeID) {
+            if enteredGroupID != nil {
+                // Move within the group
+                switch action {
+                case .forward:
+                    return document.moveShapeWithinGroup(
+                        id: shapeID, forward: true, groupID: rootGroup.id, inLayerAt: layerIndex)
+                case .backward:
+                    return document.moveShapeWithinGroup(
+                        id: shapeID, forward: false, groupID: rootGroup.id, inLayerAt: layerIndex)
+                case .toFront:
+                    var moved = false
+                    while document.moveShapeWithinGroup(
+                        id: shapeID, forward: true, groupID: rootGroup.id, inLayerAt: layerIndex)
+                    {
+                        moved = true
+                    }
+                    return moved
+                case .toBack:
+                    var moved = false
+                    while document.moveShapeWithinGroup(
+                        id: shapeID, forward: false, groupID: rootGroup.id, inLayerAt: layerIndex)
+                    {
+                        moved = true
+                    }
+                    return moved
+                }
+            } else {
+                // Move the whole group
+                switch action {
+                case .forward:
+                    return document.moveGroupForward(groupID: rootGroup.id, inLayerAt: layerIndex)
+                case .backward:
+                    return document.moveGroupBackward(groupID: rootGroup.id, inLayerAt: layerIndex)
+                case .toFront:
+                    return document.moveGroupToFront(groupID: rootGroup.id, inLayerAt: layerIndex)
+                case .toBack:
+                    return document.moveGroupToBack(groupID: rootGroup.id, inLayerAt: layerIndex)
+                }
+            }
+        } else {
+            // Ungrouped shape — existing behavior
+            switch action {
+            case .forward: return document.moveShapeForward(id: shapeID)
+            case .backward: return document.moveShapeBackward(id: shapeID)
+            case .toFront: return document.moveShapeToFront(id: shapeID)
+            case .toBack: return document.moveShapeToBack(id: shapeID)
+            }
+        }
+    }
+
+    private func canPerformGroupAwareMove(shapeID: UUID, forward: Bool) -> Bool {
+        guard let layerIndex = document.layerIndex(containingShape: shapeID) else { return false }
+        let layer = document.layers[layerIndex]
+
+        if let rootGroup = layer.findRootGroup(containingShape: shapeID) {
+            if enteredGroupID != nil {
+                return document.canMoveShapeWithinGroup(
+                    id: shapeID, forward: forward, groupID: rootGroup.id, inLayerAt: layerIndex)
+            } else {
+                if forward {
+                    return document.canMoveGroupForward(groupID: rootGroup.id, inLayerAt: layerIndex)
+                } else {
+                    return document.canMoveGroupBackward(
+                        groupID: rootGroup.id, inLayerAt: layerIndex)
+                }
+            }
+        } else {
+            if forward {
+                return document.canMoveShapeForward(id: shapeID)
+            } else {
+                return document.canMoveShapeBackward(id: shapeID)
+            }
+        }
     }
 
     func canGroupSelectedShapes() -> Bool {
@@ -2531,6 +2657,7 @@ final class EditorViewModel {
 
         let group = ShapeGroup(name: nextGroupName(in: layer), shapeIDs: orderedShapeIDs)
         layer.groups.append(group)
+        layer.consolidateGroup(group.id)
         document.layers[layerIndex] = layer
         expandedItemIDs.insert(layer.id)
         expandedItemIDs.insert(group.id)
@@ -2698,6 +2825,38 @@ final class EditorViewModel {
         rerender()
     }
 
+    func moveGroup(draggedGroupID: UUID, beforeShape targetShapeID: UUID, in layerID: UUID) {
+        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        recordSnapshot()
+        guard document.moveGroup(groupID: draggedGroupID, beforeShape: targetShapeID, inLayerAt: layerIndex)
+        else { return }
+        rerender()
+    }
+
+    func moveGroup(draggedGroupID: UUID, afterShape targetShapeID: UUID, in layerID: UUID) {
+        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        recordSnapshot()
+        guard document.moveGroup(groupID: draggedGroupID, afterShape: targetShapeID, inLayerAt: layerIndex)
+        else { return }
+        rerender()
+    }
+
+    func moveGroup(draggedGroupID: UUID, beforeGroup targetGroupID: UUID, in layerID: UUID) {
+        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        recordSnapshot()
+        guard document.moveGroup(groupID: draggedGroupID, beforeGroup: targetGroupID, inLayerAt: layerIndex)
+        else { return }
+        rerender()
+    }
+
+    func moveGroup(draggedGroupID: UUID, afterGroup targetGroupID: UUID, in layerID: UUID) {
+        guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        recordSnapshot()
+        guard document.moveGroup(groupID: draggedGroupID, afterGroup: targetGroupID, inLayerAt: layerIndex)
+        else { return }
+        rerender()
+    }
+
     func moveShapeToGroup(shapeID: UUID, groupID: UUID, in layerID: UUID) {
         guard let layerIndex = document.layers.firstIndex(where: { $0.id == layerID }),
               !document.layers[layerIndex].isLocked,
@@ -2706,6 +2865,7 @@ final class EditorViewModel {
         recordSnapshot()
         document.layers[layerIndex].removeShapesFromGroups(ids: [shapeID])
         _ = document.layers[layerIndex].appendShapesToGroup(ids: [shapeID], groupID: groupID)
+        document.layers[layerIndex].consolidateGroup(groupID)
         rerender()
     }
 

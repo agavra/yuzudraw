@@ -17,14 +17,22 @@ enum DSLSerializer {
             }
             lines.append(layerLine)
 
-            // Emit groups with their shapes
-            for group in layer.groups {
-                serializeGroup(group, layer: layer, allShapes: allShapes, indent: 2, lines: &lines)
-            }
+            // Walk shapes in z-order, emitting each group block when its first member is encountered
+            let groupedIDs = layer.groupedShapeIDs
+            var emittedGroupIDs = Set<UUID>()
 
-            // Emit ungrouped shapes
-            for shape in layer.ungroupedShapes {
-                lines.append("  \(serializeShape(shape, allShapes: allShapes))")
+            for shape in layer.shapes {
+                if groupedIDs.contains(shape.id) {
+                    // Find the root group containing this shape
+                    guard let rootGroup = layer.findRootGroup(containingShape: shape.id),
+                          !emittedGroupIDs.contains(rootGroup.id)
+                    else { continue }
+                    emittedGroupIDs.insert(rootGroup.id)
+                    serializeGroup(
+                        rootGroup, layer: layer, allShapes: allShapes, indent: 2, lines: &lines)
+                } else {
+                    lines.append("  \(serializeShape(shape, allShapes: allShapes))")
+                }
             }
         }
 

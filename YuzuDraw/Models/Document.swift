@@ -253,6 +253,219 @@ struct Document: Codable, Equatable, Sendable {
         return shapeIndex > 0
     }
 
+    // MARK: - Group z-order
+
+    func layerIndexContainingGroup(_ groupID: UUID) -> Int? {
+        layers.firstIndex { $0.findGroupByID(groupID) != nil }
+    }
+
+    @discardableResult
+    mutating func moveGroupForward(groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID),
+              range.upperBound < layers[layerIndex].shapes.count
+        else { return false }
+
+        // Find the next item after the group block
+        let nextIndex = range.upperBound
+        let nextShapeID = layers[layerIndex].shapes[nextIndex].id
+        // If the next shape belongs to another group, move past that entire group
+        if let nextGroup = layers[layerIndex].findRootGroup(containingShape: nextShapeID),
+           nextGroup.id != groupID,
+           let nextGroupRange = layers[layerIndex].groupShapeIndexRange(for: nextGroup.id)
+        {
+            // Move group block past the next group block
+            let block = Array(layers[layerIndex].shapes[range])
+            layers[layerIndex].shapes.removeSubrange(range)
+            let insertAt = nextGroupRange.upperBound - range.count
+            layers[layerIndex].shapes.insert(contentsOf: block, at: insertAt)
+        } else {
+            // Move past a single ungrouped shape
+            let block = Array(layers[layerIndex].shapes[range])
+            layers[layerIndex].shapes.removeSubrange(range)
+            let insertAt = range.lowerBound + 1
+            layers[layerIndex].shapes.insert(contentsOf: block, at: insertAt)
+        }
+        return true
+    }
+
+    @discardableResult
+    mutating func moveGroupBackward(groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID),
+              range.lowerBound > 0
+        else { return false }
+
+        let prevIndex = range.lowerBound - 1
+        let prevShapeID = layers[layerIndex].shapes[prevIndex].id
+        if let prevGroup = layers[layerIndex].findRootGroup(containingShape: prevShapeID),
+           prevGroup.id != groupID,
+           let prevGroupRange = layers[layerIndex].groupShapeIndexRange(for: prevGroup.id)
+        {
+            let block = Array(layers[layerIndex].shapes[range])
+            layers[layerIndex].shapes.removeSubrange(range)
+            layers[layerIndex].shapes.insert(contentsOf: block, at: prevGroupRange.lowerBound)
+        } else {
+            let block = Array(layers[layerIndex].shapes[range])
+            layers[layerIndex].shapes.removeSubrange(range)
+            layers[layerIndex].shapes.insert(contentsOf: block, at: range.lowerBound - 1)
+        }
+        return true
+    }
+
+    @discardableResult
+    mutating func moveGroupToFront(groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID),
+              range.upperBound < layers[layerIndex].shapes.count
+        else { return false }
+
+        let block = Array(layers[layerIndex].shapes[range])
+        layers[layerIndex].shapes.removeSubrange(range)
+        layers[layerIndex].shapes.append(contentsOf: block)
+        return true
+    }
+
+    @discardableResult
+    mutating func moveGroupToBack(groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID),
+              range.lowerBound > 0
+        else { return false }
+
+        let block = Array(layers[layerIndex].shapes[range])
+        layers[layerIndex].shapes.removeSubrange(range)
+        layers[layerIndex].shapes.insert(contentsOf: block, at: 0)
+        return true
+    }
+
+    func canMoveGroupForward(groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID)
+        else { return false }
+        return range.upperBound < layers[layerIndex].shapes.count
+    }
+
+    func canMoveGroupBackward(groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID)
+        else { return false }
+        return range.lowerBound > 0
+    }
+
+    // MARK: - Within-group shape z-order
+
+    @discardableResult
+    mutating func moveShapeWithinGroup(id shapeID: UUID, forward: Bool, groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID),
+              let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+              range.contains(shapeIndex)
+        else { return false }
+
+        if forward {
+            guard shapeIndex < range.upperBound - 1 else { return false }
+            layers[layerIndex].shapes.swapAt(shapeIndex, shapeIndex + 1)
+        } else {
+            guard shapeIndex > range.lowerBound else { return false }
+            layers[layerIndex].shapes.swapAt(shapeIndex, shapeIndex - 1)
+        }
+        return true
+    }
+
+    func canMoveShapeWithinGroup(id shapeID: UUID, forward: Bool, groupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID),
+              let shapeIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == shapeID }),
+              range.contains(shapeIndex)
+        else { return false }
+
+        if forward {
+            return shapeIndex < range.upperBound - 1
+        } else {
+            return shapeIndex > range.lowerBound
+        }
+    }
+
+    // MARK: - Group positional moves (drag-and-drop)
+
+    /// Move an entire group's contiguous block so it ends up right before `targetShapeID`.
+    @discardableResult
+    mutating func moveGroup(groupID: UUID, beforeShape targetShapeID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let group = layers[layerIndex].findGroupByID(groupID),
+              !group.allShapeIDs.contains(targetShapeID),
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID)
+        else { return false }
+
+        let block = Array(layers[layerIndex].shapes[range])
+        layers[layerIndex].shapes.removeSubrange(range)
+
+        guard let targetIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == targetShapeID })
+        else {
+            // Restore on failure
+            layers[layerIndex].shapes.insert(contentsOf: block, at: min(range.lowerBound, layers[layerIndex].shapes.count))
+            return false
+        }
+        layers[layerIndex].shapes.insert(contentsOf: block, at: targetIndex)
+        return true
+    }
+
+    /// Move an entire group's contiguous block so it ends up right after `targetShapeID`.
+    @discardableResult
+    mutating func moveGroup(groupID: UUID, afterShape targetShapeID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              let group = layers[layerIndex].findGroupByID(groupID),
+              !group.allShapeIDs.contains(targetShapeID),
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID)
+        else { return false }
+
+        let block = Array(layers[layerIndex].shapes[range])
+        layers[layerIndex].shapes.removeSubrange(range)
+
+        guard let targetIndex = layers[layerIndex].shapes.firstIndex(where: { $0.id == targetShapeID })
+        else {
+            layers[layerIndex].shapes.insert(contentsOf: block, at: min(range.lowerBound, layers[layerIndex].shapes.count))
+            return false
+        }
+        layers[layerIndex].shapes.insert(contentsOf: block, at: targetIndex + 1)
+        return true
+    }
+
+    /// Move an entire group's contiguous block so it ends up right before another group's block.
+    @discardableResult
+    mutating func moveGroup(groupID: UUID, beforeGroup targetGroupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              groupID != targetGroupID,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID)
+        else { return false }
+
+        let block = Array(layers[layerIndex].shapes[range])
+        layers[layerIndex].shapes.removeSubrange(range)
+
+        guard let targetRange = layers[layerIndex].groupShapeIndexRange(for: targetGroupID)
+        else { return false }
+        layers[layerIndex].shapes.insert(contentsOf: block, at: targetRange.lowerBound)
+        return true
+    }
+
+    /// Move an entire group's contiguous block so it ends up right after another group's block.
+    @discardableResult
+    mutating func moveGroup(groupID: UUID, afterGroup targetGroupID: UUID, inLayerAt layerIndex: Int) -> Bool {
+        guard layers.indices.contains(layerIndex), !layers[layerIndex].isLocked,
+              groupID != targetGroupID,
+              let range = layers[layerIndex].groupShapeIndexRange(for: groupID)
+        else { return false }
+
+        let block = Array(layers[layerIndex].shapes[range])
+        layers[layerIndex].shapes.removeSubrange(range)
+
+        guard let targetRange = layers[layerIndex].groupShapeIndexRange(for: targetGroupID)
+        else { return false }
+        layers[layerIndex].shapes.insert(contentsOf: block, at: targetRange.upperBound)
+        return true
+    }
+
     // MARK: - Marquee selection
 
     func shapesInRect(_ rect: GridRect, excludingLockedLayers: Bool) -> [AnyShape] {

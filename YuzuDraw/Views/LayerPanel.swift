@@ -13,9 +13,11 @@ struct LayerPanel: View {
     @Bindable var viewModel: EditorViewModel
     @State private var draggedLayerID: UUID?
     @State private var draggedShapeID: UUID?
+    @State private var draggedGroupID: UUID?
     @State private var layerDropTarget: (id: UUID, edge: DropEdge)?
     @State private var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @State private var groupDropTarget: UUID?
+    @State private var groupReorderTarget: (id: UUID, edge: DropEdge)?
     @State private var ignoreNextRowTap = false
 
     var body: some View {
@@ -156,28 +158,33 @@ struct LayerPanel: View {
             }
 
             if viewModel.expandedItemIDs.contains(layer.id) {
-                ForEach(layer.groups) { group in
-                    GroupRow(
-                        group: group,
-                        layer: layer,
-                        viewModel: viewModel,
-                        ignoreNextRowTap: $ignoreNextRowTap,
-                        draggedShapeID: $draggedShapeID,
-                        shapeDropTarget: $shapeDropTarget,
-                        groupDropTarget: $groupDropTarget,
-                        depth: 1
-                    )
-                }
-                ForEach(Array(layer.ungroupedShapes.reversed())) { shape in
-                    ShapeRow(
-                        shape: shape,
-                        layerID: layer.id,
-                        containingGroupID: nil,
-                        viewModel: viewModel,
-                        draggedShapeID: $draggedShapeID,
-                        shapeDropTarget: $shapeDropTarget,
-                        depth: 1
-                    )
+                ForEach(Array(layer.orderedItems.reversed()), id: \.id) { item in
+                    switch item {
+                    case .group(let group):
+                        GroupRow(
+                            group: group,
+                            layer: layer,
+                            viewModel: viewModel,
+                            ignoreNextRowTap: $ignoreNextRowTap,
+                            draggedShapeID: $draggedShapeID,
+                            draggedGroupID: $draggedGroupID,
+                            shapeDropTarget: $shapeDropTarget,
+                            groupDropTarget: $groupDropTarget,
+                            groupReorderTarget: $groupReorderTarget,
+                            depth: 1
+                        )
+                    case .shape(let shape):
+                        ShapeRow(
+                            shape: shape,
+                            layerID: layer.id,
+                            containingGroupID: nil,
+                            viewModel: viewModel,
+                            draggedShapeID: $draggedShapeID,
+                            draggedGroupID: $draggedGroupID,
+                            shapeDropTarget: $shapeDropTarget,
+                            depth: 1
+                        )
+                    }
                 }
             }
         }
@@ -241,8 +248,10 @@ private struct GroupRow: View {
     @Bindable var viewModel: EditorViewModel
     @Binding var ignoreNextRowTap: Bool
     @Binding var draggedShapeID: UUID?
+    @Binding var draggedGroupID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     @Binding var groupDropTarget: UUID?
+    @Binding var groupReorderTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
     @State private var isEditingName = false
     @State private var draftName = ""
@@ -340,13 +349,19 @@ private struct GroupRow: View {
             .onTapGesture(count: 2) {
                 beginRename()
             }
+            .onDrag {
+                draggedGroupID = group.id
+                return NSItemProvider(object: "group:\(group.id.uuidString)" as NSString)
+            }
             .onDrop(
                 of: [UTType.text],
                 delegate: GroupDropDelegate(
                     targetGroupID: group.id,
                     layerID: layer.id,
                     draggedShapeID: $draggedShapeID,
+                    draggedGroupID: $draggedGroupID,
                     groupDropTarget: $groupDropTarget,
+                    groupReorderTarget: $groupReorderTarget,
                     viewModel: viewModel
                 )
             )
@@ -355,6 +370,24 @@ private struct GroupRow: View {
                     .stroke(Color.accentColor, lineWidth: 2)
                     .opacity(groupDropTarget == group.id ? 1 : 0)
             )
+            .overlay(alignment: .top) {
+                if draggedGroupID != nil, groupReorderTarget?.id == group.id,
+                   groupReorderTarget?.edge == .before
+                {
+                    Rectangle()
+                        .fill(Color.accentColor)
+                        .frame(height: 2)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if draggedGroupID != nil, groupReorderTarget?.id == group.id,
+                   groupReorderTarget?.edge == .after
+                {
+                    Rectangle()
+                        .fill(Color.accentColor)
+                        .frame(height: 2)
+                }
+            }
             .contextMenu {
                 Button("Ungroup") {
                     // Select all shapes in this group, then ungroup
@@ -372,7 +405,7 @@ private struct GroupRow: View {
 
                 Divider()
 
-                LayerReorderContextMenu(viewModel: viewModel, shapeID: selectedSingleShapeID)
+                GroupReorderContextMenu(viewModel: viewModel, groupID: group.id)
             }
 
             if viewModel.expandedItemIDs.contains(group.id) {
@@ -383,8 +416,10 @@ private struct GroupRow: View {
                         viewModel: viewModel,
                         ignoreNextRowTap: $ignoreNextRowTap,
                         draggedShapeID: $draggedShapeID,
+                        draggedGroupID: $draggedGroupID,
                         shapeDropTarget: $shapeDropTarget,
                         groupDropTarget: $groupDropTarget,
+                        groupReorderTarget: $groupReorderTarget,
                         depth: depth + 1
                     )
                 }
@@ -396,6 +431,7 @@ private struct GroupRow: View {
                             containingGroupID: group.id,
                             viewModel: viewModel,
                             draggedShapeID: $draggedShapeID,
+                            draggedGroupID: $draggedGroupID,
                             shapeDropTarget: $shapeDropTarget,
                             depth: depth + 1
                         )
@@ -441,6 +477,7 @@ private struct ShapeRow: View {
     let containingGroupID: UUID?
     @Bindable var viewModel: EditorViewModel
     @Binding var draggedShapeID: UUID?
+    @Binding var draggedGroupID: UUID?
     @Binding var shapeDropTarget: (id: UUID, edge: DropEdge)?
     let depth: Int
     @State private var isEditingName = false
@@ -529,6 +566,7 @@ private struct ShapeRow: View {
                 layerID: layerID,
                 targetGroupID: containingGroupID,
                 draggedShapeID: $draggedShapeID,
+                draggedGroupID: $draggedGroupID,
                 dropTargetShape: $shapeDropTarget,
                 viewModel: viewModel
             )
@@ -537,14 +575,18 @@ private struct ShapeRow: View {
             LayerReorderContextMenu(viewModel: viewModel, shapeID: shape.id)
         }
         .overlay(alignment: .top) {
-            if draggedShapeID != nil, shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .before {
+            if (draggedShapeID != nil || draggedGroupID != nil),
+               shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .before
+            {
                 Rectangle()
                     .fill(Color.accentColor)
                     .frame(height: 2)
             }
         }
         .overlay(alignment: .bottom) {
-            if draggedShapeID != nil, shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .after {
+            if (draggedShapeID != nil || draggedGroupID != nil),
+               shapeDropTarget?.id == shape.id, shapeDropTarget?.edge == .after
+            {
                 Rectangle()
                     .fill(Color.accentColor)
                     .frame(height: 2)
@@ -627,6 +669,43 @@ private struct LayerReorderContextMenu: View {
     }
 }
 
+private struct GroupReorderContextMenu: View {
+    let viewModel: EditorViewModel
+    let groupID: UUID
+
+    private var canMoveBack: Bool {
+        viewModel.canMoveGroupBackward(groupID)
+    }
+
+    private var canMoveFront: Bool {
+        viewModel.canMoveGroupForward(groupID)
+    }
+
+    var body: some View {
+        Button("Bring to Front") {
+            viewModel.moveGroupToFront(groupID)
+        }
+        .disabled(!canMoveFront)
+
+        Button("Send to Back") {
+            viewModel.moveGroupToBack(groupID)
+        }
+        .disabled(!canMoveBack)
+
+        Divider()
+
+        Button("Bring Forward") {
+            viewModel.moveGroupForward(groupID)
+        }
+        .disabled(!canMoveFront)
+
+        Button("Send Backward") {
+            viewModel.moveGroupBackward(groupID)
+        }
+        .disabled(!canMoveBack)
+    }
+}
+
 private struct LayerRowContextMenu: View {
     @Bindable var viewModel: EditorViewModel
     let layerIndex: Int
@@ -695,10 +774,12 @@ private struct ShapeDropDelegate: DropDelegate {
     let layerID: UUID
     let targetGroupID: UUID?
     @Binding var draggedShapeID: UUID?
+    @Binding var draggedGroupID: UUID?
     @Binding var dropTargetShape: (id: UUID, edge: DropEdge)?
     let viewModel: EditorViewModel
 
     func dropEntered(info: DropInfo) {
+        guard draggedShapeID != nil || draggedGroupID != nil else { return }
         let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
         dropTargetShape = (targetShapeID, edge)
     }
@@ -710,14 +791,33 @@ private struct ShapeDropDelegate: DropDelegate {
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard draggedShapeID != nil || draggedGroupID != nil else {
+            return DropProposal(operation: .move)
+        }
         let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
         dropTargetShape = (targetShapeID, edge)
         return DropProposal(operation: .move)
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        guard draggedShapeID != nil else { return false }
         let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+
+        // Handle group-on-shape reordering
+        if let draggedGroupID {
+            // Shape rows are shown top->bottom, but model order is bottom->top.
+            if edge == .before {
+                viewModel.moveGroup(
+                    draggedGroupID: draggedGroupID, afterShape: targetShapeID, in: layerID)
+            } else {
+                viewModel.moveGroup(
+                    draggedGroupID: draggedGroupID, beforeShape: targetShapeID, in: layerID)
+            }
+            self.draggedGroupID = nil
+            dropTargetShape = nil
+            return true
+        }
+
+        guard draggedShapeID != nil else { return false }
         if let draggedShapeID, draggedShapeID != targetShapeID {
             // Shape rows are shown top->bottom, but model order is bottom->top.
             if edge == .before {
@@ -742,25 +842,57 @@ private struct GroupDropDelegate: DropDelegate {
     let targetGroupID: UUID
     let layerID: UUID
     @Binding var draggedShapeID: UUID?
+    @Binding var draggedGroupID: UUID?
     @Binding var groupDropTarget: UUID?
+    @Binding var groupReorderTarget: (id: UUID, edge: DropEdge)?
     let viewModel: EditorViewModel
 
-    func dropEntered(info _: DropInfo) {
-        groupDropTarget = targetGroupID
+    func dropEntered(info: DropInfo) {
+        if draggedGroupID != nil {
+            let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+            groupReorderTarget = (targetGroupID, edge)
+        } else {
+            groupDropTarget = targetGroupID
+        }
     }
 
     func dropExited(info _: DropInfo) {
         if groupDropTarget == targetGroupID {
             groupDropTarget = nil
         }
+        if groupReorderTarget?.id == targetGroupID {
+            groupReorderTarget = nil
+        }
     }
 
-    func dropUpdated(info _: DropInfo) -> DropProposal? {
-        groupDropTarget = targetGroupID
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        if draggedGroupID != nil {
+            let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+            groupReorderTarget = (targetGroupID, edge)
+        } else {
+            groupDropTarget = targetGroupID
+        }
         return DropProposal(operation: .move)
     }
 
-    func performDrop(info _: DropInfo) -> Bool {
+    func performDrop(info: DropInfo) -> Bool {
+        // Handle group-on-group reordering
+        if let draggedGroupID, draggedGroupID != targetGroupID {
+            let edge: DropEdge = info.location.y < dropMidlineY ? .before : .after
+            // Group rows are shown top->bottom, but model order is bottom->top.
+            if edge == .before {
+                viewModel.moveGroup(
+                    draggedGroupID: draggedGroupID, afterGroup: targetGroupID, in: layerID)
+            } else {
+                viewModel.moveGroup(
+                    draggedGroupID: draggedGroupID, beforeGroup: targetGroupID, in: layerID)
+            }
+            self.draggedGroupID = nil
+            groupReorderTarget = nil
+            return true
+        }
+
+        // Handle shape-into-group
         guard let draggedShapeID else { return false }
         // Don't drop a shape that's already a direct member of this group
         if let layerIndex = viewModel.document.layers.firstIndex(where: { $0.id == layerID }),

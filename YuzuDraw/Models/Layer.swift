@@ -60,6 +60,16 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         return nil
     }
 
+    func findGroupByID(_ id: UUID) -> ShapeGroup? {
+        if self.id == id { return self }
+        for child in children {
+            if let found = child.findGroupByID(id) {
+                return found
+            }
+        }
+        return nil
+    }
+
     mutating func removeShapeRecursively(id shapeID: UUID) {
         shapeIDs.removeAll { $0 == shapeID }
         for index in children.indices {
@@ -150,6 +160,39 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
         return ids
     }
 
+    /// Items in z-order for display in the layer panel. Each item is either
+    /// a root group (emitted once when its first member shape is encountered)
+    /// or an ungrouped shape.
+    enum LayerItem: Equatable {
+        case group(ShapeGroup)
+        case shape(AnyShape)
+
+        var id: UUID {
+            switch self {
+            case .group(let g): return g.id
+            case .shape(let s): return s.id
+            }
+        }
+    }
+
+    var orderedItems: [LayerItem] {
+        let grouped = groupedShapeIDs
+        var emittedGroupIDs = Set<UUID>()
+        var items: [LayerItem] = []
+        for shape in shapes {
+            if grouped.contains(shape.id) {
+                guard let rootGroup = findRootGroup(containingShape: shape.id),
+                      !emittedGroupIDs.contains(rootGroup.id)
+                else { continue }
+                emittedGroupIDs.insert(rootGroup.id)
+                items.append(.group(rootGroup))
+            } else {
+                items.append(.shape(shape))
+            }
+        }
+        return items
+    }
+
     var ungroupedShapes: [AnyShape] {
         let grouped = groupedShapeIDs
         return shapes.filter { !grouped.contains($0.id) }
@@ -213,6 +256,51 @@ struct Layer: Codable, Equatable, Identifiable, Sendable {
             }
         }
         return false
+    }
+
+    func findGroupByID(_ groupID: UUID) -> ShapeGroup? {
+        for group in groups {
+            if let found = group.findGroupByID(groupID) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    /// Returns the min..<max+1 index range of all shapes belonging to a group (including nested children).
+    func groupShapeIndexRange(for groupID: UUID) -> Range<Int>? {
+        guard let group = findGroupByID(groupID) else { return nil }
+        let memberIDs = group.allShapeIDs
+        guard !memberIDs.isEmpty else { return nil }
+        var minIndex = Int.max
+        var maxIndex = Int.min
+        for (index, shape) in shapes.enumerated() {
+            if memberIDs.contains(shape.id) {
+                minIndex = min(minIndex, index)
+                maxIndex = max(maxIndex, index)
+            }
+        }
+        guard minIndex <= maxIndex else { return nil }
+        return minIndex..<(maxIndex + 1)
+    }
+
+    /// Ensures all shapes for a group are contiguous in the shapes array.
+    /// Collects them preserving relative order, removes them, re-inserts at the highest original position.
+    mutating func consolidateGroup(_ groupID: UUID) {
+        guard let group = findGroupByID(groupID) else { return }
+        let memberIDs = group.allShapeIDs
+        guard !memberIDs.isEmpty else { return }
+
+        let memberShapes = shapes.filter { memberIDs.contains($0.id) }
+        guard memberShapes.count > 1 else { return }
+
+        let memberIndices = shapes.enumerated().filter { memberIDs.contains($0.element.id) }.map(\.offset)
+        let maxIdx = memberIndices.last!
+        if maxIdx - memberIndices.first! + 1 == memberShapes.count { return }
+
+        shapes.removeAll { memberIDs.contains($0.id) }
+        let insertionIndex = maxIdx + 1 - memberShapes.count
+        shapes.insert(contentsOf: memberShapes, at: insertionIndex)
     }
 }
 
