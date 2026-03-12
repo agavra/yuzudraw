@@ -9,7 +9,74 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-cli:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Stamp CLI version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i '' "s/0.0.0-dev/$VERSION/" YuzuDrawCLI/Version.swift
+
+      - name: Build CLI for arm64
+        run: |
+          xcodebuild build \
+            -scheme YuzuDrawCLI \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build/arm64 \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES
+
+      - name: Build CLI for x86_64
+        run: |
+          xcodebuild build \
+            -scheme YuzuDrawCLI \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build/x86_64 \
+            ARCHS=x86_64 \
+            ONLY_ACTIVE_ARCH=YES
+
+      - name: Create universal binary
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARM_BIN="build/arm64/Build/Products/Release/YuzuDrawCLI"
+          X86_BIN="build/x86_64/Build/Products/Release/YuzuDrawCLI"
+          mkdir -p build/universal
+          lipo -create "$ARM_BIN" "$X86_BIN" -output build/universal/yuzudraw-cli
+
+      - name: Package tarballs
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARM_BIN="build/arm64/Build/Products/Release/YuzuDrawCLI"
+          X86_BIN="build/x86_64/Build/Products/Release/YuzuDrawCLI"
+
+          mkdir -p build/dist
+
+          # Per-arch tarballs (for install.sh arch detection)
+          cp "$ARM_BIN" build/dist/yuzudraw-cli
+          tar -czf "build/dist/yuzudraw-cli-${VERSION}-aarch64-apple-darwin.tar.gz" -C build/dist yuzudraw-cli
+          rm build/dist/yuzudraw-cli
+
+          cp "$X86_BIN" build/dist/yuzudraw-cli
+          tar -czf "build/dist/yuzudraw-cli-${VERSION}-x86_64-apple-darwin.tar.gz" -C build/dist yuzudraw-cli
+          rm build/dist/yuzudraw-cli
+
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-tarballs
+          path: build/dist/*.tar.gz
+
+  build-app:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -102,8 +169,25 @@ jobs:
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-dmg
+          path: build/YuzuDraw-*-universal.dmg
+
+  release:
+    needs: [build-cli, build-app]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/YuzuDraw-*-universal.dmg
+          files: |
+            artifacts/app-dmg/*
+            artifacts/cli-tarballs/*
           generate_release_notes: true

@@ -63,6 +63,10 @@ private enum CLI {
                 try listDiagrams(args)
             case "render-ascii":
                 try renderASCII(args)
+            case "version", "--version", "-v":
+                printVersion()
+            case "update":
+                try update()
             case "help", "--help", "-h":
                 printUsage()
             default:
@@ -268,6 +272,117 @@ private enum CLI {
         return value
     }
 
+    private static func printVersion() {
+        print("yuzudraw-cli \(CLIVersion.current)")
+    }
+
+    private static func update() throws {
+        let currentVersion = CLIVersion.current
+
+        // Fetch latest release from GitHub API
+        let releaseJSON = try shellOutput(
+            "/usr/bin/curl", "-fsSL",
+            "-H", "Accept: application/vnd.github+json",
+            "https://api.github.com/repos/agavra/yuzudraw/releases/latest"
+        )
+
+        guard let data = releaseJSON.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tagName = json["tag_name"] as? String else {
+            throw CLIError.invalidUsage("Failed to parse release information from GitHub.")
+        }
+
+        let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
+
+        if latestVersion == currentVersion {
+            print("Already up to date (v\(currentVersion)).")
+            return
+        }
+
+        print("Updating yuzudraw-cli v\(currentVersion) → v\(latestVersion)...")
+
+        // Determine architecture
+        let arch = try shellOutput("/usr/bin/uname", "-m").trimmingCharacters(in: .whitespacesAndNewlines)
+        let assetArch = arch == "arm64" ? "aarch64" : "x86_64"
+
+        // Find the matching asset
+        guard let assets = json["assets"] as? [[String: Any]] else {
+            throw CLIError.invalidUsage("No assets found in latest release.")
+        }
+
+        let assetName = "yuzudraw-cli-\(latestVersion)-\(assetArch)-apple-darwin.tar.gz"
+        guard let asset = assets.first(where: { ($0["name"] as? String) == assetName }),
+              let downloadURLString = asset["browser_download_url"] as? String else {
+            throw CLIError.invalidUsage("No matching asset found: \(assetName)")
+        }
+
+        // Download and extract to temp directory
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("yuzudraw-update-\(ProcessInfo.processInfo.globallyUniqueString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let tarPath = tempDir.appendingPathComponent(assetName)
+
+        try shellRun("/usr/bin/curl", "-fSL", "--progress-bar", "-o", tarPath.path, downloadURLString)
+        try shellRun("/usr/bin/tar", "-xzf", tarPath.path, "-C", tempDir.path)
+
+        let newBinary = tempDir.appendingPathComponent("yuzudraw-cli")
+        guard FileManager.default.fileExists(atPath: newBinary.path) else {
+            throw CLIError.invalidUsage("Extracted archive does not contain yuzudraw-cli binary.")
+        }
+
+        // Replace current binary
+        let currentBinary = URL(fileURLWithPath: CommandLine.arguments[0])
+        let resolvedBinary: URL
+        if let resolved = try? FileManager.default.destinationOfSymbolicLink(atPath: currentBinary.path) {
+            resolvedBinary = URL(fileURLWithPath: resolved)
+        } else {
+            resolvedBinary = currentBinary
+        }
+
+        let backupPath = resolvedBinary.appendingPathExtension("bak")
+        try? FileManager.default.removeItem(at: backupPath)
+        try FileManager.default.moveItem(at: resolvedBinary, to: backupPath)
+
+        do {
+            try FileManager.default.moveItem(at: newBinary, to: resolvedBinary)
+            try? FileManager.default.removeItem(at: backupPath)
+        } catch {
+            // Restore backup on failure
+            try? FileManager.default.moveItem(at: backupPath, to: resolvedBinary)
+            throw CLIError.invalidUsage("Failed to install update: \(error.localizedDescription)")
+        }
+
+        print("Updated to v\(latestVersion).")
+    }
+
+    @discardableResult
+    private static func shellOutput(_ args: String...) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: args[0])
+        process.arguments = Array(args.dropFirst())
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw CLIError.invalidUsage("Command failed: \(args.joined(separator: " "))")
+        }
+        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    }
+
+    private static func shellRun(_ args: String...) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: args[0])
+        process.arguments = Array(args.dropFirst())
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw CLIError.invalidUsage("Command failed: \(args.joined(separator: " "))")
+        }
+    }
+
     private static func printUsage() {
         let text = """
         YuzuDraw CLI
@@ -278,6 +393,8 @@ private enum CLI {
           get-diagram --name <name> [--project <path>] [--format dsl|ascii|both]
           list-diagrams [--workspace-dir <path>]
           render-ascii (--dsl-file <path> | --dsl-stdin)
+          update            Update to the latest version
+          version           Print the current version
         """
         print(text)
     }
