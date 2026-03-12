@@ -92,6 +92,7 @@ Choose one dominant family:
 
 - Prefer a clear house style for the selected family over generic box-and-arrow output.
 - Leave a small buffer on the top and left by default. Start around `col 2-4` and `row 1-2` unless the prompt or composition needs a different origin.
+- Use groups to organize related elements whenever a diagram has 2+ logical categories (e.g., services vs data stores, frontend vs backend, internal vs external). Framed regions with `style double` or `style heavy` make diagrams far more readable than flat layouts. When in doubt, group.
 - Use shading semantically, not decoratively.
 - Use `pencil` sparingly unless the selected reference calls for it.
 - If the user asks for “a diagram like X”, match X's composition first, then map it into YuzuDraw DSL.
