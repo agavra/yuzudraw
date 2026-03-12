@@ -13,6 +13,11 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: true
     GCC_TREAT_WARNINGS_AS_ERRORS: true
 
+packages:
+  swift-argument-parser:
+    url: https://github.com/apple/swift-argument-parser
+    from: "1.5.0"
+
 targets:
   YuzuDraw:
     type: application
@@ -40,6 +45,9 @@ targets:
       - YuzuDraw/Automation
       - YuzuDraw/Models
       - YuzuDraw/Serialization
+    dependencies:
+      - package: swift-argument-parser
+        product: ArgumentParser
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDrawCLI
