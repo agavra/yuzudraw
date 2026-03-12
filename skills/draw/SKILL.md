@@ -17,6 +17,7 @@ Use this as the single entrypoint for diagram work. Select one family, open the 
 5. Follow that reference's defaults instead of improvising a generic style.
 6. Pass DSL to CLI commands using a heredoc with `--dsl-stdin` (see CLI Invocation Rules below).
 7. Always display the rendered ASCII output in a fenced code block in your response so the user can see it directly without expanding tool results.
+8. After rendering, ask the user if they'd like to save the diagram (via `create-diagram` or `update-diagram`). Always prompt — don't assume they only wanted a preview.
 
 ## CLI Invocation Rules
 

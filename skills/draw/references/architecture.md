@@ -6,7 +6,7 @@ Use this reference for system-topology diagrams with strong spatial grouping.
 
 - Use `style double` or `style heavy` for region boundaries — the structural groupings that contain other things.
 - Use `style single` for leaf nodes (services, servers, gateways) inside regions.
-- Use `textOnBorder` for region labels — put the label as the rect's own text (e.g., `rect "US-East" ... textOnBorder`), not as a separate `text` element. This places the label on the border line.
+- Use `textOnBorder valign top` for region labels — put the label as the rect's own text (e.g., `rect "US-East" ... textOnBorder valign top`), not as a separate `text` element. This places the label on the top border line. When using `halign left` add `padding 2,0,0,0` and when using `halign right` add `padding 0,2,0,0` so the text sits inside the corner characters.
 - Use `shadow light` (or `shadow medium`) on major regions and the outermost boundary for depth.
 - Use `fill solid char "▓"` or `"▒"` for data stores (databases, caches, queues) to visually distinguish them from services.
 - Prefer top-to-bottom or left-to-right flow, not both equally.
@@ -40,7 +40,7 @@ If labels or connectors start colliding, simplify before adding more structure.
 
 ### Region with label on border
 ```dsl
-rect "US-East" id useast at 2,1 size 44x18 style double textOnBorder shadow light
+rect "US-East" id useast at 2,1 size 44x18 style double textOnBorder valign top shadow light
 rect "CDN Edge" id cdn at 6,4
 rect "API Gateway" id gw below cdn gap 2 style heavy
 rect "App Server 1" id app1 below gw gap 2
@@ -52,8 +52,8 @@ arrow from gw to app2
 
 ### Side-by-side regions with shared data store
 ```dsl
-rect "Region A" id regionA at 2,1 size 40x16 style double textOnBorder shadow light
-rect "Region B" id regionB at 48,1 size 40x16 style double textOnBorder shadow light
+rect "Region A" id regionA at 2,1 size 40x16 style double textOnBorder valign top shadow light
+rect "Region B" id regionB at 48,1 size 40x16 style double textOnBorder valign top shadow light
 
 rect "Service 1" id s1 at 8,4
 rect "Service 2" id s2 at 54,4
@@ -69,7 +69,7 @@ arrow from regionA.right to regionB.left label "replication"
 ```dsl
 rect "Load Balancer" id lb at 30,1 style heavy
 
-rect "Server Tier" id tier at 4,6 size 80x8 style double textOnBorder
+rect "Server Tier" id tier at 4,6 size 80x8 style double textOnBorder valign top
 rect "Server 1" id srv1 at 10,8
 rect "Server 2" id srv2 right-of srv1 gap 6
 rect "Server 3" id srv3 right-of srv2 gap 6
@@ -87,7 +87,7 @@ arrow from srv3.bottom to db.top
 
 ### Nested data stores (WAL + index pattern)
 ```dsl
-rect "Storage" id storage at 2,1 size 56x16 style double textOnBorder shadow light
+rect "Storage" id storage at 2,1 size 56x16 style double textOnBorder valign top shadow light
 
 rect "WAL" id wal at 6,4 size 44x4 style heavy
 rect "" id waldata at 8,5 size 30x2 fill solid char "■" noborder
