@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import Analytics from '@vercel/analytics/astro';
 
 interface Props {
   title: string;
@@ -41,5 +42,6 @@ const ogImageUrl = new URL('/yuzudraw-og.png', siteUrl);
   </head>
   <body class="bg-white text-gray-900 font-sans antialiased">
     <slot />
+    <Analytics />
   </body>
 </html>

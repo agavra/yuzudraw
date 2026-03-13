@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "@vercel/analytics": "^2.0.1",
     "astro": "^5.5.0",
     "embla-carousel": "^8.6.0",
     "tailwindcss": "^4.2.1"
