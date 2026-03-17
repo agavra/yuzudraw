@@ -122,6 +122,47 @@ struct EditorViewModelExportTests {
         #expect(pastedTexts.contains { $0.origin == GridPoint(column: 9, row: 7) })
     }
 
+    @Test func should_preserve_left_routed_attached_arrow_when_copy_pasting_selection() throws {
+        // given
+        let dsl = """
+            group "Group 1"
+              rect "Title" id title at 15,12 size 20x5
+            rect "Callout" id callout at 12,24 size 30x5 line dashed dash 1 gap 1
+            arrow from "Callout".left to "Title".left
+            """
+        let document = try DSLParser.parse(dsl)
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = Set(document.shapes.map(\.id))
+
+        let originalText = viewModel.selectionOrCanvasPlainText()
+        let originalWidth = originalText?
+            .components(separatedBy: "\n")
+            .map(\.count)
+            .max()
+
+        guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.shapes.count == 6)
+
+        let pastedText = viewModel.selectionOrCanvasPlainText()
+        let pastedWidth = pastedText?
+            .components(separatedBy: "\n")
+            .map(\.count)
+            .max()
+
+        #expect(originalWidth == 31)
+        #expect(pastedWidth == 31)
+        #expect(pastedText == originalText)
+    }
+
     @Test func should_paste_shapes_into_same_group_they_were_copied_from() {
         // given
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))

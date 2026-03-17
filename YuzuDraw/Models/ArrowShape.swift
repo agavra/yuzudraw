@@ -126,7 +126,21 @@ struct ArrowShape: Codable, Equatable, Identifiable, Sendable {
     }
 
     var boundingRect: GridRect {
-        GridRect.enclosing(from: start, to: end)
+        let segments = pathSegments()
+        guard let firstSegment = segments.first else {
+            return GridRect.enclosing(from: start, to: end)
+        }
+
+        let points = segments.flatMap { [$0.from, $0.to] }
+        let minColumn = points.reduce(firstSegment.from.column) { min($0, $1.column) }
+        let minRow = points.reduce(firstSegment.from.row) { min($0, $1.row) }
+        let maxColumn = points.reduce(firstSegment.from.column) { max($0, $1.column) }
+        let maxRow = points.reduce(firstSegment.from.row) { max($0, $1.row) }
+
+        return GridRect(
+            origin: GridPoint(column: minColumn, row: minRow),
+            size: GridSize(width: maxColumn - minColumn + 1, height: maxRow - minRow + 1)
+        )
     }
 
     func contains(point: GridPoint) -> Bool {
@@ -587,4 +601,3 @@ struct ArrowSegment: Equatable, Sendable {
         }
     }
 }
-
