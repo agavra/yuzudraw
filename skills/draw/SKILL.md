@@ -13,7 +13,7 @@ Use this as the single entrypoint for diagram work. Select one family, open the 
 1. Classify the request into one primary diagram family.
 2. Open the matching reference file under `references/`.
 3. Follow that reference's defaults instead of improvising a generic style.
-4. Pass DSL to CLI commands using a heredoc with `--dsl-stdin` (see CLI Invocation Rules below).
+4. Pass DSL to CLI commands using a heredoc with `--dsl-stdin` (see CLI Invocation Rules below). Every command MUST start with `yuzudraw-cli` — never use pipes, `cat`, or `echo`.
 5. Always display the rendered ASCII output in a fenced code block in your response so the user can see it directly without expanding tool results.
 6. After rendering, ask the user if they'd like to save the diagram (via `create-diagram` or `update-diagram`). Always prompt — don't assume they only wanted a preview.
 

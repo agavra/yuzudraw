@@ -37,7 +37,7 @@ Or build from source (see [below](#building-from-source)).
    ```
 3. Prompt your agent:
    ```
-   /draw a flow chart for request validation, retry on fix, then processing and done
+   /draw a stacked bar chart of traffic mix by endpoint for search, checkout, and auth with read, write, and cache miss segments
    ```
 4. Open the generated `.yuzudraw` file in the app and keep editing on the canvas.
 
