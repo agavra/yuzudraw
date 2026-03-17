@@ -6,6 +6,9 @@ on:
       - '**'
     branches-ignore:
       - site
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
   build-and-test:
