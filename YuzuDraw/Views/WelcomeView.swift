@@ -36,6 +36,7 @@ struct WelcomeView: View {
                         .frame(width: 140)
                 }
                 .controlSize(.large)
+                .accessibilityIdentifier(AccessibilityID.newProjectButton)
 
                 Button {
                     workspace.showOpenPanel()
