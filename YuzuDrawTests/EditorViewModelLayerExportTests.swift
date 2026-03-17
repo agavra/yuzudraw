@@ -215,6 +215,99 @@ struct EditorViewModelExportTests {
         #expect(text == "┌──┐\n│  │\n└──┘")
     }
 
+    @Test func should_export_selected_shapes_as_dsl() {
+        // given
+        var document = Document()
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 8, row: 6),
+            size: GridSize(width: 4, height: 3),
+            label: "API"
+        )
+        document.addShape(.rectangle(rectangle))
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rectangle.id]
+
+        // when
+        let dsl = viewModel.selectionDSL()
+
+        // then
+        #expect(dsl == #"  rect "API" at 8,6 size 4x3"#)
+    }
+
+    @Test func should_export_selected_shapes_as_dsl_preserving_selected_group_structure() {
+        // given
+        let rectA = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 4, height: 3),
+            label: "A"
+        )
+        let rectB = RectangleShape(
+            origin: GridPoint(column: 8, row: 0),
+            size: GridSize(width: 4, height: 3),
+            label: "B"
+        )
+        let rectC = RectangleShape(
+            origin: GridPoint(column: 16, row: 0),
+            size: GridSize(width: 4, height: 3),
+            label: "C"
+        )
+        let nested = ShapeGroup(name: "Nested", shapeIDs: [rectB.id])
+        let root = ShapeGroup(name: "Root", shapeIDs: [rectA.id], children: [nested])
+        let document = Document(
+            shapes: [.rectangle(rectA), .rectangle(rectB), .rectangle(rectC)],
+            groups: [root]
+        )
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rectA.id, rectB.id]
+
+        // when
+        let dsl = viewModel.selectionDSL()
+
+        // then
+        #expect(
+            dsl
+                == """
+                  group "Root"
+                    group "Nested"
+                      rect "B" at 8,0 size 4x3
+                    rect "A" at 0,0 size 4x3
+                """
+        )
+    }
+
+    @Test func should_export_partial_group_selection_as_nested_dsl_subset() {
+        // given
+        let rectA = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 4, height: 3),
+            label: "A"
+        )
+        let rectB = RectangleShape(
+            origin: GridPoint(column: 8, row: 0),
+            size: GridSize(width: 4, height: 3),
+            label: "B"
+        )
+        let root = ShapeGroup(name: "Root", shapeIDs: [rectA.id, rectB.id])
+        let document = Document(
+            shapes: [.rectangle(rectA), .rectangle(rectB)],
+            groups: [root]
+        )
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rectB.id]
+
+        // when
+        let dsl = viewModel.selectionDSL()
+
+        // then
+        #expect(
+            dsl
+                == """
+                  group "Root"
+                    rect "B" at 8,0 size 4x3
+                """
+        )
+    }
+
     @Test func should_include_shadow_in_plain_text_copy() {
         // given
         var document = Document()

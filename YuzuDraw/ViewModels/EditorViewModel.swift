@@ -1692,6 +1692,10 @@ final class EditorViewModel {
         !isEditingText && (document.hasContent || !selectedShapesInDocumentOrder().isEmpty)
     }
 
+    func canCopySelectionAsDSL() -> Bool {
+        !isEditingText && !selectedShapesInDocumentOrder().isEmpty
+    }
+
     func canCopySelectionAsPNG() -> Bool {
         !isEditingText && !selectedShapesInDocumentOrder().isEmpty
     }
@@ -1809,6 +1813,13 @@ final class EditorViewModel {
         pasteboard.setString(text, forType: .string)
     }
 
+    func copySelectionAsDSLToClipboard() {
+        guard let dsl = selectionDSL() else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(dsl, forType: .string)
+    }
+
     func copySelectionAsPNGToClipboard(scale: Int = 1, backgroundColor: ShapeColor? = nil) {
         guard
             let canvas = selectedShapesExportCanvas(),
@@ -1829,10 +1840,41 @@ final class EditorViewModel {
         return canvas.render()
     }
 
+    func selectionDSL() -> String? {
+        let selectedIDs = Set(selectedShapesInDocumentOrder().map(\.id))
+        guard !selectedIDs.isEmpty else { return nil }
+
+        let selectionDocument = Document(
+            shapes: selectedShapesInDocumentOrder(),
+            groups: selectedGroups(from: document.groups, selectedIDs: selectedIDs),
+            canvasSize: document.canvasSize,
+            palette: document.palette
+        )
+        return DSLSerializer.serialize(selectionDocument)
+    }
+
     private func selectedShapesInDocumentOrder() -> [AnyShape] {
         document.shapes.filter {
             selectedShapeIDs.contains($0.id) && document.isShapeSelectable($0.id)
         }
+    }
+
+    private func selectedGroups(from groups: [ShapeGroup], selectedIDs: Set<UUID>) -> [ShapeGroup] {
+        groups.compactMap { selectedGroup(from: $0, selectedIDs: selectedIDs) }
+    }
+
+    private func selectedGroup(from group: ShapeGroup, selectedIDs: Set<UUID>) -> ShapeGroup? {
+        let selectedChildren = selectedGroups(from: group.children, selectedIDs: selectedIDs)
+        let selectedShapeIDs = group.shapeIDs.filter { selectedIDs.contains($0) }
+
+        guard !selectedShapeIDs.isEmpty || !selectedChildren.isEmpty else { return nil }
+
+        return ShapeGroup(
+            id: group.id,
+            name: group.name,
+            shapeIDs: selectedShapeIDs,
+            children: selectedChildren
+        )
     }
 
     private func selectedShapesExportCanvas() -> Canvas? {

@@ -98,6 +98,11 @@ struct CanvasView: View {
                     .keyboardShortcut("c", modifiers: [.command, .shift])
                     .disabled(!viewModel.canCopySelectionAsPlainText())
 
+                    Button("Copy as DSL") {
+                        viewModel.copySelectionAsDSLToClipboard()
+                    }
+                    .disabled(!viewModel.canCopySelectionAsDSL())
+
                     Button("Copy to Clipboard as PNG") {
                         viewModel.copySelectionAsPNGToClipboard()
                     }
