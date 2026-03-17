@@ -136,6 +136,25 @@ struct ArrowShapeTests {
         #expect(!arrow.contains(point: GridPoint(column: 5, row: 2)))
     }
 
+    @Test func should_include_detoured_attached_segments_in_bounding_rect() {
+        // given
+        let arrow = ArrowShape(
+            start: GridPoint(column: 12, row: 26),
+            end: GridPoint(column: 15, row: 14),
+            startAttachment: ArrowAttachment(shapeID: UUID(), side: .left),
+            endAttachment: ArrowAttachment(shapeID: UUID(), side: .left)
+        )
+
+        // when
+        let bounds = arrow.boundingRect
+
+        // then
+        #expect(bounds.minColumn == 11)
+        #expect(bounds.maxColumn == 15)
+        #expect(bounds.minRow == 14)
+        #expect(bounds.maxRow == 26)
+    }
+
     @Test func should_place_label_centered_on_horizontal_path_midpoint() {
         // given
         let arrow = ArrowShape(
