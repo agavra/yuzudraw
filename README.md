@@ -14,6 +14,12 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
 </p>
 
+## Screenshot
+
+<p align="center">
+  <img src="yuzu-screenshot.png" alt="YuzuDraw generating and editing an ASCII robot diagram with a bar chart" />
+</p>
+
 ---
 
 ## Why YuzuDraw?
