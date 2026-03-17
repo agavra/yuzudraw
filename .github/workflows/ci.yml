@@ -9,6 +9,8 @@ on:
   pull_request:
     branches:
       - '**'
+    branches-ignore:
+      - site
 
 jobs:
   build-and-test:
