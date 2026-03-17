@@ -38,6 +38,14 @@ struct ContentView: View {
             InspectorPanel(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.delete, .deleteForward]) { press in
+            handleDeleteKeyPress(forward: press.key == .deleteForward)
+        }
+        .onKeyPress(characters: .init(charactersIn: "\u{8}\u{7f}")) { press in
+            handleDeleteKeyPress(forward: press.characters == "\u{7f}")
+        }
         .onChange(of: viewModel.activeColorTarget) { _, newValue in
             if newValue != nil {
                 colorPickerOffset = .zero
@@ -61,6 +69,19 @@ struct ContentView: View {
         let maxUp = -pickerTopPad
         let maxDown = max(canvasSize.height - pickerHeight - pickerTopPad, 0)
         return min(max(y, maxUp), maxDown)
+    }
+
+    private func handleDeleteKeyPress(forward: Bool) -> KeyPress.Result {
+        let selector =
+            forward
+            ? #selector(NSResponder.deleteForward(_:))
+            : #selector(NSResponder.deleteBackward(_:))
+        if NSApp.sendAction(selector, to: nil, from: nil) {
+            return .handled
+        }
+        guard viewModel.canCutSelectedShapes() else { return .ignored }
+        viewModel.deleteSelectedShapes()
+        return .handled
     }
 
     private var colorPickerPanel: some View {

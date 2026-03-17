@@ -57,6 +57,7 @@ struct LayerPanel: View {
     @State private var groupReorderTarget: (id: UUID, edge: DropEdge)?
     @State private var ignoreNextRowTap = false
     @State private var selectionAnchorItem: PanelSelectionItem?
+    @FocusState private var isPanelFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -65,6 +66,15 @@ struct LayerPanel: View {
             objectList
         }
         .frame(minWidth: 160, idealWidth: 200, maxWidth: 260)
+        .focusable()
+        .focused($isPanelFocused)
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.delete, .deleteForward]) { press in
+            handleDeleteKeyPress(forward: press.key == .deleteForward)
+        }
+        .onKeyPress(characters: .init(charactersIn: "\u{8}\u{7f}")) { press in
+            handleDeleteKeyPress(forward: press.characters == "\u{7f}")
+        }
     }
 
     private var header: some View {
@@ -232,6 +242,7 @@ struct LayerPanel: View {
 
         viewModel.selectedShapeIDs = nextSelection
         selectionAnchorItem = item
+        isPanelFocused = true
     }
 
     private func rangeSelectionShapeIDs(
@@ -254,6 +265,19 @@ struct LayerPanel: View {
 
     private func dismissInlineRenameFocus() {
         NSApp.keyWindow?.makeFirstResponder(nil)
+    }
+
+    private func handleDeleteKeyPress(forward: Bool) -> KeyPress.Result {
+        let selector =
+            forward
+            ? #selector(NSResponder.deleteForward(_:))
+            : #selector(NSResponder.deleteBackward(_:))
+        if NSApp.sendAction(selector, to: nil, from: nil) {
+            return .handled
+        }
+        guard viewModel.canCutSelectedShapes() else { return .ignored }
+        viewModel.deleteSelectedShapes()
+        return .handled
     }
 }
 

@@ -137,6 +137,17 @@ struct YuzuDrawApp: App {
             }
 
             CommandGroup(after: .pasteboard) {
+                Button("Delete") {
+                    if NSApp.sendAction(#selector(NSResponder.deleteBackward(_:)), to: nil, from: nil) {
+                        return
+                    }
+                    workspace.activeEditor?.deleteSelectedShapes()
+                }
+                .keyboardShortcut(.delete, modifiers: [])
+                .disabled(workspace.activeEditor?.canCutSelectedShapes() != true)
+
+                Divider()
+
                 Button("Group") {
                     workspace.activeEditor?.groupSelectedShapes()
                 }

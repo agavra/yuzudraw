@@ -156,12 +156,6 @@ struct CanvasView: View {
                     flagsMonitor = nil
                 }
             }
-            .onKeyPress(keys: [.delete, .deleteForward]) { _ in
-                handleDeleteKeyPress()
-            }
-            .onKeyPress(characters: .init(charactersIn: "\u{8}\u{7f}")) { _ in
-                handleDeleteKeyPress()
-            }
             .onKeyPress(.escape) {
                 guard !viewModel.isEditingText else { return .ignored }
                 return viewModel.handleEscape() ? .handled : .ignored
@@ -774,14 +768,6 @@ struct CanvasView: View {
             }
         }
         return nil
-    }
-
-    private func handleDeleteKeyPress() -> KeyPress.Result {
-        guard !viewModel.selectedShapeIDs.isEmpty, !viewModel.isEditingText else {
-            return .ignored
-        }
-        viewModel.deleteSelectedShapes()
-        return .handled
     }
 }
 
