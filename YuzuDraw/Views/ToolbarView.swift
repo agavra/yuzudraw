@@ -66,6 +66,24 @@ struct ToolbarView: View {
             hoveredTool = hovering ? type : (hoveredTool == type ? nil : hoveredTool)
         }
         .help(tooltip)
+        .accessibilityIdentifier(accessibilityIdentifier(for: type))
+    }
+
+    private func accessibilityIdentifier(for type: ToolType) -> String {
+        switch type {
+        case .select:
+            "toolbar.tool.select"
+        case .hand:
+            "toolbar.tool.hand"
+        case .rectangle:
+            AccessibilityID.rectangleToolButton
+        case .arrow:
+            "toolbar.tool.arrow"
+        case .text:
+            AccessibilityID.textToolButton
+        case .pencil:
+            "toolbar.tool.pencil"
+        }
     }
 }
 

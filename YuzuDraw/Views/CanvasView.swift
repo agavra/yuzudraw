@@ -617,6 +617,7 @@ struct CanvasView: View {
             .padding(.vertical, 2)
             .background(Color(nsColor: .textBackgroundColor))
             .border(Color.accentColor)
+            .accessibilityIdentifier(AccessibilityID.inlineTextEditor)
             .offset(
                 x: CGFloat(point.column) * charSize.width - 4,
                 y: CGFloat(point.row) * charSize.height

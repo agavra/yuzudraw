@@ -34,6 +34,9 @@ final class WorkspaceViewModel {
     }
 
     init() {
+        if ProcessInfo.processInfo.environment[LaunchEnvironmentKey.uiTesting] == "1" {
+            UserDefaults.standard.removeObject(forKey: Self.recentProjectsKey)
+        }
         loadRecentProjects()
         startAutoSave()
         openStartPageTab()

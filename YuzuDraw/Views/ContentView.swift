@@ -38,6 +38,15 @@ struct ContentView: View {
             InspectorPanel(viewModel: viewModel)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .topLeading) {
+            Text("Canvas ASCII")
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
+                .padding(1)
+                .allowsHitTesting(false)
+                .accessibilityIdentifier(AccessibilityID.canvasASCII)
+                .accessibilityValue(Text(viewModel.canvas.render()))
+        }
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(keys: [.delete, .deleteForward]) { press in

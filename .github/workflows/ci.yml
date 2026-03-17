@@ -1,10 +1,11 @@
 name: CI
 
 on:
-  pull_request:
   push:
     branches:
-      - main
+      - '**'
+    branches-ignore:
+      - site
 
 jobs:
   build-and-test:
@@ -28,7 +29,7 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build
+      - name: Build App
         run: |
           xcodebuild \
             -project YuzuDraw.xcodeproj \
@@ -37,11 +38,32 @@ jobs:
             -destination 'platform=macOS' \
             build
 
-      - name: Test
+      - name: Run Unit Tests
         run: |
           xcodebuild \
             -project YuzuDraw.xcodeproj \
             -scheme YuzuDrawTests \
             -configuration Debug \
             -destination 'platform=macOS' \
+            -resultBundlePath YuzuDrawTests.xcresult \
             test
+
+      - name: Run UI Tests
+        run: |
+          xcodebuild \
+            -project YuzuDraw.xcodeproj \
+            -scheme YuzuDrawUITests \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -resultBundlePath YuzuDrawUITests.xcresult \
+            test
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-test-results
+          path: |
+            YuzuDrawTests.xcresult
+            YuzuDrawUITests.xcresult
+          if-no-files-found: warn
