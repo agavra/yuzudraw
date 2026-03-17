@@ -17,6 +17,9 @@ packages:
   swift-argument-parser:
     url: https://github.com/apple/swift-argument-parser
     from: "1.5.0"
+  antlr4:
+    url: https://github.com/antlr/antlr4
+    from: "4.13.2"
 
 targets:
   YuzuDraw:
@@ -26,6 +29,8 @@ targets:
       - YuzuDraw
     dependencies:
       - sdk: AppIntents.framework
+      - package: antlr4
+        product: Antlr4
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDraw
@@ -48,6 +53,8 @@ targets:
     dependencies:
       - package: swift-argument-parser
         product: ArgumentParser
+      - package: antlr4
+        product: Antlr4
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDrawCLI
