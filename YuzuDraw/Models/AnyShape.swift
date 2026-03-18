@@ -64,6 +64,22 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
+    func renderHidingText(into canvas: inout Canvas) {
+        switch self {
+        case .rectangle(var shape):
+            shape.label = ""
+            shape.render(into: &canvas)
+        case .arrow(var shape):
+            shape.label = ""
+            shape.render(into: &canvas)
+        case .text:
+            // Skip rendering entirely — the inline editor replaces this
+            break
+        case .pencil(let shape):
+            shape.render(into: &canvas)
+        }
+    }
+
     var displayName: String {
         if let customName = customName?.trimmingCharacters(in: .whitespacesAndNewlines),
             !customName.isEmpty

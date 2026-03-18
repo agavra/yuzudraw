@@ -81,6 +81,7 @@ struct ContentView: View {
     }
 
     private func handleDeleteKeyPress(forward: Bool) -> KeyPress.Result {
+        guard !viewModel.isEditingText else { return .ignored }
         let selector =
             forward
             ? #selector(NSResponder.deleteForward(_:))

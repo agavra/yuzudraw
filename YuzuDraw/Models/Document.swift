@@ -734,10 +734,14 @@ struct Document: Codable, Equatable, Sendable {
 
     // MARK: - Rendering
 
-    func render(into canvas: inout Canvas) {
+    func render(into canvas: inout Canvas, hidingTextForShapeID editingID: UUID? = nil) {
         canvas.clear()
         for shape in visibleShapes {
-            shape.render(into: &canvas)
+            if let editingID, shape.id == editingID {
+                shape.renderHidingText(into: &canvas)
+            } else {
+                shape.render(into: &canvas)
+            }
         }
     }
 

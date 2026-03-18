@@ -17,6 +17,7 @@ struct CanvasView: View {
     @State private var lastMouseDownPoint: GridPoint?
     @State private var lastScrollOrigin: CGPoint?
     @State private var flagsMonitor: Any?
+    @State private var clickOutsideMonitor: Any?
     @State private var clipView: NSClipView?
     @State private var handPreviousMouseLocation: CGPoint?
     private let rulerGutterLeft: CGFloat = 30
@@ -149,6 +150,29 @@ struct CanvasView: View {
                 if let monitor = flagsMonitor {
                     NSEvent.removeMonitor(monitor)
                     flagsMonitor = nil
+                }
+                if let monitor = clickOutsideMonitor {
+                    NSEvent.removeMonitor(monitor)
+                    clickOutsideMonitor = nil
+                }
+            }
+            .onChange(of: viewModel.isEditingText) { _, isEditing in
+                if isEditing {
+                    clickOutsideMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+                        // Walk up from the hit-tested view to see if the click is inside an NSTextView
+                        var target = event.window?.contentView?.hitTest(event.locationInWindow)
+                        while let view = target {
+                            if view is NSTextView { return event }
+                            target = view.superview
+                        }
+                        viewModel.commitTextEdit()
+                        return event
+                    }
+                } else {
+                    if let monitor = clickOutsideMonitor {
+                        NSEvent.removeMonitor(monitor)
+                        clickOutsideMonitor = nil
+                    }
                 }
             }
             .onKeyPress(.escape) {
@@ -588,12 +612,11 @@ struct CanvasView: View {
         let text = viewModel.textEditContent
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
         let minChars = 6
-        let padding: CGFloat = 8
         let maxLineLength = lines.map(\.count).max() ?? 0
         let charCount = max(minChars, maxLineLength + 1)
-        let width = CGFloat(charCount) * charSize.width + padding
+        let width = CGFloat(charCount) * charSize.width
         let lineCount = max(1, lines.count)
-        let height = CGFloat(lineCount) * charSize.height + 4
+        let height = CGFloat(lineCount) * charSize.height
         return CGSize(width: width, height: height)
     }
 
@@ -608,13 +631,10 @@ struct CanvasView: View {
                 onCancel: { viewModel.cancelTextEdit() }
             )
             .frame(width: size.width, height: size.height)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(Color(nsColor: .textBackgroundColor))
-            .border(Color.accentColor)
+            .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color.accentColor.opacity(0.5), lineWidth: 1))
             .accessibilityIdentifier(AccessibilityID.inlineTextEditor)
             .offset(
-                x: CGFloat(point.column) * charSize.width - 4,
+                x: CGFloat(point.column) * charSize.width,
                 y: CGFloat(point.row) * charSize.height
             )
         }

@@ -133,7 +133,7 @@ struct YuzuDrawApp: App {
                     workspace.activeEditor?.selectAllShapes()
                 }
                 .keyboardShortcut("a", modifiers: .command)
-                .disabled(workspace.activeEditor?.canSelectAllShapes() != true)
+                .disabled(workspace.activeEditor?.isEditingText != true && workspace.activeEditor?.canSelectAllShapes() != true)
             }
 
             CommandGroup(after: .pasteboard) {
@@ -144,7 +144,7 @@ struct YuzuDrawApp: App {
                     workspace.activeEditor?.deleteSelectedShapes()
                 }
                 .keyboardShortcut(.delete, modifiers: [])
-                .disabled(workspace.activeEditor?.canCutSelectedShapes() != true)
+                .disabled(workspace.activeEditor?.isEditingText != true && workspace.activeEditor?.canCutSelectedShapes() != true)
 
                 Divider()
 

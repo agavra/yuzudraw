@@ -311,6 +311,7 @@ final class EditorViewModel {
         textEditPoint = editPoint
         textEditContent = content
         selectedShapeIDs = [shape.id]
+        rerender()
     }
 
     func mouseDragged(to point: GridPoint) {
@@ -2863,8 +2864,8 @@ final class EditorViewModel {
         expandCanvasIfNeeded()
         canvas = Canvas(size: document.canvasSize)
 
-        // Render document shapes
-        document.render(into: &canvas)
+        // Render document shapes, hiding text for the shape being edited
+        document.render(into: &canvas, hidingTextForShapeID: isEditingText ? textEditShapeID : nil)
 
         // Render tool preview on top
         if let preview = activeTool.previewShape() {
