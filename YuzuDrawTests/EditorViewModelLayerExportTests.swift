@@ -318,15 +318,23 @@ struct EditorViewModelExportTests {
         #expect(viewModel.selectionOrCanvasPlainText() == originalSelectionText)
 
         guard
-            let updatedRoot = viewModel.document.groups.first(where: { $0.id == rootGroup.id }),
-            let updatedCopiedGroup = updatedRoot.children.first(where: { $0.id == copiedGroup.id })
+            let updatedRoot = viewModel.document.groups.first(where: { $0.id == rootGroup.id })
         else {
             Issue.record("Expected original group hierarchy to be preserved")
             return
         }
 
-        #expect(Set(updatedCopiedGroup.shapeIDs).isSuperset(of: firstPasteIDs))
-        #expect(Set(updatedCopiedGroup.shapeIDs).isSuperset(of: secondPasteIDs))
+        // Original child group should be unchanged
+        let updatedCopiedGroup = updatedRoot.children.first(where: { $0.id == copiedGroup.id })
+        #expect(updatedCopiedGroup != nil)
+        #expect(Set(updatedCopiedGroup!.shapeIDs) == Set([service.id, database.id, arrow.id, note.id]))
+
+        // Pasted shapes should be in new sibling child groups under rootGroup
+        let newChildGroups = updatedRoot.children.filter { $0.id != copiedGroup.id }
+        #expect(newChildGroups.count == 2)
+        let allNewGroupShapeIDs = newChildGroups.map { Set($0.shapeIDs) }
+        #expect(allNewGroupShapeIDs.contains(firstPasteIDs))
+        #expect(allNewGroupShapeIDs.contains(secondPasteIDs))
     }
 
     @Test func should_preserve_left_routed_attached_arrow_when_copy_pasting_selection() throws {
@@ -370,7 +378,7 @@ struct EditorViewModelExportTests {
         #expect(pastedText == originalText)
     }
 
-    @Test func should_paste_shapes_into_same_group_they_were_copied_from() {
+    @Test func should_paste_whole_group_as_sibling_group() {
         // given
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
@@ -399,11 +407,55 @@ struct EditorViewModelExportTests {
         #expect(pastedIDs.count == 2)
         #expect(pastedIDs.isDisjoint(with: [rectA.id, rectB.id]))
 
-        guard let pastedIntoGroup = viewModel.document.groups.first(where: { $0.id == group.id }) else {
+        // Original group should be unchanged
+        guard let originalGroup = viewModel.document.groups.first(where: { $0.id == group.id }) else {
             Issue.record("Expected original group to exist")
             return
         }
-        #expect(Set(pastedIntoGroup.shapeIDs).isSuperset(of: pastedIDs))
+        #expect(Set(originalGroup.shapeIDs) == Set([rectA.id, rectB.id]))
+
+        // Pasted shapes should be in a new sibling group, not in the original
+        #expect(viewModel.document.groups.count == 2)
+        let newGroup = viewModel.document.groups.first(where: { $0.id != group.id })!
+        #expect(Set(newGroup.shapeIDs) == pastedIDs)
+        #expect(newGroup.name == "Group 1")
+    }
+
+    @Test func should_paste_partial_group_selection_into_same_group() {
+        // given
+        let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
+        let group = ShapeGroup(name: "Group 1", shapeIDs: [rectA.id, rectB.id])
+        let document = Document(
+            shapes: [.rectangle(rectA), .rectangle(rectB)],
+            groups: [group]
+        )
+
+        let viewModel = EditorViewModel(document: document)
+        // Only select one shape from the group (partial selection)
+        viewModel.selectedShapeIDs = [rectA.id]
+
+        guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.shapes.count == 3)
+
+        let pastedIDs = Set(viewModel.selectedShapeIDs)
+        #expect(pastedIDs.count == 1)
+
+        // Pasted shape should be added into the same group
+        guard let updatedGroup = viewModel.document.groups.first(where: { $0.id == group.id }) else {
+            Issue.record("Expected original group to exist")
+            return
+        }
+        #expect(Set(updatedGroup.shapeIDs).isSuperset(of: pastedIDs))
     }
 
     @Test func should_paste_shapes_into_top_most_selected_group_when_multiple_groups_selected() {
