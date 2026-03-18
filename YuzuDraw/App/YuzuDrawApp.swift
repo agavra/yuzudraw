@@ -118,7 +118,7 @@ struct YuzuDrawApp: App {
 
                 Divider()
 
-                Button("Copy as Plain Text") {
+                Button("Copy as DSL") {
                     workspace.activeEditor?.copySelectionAsPlainTextToClipboard()
                 }
                 .keyboardShortcut("c", modifiers: [.command, .shift])

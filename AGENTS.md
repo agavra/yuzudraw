@@ -11,11 +11,8 @@ xcodegen generate
 # Build (warnings are treated as errors via project.yml settings)
 xcodebuild -scheme YuzuDraw -destination 'platform=macOS' build
 
-# Run unit tests (default — use this unless explicitly asked to run UI tests)
-xcodebuild -scheme YuzuDraw -destination 'platform=macOS' -only-testing:YuzuDrawTests test
-
-# Run UI smoke tests (only when explicitly requested — requires screen access and coopts the mouse)
-xcodebuild -scheme YuzuDraw -destination 'platform=macOS' -only-testing:YuzuDrawUITests test
+# Run tests (UI smoke tests are excluded from the scheme; only unit tests run)
+xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
 
 # Build CLI
 xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawCLI -configuration Debug build

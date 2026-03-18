@@ -29,6 +29,12 @@ private final class TestClipboardClient: ClipboardClient {
     func string(forType type: NSPasteboard.PasteboardType) -> String? {
         stringValues[type]
     }
+
+    func writeItem(data: Data, dataType: NSPasteboard.PasteboardType, string: String, stringType: NSPasteboard.PasteboardType) {
+        clearContents()
+        dataValues[dataType] = data
+        stringValues[stringType] = string
+    }
 }
 
 @MainActor
@@ -214,7 +220,7 @@ struct EditorViewModelExportTests {
         viewModel.copySelectedShapesToClipboard()
 
         let clipboardString = clipboard.string(forType: .string)
-        let clipboardData = clipboard.data(forType: NSPasteboard.PasteboardType("com.yuzudraw.shapes+json"))
+        let clipboardData = clipboard.data(forType: NSPasteboard.PasteboardType("com.yuzudraw.shapes"))
         let canPasteAfterCopy = viewModel.canPasteShapesFromClipboard()
 
         let shapeIDsBeforeFirstPaste = Set(viewModel.document.shapes.map(\.id))
@@ -226,25 +232,19 @@ struct EditorViewModelExportTests {
         let secondPasteIDs = Set(viewModel.selectedShapeIDs)
 
         // then
-        guard
-            let clipboardString,
-            let clipboardStringData = clipboardString.data(using: .utf8),
-            let clipboardJSONObject = try? JSONSerialization.jsonObject(with: clipboardStringData) as? [String: Any],
-            let clipboardShapes = clipboardJSONObject["shapes"] as? [[String: Any]]
-        else {
-            Issue.record("Expected clipboard JSON string")
-            return
-        }
-
         #expect(clipboardData != nil)
         #expect(canPasteAfterCopy)
         #expect(didPasteFirst)
         #expect(didPasteSecond)
-        #expect(clipboardJSONObject["sourceGroupID"] != nil)
-        #expect(clipboardShapes.count == 4)
-        #expect(clipboardShapes.compactMap { $0["type"] as? String }.filter { $0 == "rectangle" }.count == 2)
-        #expect(clipboardShapes.compactMap { $0["type"] as? String }.filter { $0 == "arrow" }.count == 1)
-        #expect(clipboardShapes.compactMap { $0["type"] as? String }.filter { $0 == "text" }.count == 1)
+
+        guard let clipboardString else {
+            Issue.record("Expected clipboard plain text string")
+            return
+        }
+        // Cmd+C writes ASCII art to .string pasteboard type
+        #expect(clipboardString.contains("Service"))
+        #expect(clipboardString.contains("DB"))
+        #expect(clipboardString.contains("events"))
         #expect(viewModel.document.shapes.count == 13)
         #expect(firstPasteIDs.count == 4)
         #expect(secondPasteIDs.count == 4)
@@ -628,6 +628,108 @@ struct EditorViewModelExportTests {
 
         // then
         #expect(text == "┌──┐ \n│  │░\n└──┘░\n ░░░░")
+    }
+
+    @Test func should_paste_shapes_from_dsl_string_on_clipboard() {
+        // given
+        let clipboard = TestClipboardClient()
+        let viewModel = EditorViewModel(document: Document(), clipboardClient: clipboard)
+        let dsl = """
+            rect "Box" at 5,3 size 10x4
+            text "Hello" at 20,3
+            """
+        clipboard.setString(dsl, forType: .string)
+
+        // when
+        let didPaste = viewModel.pasteShapesFromClipboard()
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.shapes.count == 2)
+
+        let rects = viewModel.document.shapes.compactMap { shape -> RectangleShape? in
+            guard case .rectangle(let r) = shape else { return nil }
+            return r
+        }
+        #expect(rects.count == 1)
+        #expect(rects.first?.label == "Box")
+        #expect(rects.first?.origin == GridPoint(column: 7, row: 4))
+
+        let texts = viewModel.document.shapes.compactMap { shape -> TextShape? in
+            guard case .text(let t) = shape else { return nil }
+            return t
+        }
+        #expect(texts.count == 1)
+        #expect(texts.first?.text == "Hello")
+    }
+
+    @Test func should_paste_grouped_shapes_from_dsl_string() {
+        // given
+        let clipboard = TestClipboardClient()
+        let viewModel = EditorViewModel(document: Document(), clipboardClient: clipboard)
+        let dsl = """
+            group "MyGroup"
+              rect "A" at 0,0 size 4x3
+              rect "B" at 8,0 size 4x3
+            """
+        clipboard.setString(dsl, forType: .string)
+
+        // when
+        let didPaste = viewModel.pasteShapesFromClipboard()
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.shapes.count == 2)
+        #expect(viewModel.document.groups.count == 1)
+        #expect(viewModel.document.groups.first?.name == "MyGroup")
+        #expect(viewModel.document.groups.first?.shapeIDs.count == 2)
+    }
+
+    @Test func should_copy_ascii_art_not_json_to_string_pasteboard() {
+        // given
+        let clipboard = TestClipboardClient()
+        var document = Document()
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 5, row: 3),
+            size: GridSize(width: 10, height: 4),
+            label: "Test"
+        )
+        document.addShape(.rectangle(rectangle))
+        let viewModel = EditorViewModel(document: document, clipboardClient: clipboard)
+        viewModel.selectedShapeIDs = [rectangle.id]
+
+        // when
+        viewModel.copySelectedShapesToClipboard()
+
+        // then
+        let clipboardString = clipboard.string(forType: .string)
+        #expect(clipboardString != nil)
+        // Should be ASCII art, not JSON
+        #expect(clipboardString?.contains("┌") == true)
+        #expect(clipboardString?.contains("Test") == true)
+        #expect(clipboardString?.hasPrefix("{") != true)
+    }
+
+    @Test func should_copy_dsl_to_clipboard_with_shift_c() {
+        // given
+        let clipboard = TestClipboardClient()
+        var document = Document()
+        let rectangle = RectangleShape(
+            origin: GridPoint(column: 5, row: 3),
+            size: GridSize(width: 10, height: 4),
+            label: "Test"
+        )
+        document.addShape(.rectangle(rectangle))
+        let viewModel = EditorViewModel(document: document, clipboardClient: clipboard)
+        viewModel.selectedShapeIDs = [rectangle.id]
+
+        // when
+        viewModel.copySelectionAsPlainTextToClipboard()
+
+        // then
+        let clipboardString = clipboard.string(forType: .string)
+        #expect(clipboardString != nil)
+        #expect(clipboardString?.contains("rect \"Test\"") == true)
     }
 
     @Test func should_delete_selected_shapes() {

@@ -43,7 +43,7 @@ jobs:
         run: |
           xcodebuild \
             -project YuzuDraw.xcodeproj \
-            -scheme YuzuDrawTests \
+            -scheme YuzuDraw \
             -configuration Debug \
             -destination 'platform=macOS' \
             -resultBundlePath YuzuDrawTests.xcresult \
@@ -53,9 +53,10 @@ jobs:
         run: |
           xcodebuild \
             -project YuzuDraw.xcodeproj \
-            -scheme YuzuDrawUITests \
+            -scheme YuzuDraw \
             -configuration Debug \
             -destination 'platform=macOS' \
+            -only-testing:YuzuDrawUITests \
             -resultBundlePath YuzuDrawUITests.xcresult \
             test
 
