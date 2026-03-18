@@ -34,6 +34,18 @@ schemes:
       config: Debug
       targets:
         - YuzuDrawTests
+        - name: YuzuDrawUITests
+          randomExecutionOrder: false
+          skipped: true
+  YuzuDraw-UITests:
+    build:
+      targets:
+        YuzuDraw: all
+        YuzuDrawUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - YuzuDrawUITests
 
 targets:
   YuzuDraw:
