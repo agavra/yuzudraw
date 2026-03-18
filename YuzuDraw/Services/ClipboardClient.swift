@@ -8,6 +8,7 @@ protocol ClipboardClient {
     func data(forType type: NSPasteboard.PasteboardType) -> Data?
     func setString(_ string: String, forType type: NSPasteboard.PasteboardType)
     func string(forType type: NSPasteboard.PasteboardType) -> String?
+    func writeItem(data: Data, dataType: NSPasteboard.PasteboardType, string: String, stringType: NSPasteboard.PasteboardType)
 }
 
 @MainActor
@@ -36,5 +37,13 @@ struct SystemClipboardClient: ClipboardClient {
 
     func string(forType type: NSPasteboard.PasteboardType) -> String? {
         pasteboard.string(forType: type)
+    }
+
+    func writeItem(data: Data, dataType: NSPasteboard.PasteboardType, string: String, stringType: NSPasteboard.PasteboardType) {
+        let item = NSPasteboardItem()
+        item.setData(data, forType: dataType)
+        item.setString(string, forType: stringType)
+        pasteboard.clearContents()
+        pasteboard.writeObjects([item])
     }
 }

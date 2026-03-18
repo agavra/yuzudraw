@@ -32,7 +32,7 @@ final class EditorViewModel {
         var copiedGroupStructure: ShapeGroup?
     }
 
-    private static let shapeClipboardType = NSPasteboard.PasteboardType("com.yuzudraw.shapes+json")
+    private static let shapeClipboardType = NSPasteboard.PasteboardType("com.yuzudraw.shapes")
     private static let pasteOffset = GridPoint(column: 2, row: 1)
     private let clipboardClient: ClipboardClient
 
@@ -1716,10 +1716,14 @@ final class EditorViewModel {
 
     func copySelectedShapesToClipboard() {
         guard let payloadData = selectedShapesClipboardPayloadData() else { return }
-        clipboardClient.clearContents()
-        clipboardClient.setData(payloadData, forType: Self.shapeClipboardType)
-        if let payloadString = String(data: payloadData, encoding: .utf8) {
-            clipboardClient.setString(payloadString, forType: .string)
+        if let plainText = selectionOrCanvasPlainText() {
+            clipboardClient.writeItem(
+                data: payloadData, dataType: Self.shapeClipboardType,
+                string: plainText, stringType: .string
+            )
+        } else {
+            clipboardClient.clearContents()
+            clipboardClient.setData(payloadData, forType: Self.shapeClipboardType)
         }
         lastPastedPayloadData = nil
         consecutivePasteCount = 0
@@ -1830,9 +1834,9 @@ final class EditorViewModel {
     }
 
     func copySelectionAsPlainTextToClipboard() {
-        guard let text = selectionOrCanvasPlainText() else { return }
+        guard let dsl = selectionDSL() else { return }
         clipboardClient.clearContents()
-        clipboardClient.setString(text, forType: .string)
+        clipboardClient.setString(dsl, forType: .string)
     }
 
     func copySelectionAsDSLToClipboard() {
@@ -1933,7 +1937,26 @@ final class EditorViewModel {
     }
 
     private func decodeShapeClipboardPayload(from data: Data) -> ShapeClipboardPayload? {
-        try? JSONDecoder().decode(ShapeClipboardPayload.self, from: data)
+        if let payload = try? JSONDecoder().decode(ShapeClipboardPayload.self, from: data) {
+            return payload
+        }
+        guard let dslString = String(data: data, encoding: .utf8) else { return nil }
+        return shapeClipboardPayload(fromDSL: dslString)
+    }
+
+    private func shapeClipboardPayload(fromDSL dsl: String) -> ShapeClipboardPayload? {
+        guard let document = try? DSLParser.parse(dsl), !document.shapes.isEmpty else { return nil }
+        let copiedGroupStructure: ShapeGroup?
+        if document.groups.count == 1 {
+            copiedGroupStructure = document.groups.first
+        } else {
+            copiedGroupStructure = nil
+        }
+        return ShapeClipboardPayload(
+            shapes: document.shapes,
+            sourceGroupID: nil,
+            copiedGroupStructure: copiedGroupStructure
+        )
     }
 
     private func remappedShapeForClipboardPaste(

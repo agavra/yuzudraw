@@ -459,7 +459,7 @@ struct InspectorPanel: View {
                         Button {
                             viewModel.copySelectionAsPlainTextToClipboard()
                         } label: {
-                            Label("Copy Text", systemImage: "doc.on.doc")
+                            Label("Copy DSL", systemImage: "doc.on.doc")
                                 .font(.caption.weight(.medium))
                                 .frame(maxWidth: .infinity)
                         }
