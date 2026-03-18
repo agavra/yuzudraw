@@ -1738,6 +1738,7 @@ final class EditorViewModel {
 
     @discardableResult
     func pasteShapes(fromClipboardPayloadData payloadData: Data) -> Bool {
+        sanitizeSelectionAndEnteredGroup()
         guard !isEditingText,
             let payload = decodeShapeClipboardPayload(from: payloadData),
             !payload.shapes.isEmpty
@@ -1752,6 +1753,7 @@ final class EditorViewModel {
 
         let dx = Self.pasteOffset.column * consecutivePasteCount
         let dy = Self.pasteOffset.row * consecutivePasteCount
+        let destinationGroupID = currentPasteDestinationGroupID(for: payload)
 
         recordSnapshot()
 
@@ -1769,18 +1771,31 @@ final class EditorViewModel {
         }
 
         if let copiedGroup = payload.copiedGroupStructure {
-            // Whole group was copied — recreate group structure as a sibling
             let newGroup = copiedGroup.remappingIDs(idMap)
-            _ = document.insertSiblingGroup(newGroup, nextTo: copiedGroup.id)
+            if let destinationGroupID {
+                _ = document.appendChildGroups([newGroup], toGroupID: destinationGroupID)
+            } else {
+                document.groups.append(newGroup)
+            }
             document.consolidateGroup(newGroup.id)
-        } else if let sourceGroupID = payload.sourceGroupID {
-            _ = document.appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
+            expandedItemIDs.insert(newGroup.id)
+        } else if let destinationGroupID {
+            _ = document.appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: destinationGroupID)
         }
 
         selectedShapeIDs = pastedShapeIDs
         activeToolType = .select
         rerender()
         return true
+    }
+
+    private func currentPasteDestinationGroupID(for payload: ShapeClipboardPayload) -> UUID? {
+        let selectedGroupID = isGroupSelected()?.id
+        if let selectedGroupID,
+           payload.copiedGroupStructure?.id != selectedGroupID {
+            return selectedGroupID
+        }
+        return enteredGroupID
     }
 
     func selectedShapesClipboardPayloadData() -> Data? {

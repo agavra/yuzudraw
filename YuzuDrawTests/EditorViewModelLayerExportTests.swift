@@ -329,12 +329,14 @@ struct EditorViewModelExportTests {
         #expect(updatedCopiedGroup != nil)
         #expect(Set(updatedCopiedGroup!.shapeIDs) == Set([service.id, database.id, arrow.id, note.id]))
 
-        // Pasted shapes should be in new sibling child groups under rootGroup
-        let newChildGroups = updatedRoot.children.filter { $0.id != copiedGroup.id }
-        #expect(newChildGroups.count == 2)
-        let allNewGroupShapeIDs = newChildGroups.map { Set($0.shapeIDs) }
-        #expect(allNewGroupShapeIDs.contains(firstPasteIDs))
-        #expect(allNewGroupShapeIDs.contains(secondPasteIDs))
+        // The first whole-group paste should fall back to top level when the selected group is the source group.
+        #expect(viewModel.document.groups.count == 2)
+        let topLevelPastedGroups = viewModel.document.groups.filter { $0.id != rootGroup.id }
+        #expect(topLevelPastedGroups.count == 1)
+        let firstPastedGroup = topLevelPastedGroups.first
+        #expect(Set(firstPastedGroup?.shapeIDs ?? []) == firstPasteIDs)
+        #expect(firstPastedGroup?.children.count == 1)
+        #expect(Set(firstPastedGroup?.children.first?.shapeIDs ?? []) == secondPasteIDs)
     }
 
     @Test func should_preserve_left_routed_attached_arrow_when_copy_pasting_selection() throws {
@@ -378,7 +380,7 @@ struct EditorViewModelExportTests {
         #expect(pastedText == originalText)
     }
 
-    @Test func should_paste_whole_group_as_sibling_group() {
+    @Test func should_paste_whole_group_at_top_level_when_selected_group_is_source_group() {
         // given
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
@@ -407,21 +409,22 @@ struct EditorViewModelExportTests {
         #expect(pastedIDs.count == 2)
         #expect(pastedIDs.isDisjoint(with: [rectA.id, rectB.id]))
 
-        // Original group should be unchanged
+        // Original group should still exist
         guard let originalGroup = viewModel.document.groups.first(where: { $0.id == group.id }) else {
             Issue.record("Expected original group to exist")
             return
         }
         #expect(Set(originalGroup.shapeIDs) == Set([rectA.id, rectB.id]))
 
-        // Pasted shapes should be in a new sibling group, not in the original
+        // Pasted whole-group content should be added at the top level, not nested into itself.
         #expect(viewModel.document.groups.count == 2)
-        let newGroup = viewModel.document.groups.first(where: { $0.id != group.id })!
-        #expect(Set(newGroup.shapeIDs) == pastedIDs)
-        #expect(newGroup.name == "Group 1")
+        #expect(originalGroup.children.isEmpty)
+        let newGroup = viewModel.document.groups.first(where: { $0.id != group.id })
+        #expect(Set(newGroup?.shapeIDs ?? []) == pastedIDs)
+        #expect(newGroup?.name == "Group 1")
     }
 
-    @Test func should_paste_partial_group_selection_into_same_group() {
+    @Test func should_paste_partial_group_selection_at_top_level_when_not_entered() {
         // given
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
@@ -450,15 +453,61 @@ struct EditorViewModelExportTests {
         let pastedIDs = Set(viewModel.selectedShapeIDs)
         #expect(pastedIDs.count == 1)
 
-        // Pasted shape should be added into the same group
+        // Pasted shape should remain at the top level.
         guard let updatedGroup = viewModel.document.groups.first(where: { $0.id == group.id }) else {
             Issue.record("Expected original group to exist")
             return
         }
-        #expect(Set(updatedGroup.shapeIDs).isSuperset(of: pastedIDs))
+        #expect(Set(updatedGroup.shapeIDs) == Set([rectA.id, rectB.id]))
+        #expect(updatedGroup.shapeIDs.allSatisfy { !pastedIDs.contains($0) })
     }
 
-    @Test func should_paste_shapes_into_top_most_selected_group_when_multiple_groups_selected() {
+    @Test func should_paste_partial_group_selection_into_entered_group() {
+        // given
+        let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
+        let rectC = RectangleShape(origin: GridPoint(column: 16, row: 0), size: GridSize(width: 4, height: 3))
+        let rectD = RectangleShape(origin: GridPoint(column: 24, row: 0), size: GridSize(width: 4, height: 3))
+        let sourceGroup = ShapeGroup(name: "Source", shapeIDs: [rectA.id, rectB.id])
+        let destinationGroup = ShapeGroup(name: "Destination", shapeIDs: [rectC.id, rectD.id])
+        let document = Document(
+            shapes: [.rectangle(rectA), .rectangle(rectB), .rectangle(rectC), .rectangle(rectD)],
+            groups: [sourceGroup, destinationGroup]
+        )
+
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [rectA.id]
+        viewModel.enteredGroupID = destinationGroup.id
+
+        guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.shapes.count == 5)
+
+        let pastedIDs = Set(viewModel.selectedShapeIDs)
+        #expect(pastedIDs.count == 1)
+
+        guard let updatedSourceGroup = viewModel.document.groups.first(where: { $0.id == sourceGroup.id }) else {
+            Issue.record("Expected source group to exist")
+            return
+        }
+        guard let updatedDestinationGroup = viewModel.document.groups.first(where: { $0.id == destinationGroup.id }) else {
+            Issue.record("Expected destination group to exist")
+            return
+        }
+
+        #expect(Set(updatedSourceGroup.shapeIDs) == Set([rectA.id, rectB.id]))
+        #expect(Set(updatedDestinationGroup.shapeIDs).isSuperset(of: pastedIDs))
+    }
+
+    @Test func should_paste_shapes_at_top_level_when_multiple_groups_selected() {
         // given
         let rectA = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
         let rectB = RectangleShape(origin: GridPoint(column: 8, row: 0), size: GridSize(width: 4, height: 3))
@@ -496,8 +545,49 @@ struct EditorViewModelExportTests {
             return
         }
 
-        #expect(Set(pastedTopGroup.shapeIDs).isSuperset(of: pastedIDs))
+        #expect(Set(pastedTopGroup.shapeIDs) == Set([rectA.id]))
         #expect(Set(untouchedSecondGroup.shapeIDs).isDisjoint(with: pastedIDs))
+        #expect(Set(untouchedSecondGroup.shapeIDs) == Set([rectB.id]))
+    }
+
+    @Test func should_paste_whole_group_into_entered_nested_group() {
+        // given
+        let sourceRect = RectangleShape(origin: GridPoint(column: 0, row: 0), size: GridSize(width: 4, height: 3))
+        let nestedRect = RectangleShape(origin: GridPoint(column: 20, row: 0), size: GridSize(width: 4, height: 3))
+        let copiedGroup = ShapeGroup(name: "Copied", shapeIDs: [sourceRect.id])
+        let nestedDestination = ShapeGroup(name: "Nested", shapeIDs: [nestedRect.id])
+        let rootDestination = ShapeGroup(name: "Root", shapeIDs: [], children: [nestedDestination])
+        let document = Document(
+            shapes: [.rectangle(sourceRect), .rectangle(nestedRect)],
+            groups: [copiedGroup, rootDestination]
+        )
+
+        let viewModel = EditorViewModel(document: document)
+        viewModel.selectedShapeIDs = [sourceRect.id]
+
+        guard let payloadData = viewModel.selectedShapesClipboardPayloadData() else {
+            Issue.record("Expected payload data")
+            return
+        }
+
+        viewModel.enteredGroupID = nestedDestination.id
+
+        // when
+        let didPaste = viewModel.pasteShapes(fromClipboardPayloadData: payloadData)
+
+        // then
+        #expect(didPaste)
+        #expect(viewModel.document.groups.count == 2)
+
+        guard let updatedRootDestination = viewModel.document.groups.first(where: { $0.id == rootDestination.id }) else {
+            Issue.record("Expected root destination group to exist")
+            return
+        }
+
+        #expect(updatedRootDestination.children.count == 1)
+        let pastedGroup = updatedRootDestination.children.first?.children.first
+        #expect(pastedGroup?.name == "Copied")
+        #expect(Set(pastedGroup?.shapeIDs ?? []).count == 1)
     }
 
     @Test func should_copy_selected_shapes_as_normalized_plain_text() {
