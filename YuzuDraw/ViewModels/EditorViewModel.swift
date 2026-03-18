@@ -28,6 +28,8 @@ final class EditorViewModel {
     private struct ShapeClipboardPayload: Codable, Sendable {
         var shapes: [AnyShape]
         var sourceGroupID: UUID?
+        /// When a whole group is copied, stores the group structure so paste can recreate it as a sibling.
+        var copiedGroupStructure: ShapeGroup?
     }
 
     private static let shapeClipboardType = NSPasteboard.PasteboardType("com.yuzudraw.shapes+json")
@@ -1761,7 +1763,12 @@ final class EditorViewModel {
             pastedShapeIDsInOrder.append(translated.id)
         }
 
-        if let sourceGroupID = payload.sourceGroupID {
+        if let copiedGroup = payload.copiedGroupStructure {
+            // Whole group was copied — recreate group structure as a sibling
+            let newGroup = copiedGroup.remappingIDs(idMap)
+            _ = document.insertSiblingGroup(newGroup, nextTo: copiedGroup.id)
+            document.consolidateGroup(newGroup.id)
+        } else if let sourceGroupID = payload.sourceGroupID {
             _ = document.appendShapesToGroup(ids: pastedShapeIDsInOrder, groupID: sourceGroupID)
         }
 
@@ -1774,24 +1781,36 @@ final class EditorViewModel {
     func selectedShapesClipboardPayloadData() -> Data? {
         let shapes = selectedShapesInDocumentOrder()
         guard !shapes.isEmpty else { return nil }
+        let (sourceGroupID, copiedGroupStructure) = selectedShapesSourceGroupInfo()
         let payload = ShapeClipboardPayload(
             shapes: shapes,
-            sourceGroupID: selectedShapesSourceGroupID()
+            sourceGroupID: sourceGroupID,
+            copiedGroupStructure: copiedGroupStructure
         )
         let encoder = JSONEncoder()
         return try? encoder.encode(payload)
     }
 
-    private func selectedShapesSourceGroupID() -> UUID? {
+    private func selectedShapesSourceGroupInfo() -> (sourceGroupID: UUID?, copiedGroupStructure: ShapeGroup?) {
         let selectedIDs = selectedShapeIDs
 
+        if let selectedGroupID = topMostSelectedGroupID(selectedIDs: selectedIDs),
+           let group = document.findGroupByID(selectedGroupID),
+           group.allShapeIDs == selectedIDs {
+            // Entire group is selected — store its structure so paste creates a sibling group
+            let parentID = document.parentGroupID(of: selectedGroupID)
+            return (parentID, group)
+        }
+
+        // Partial selection within a group — use the existing "paste into same group" behavior
         if let selectedGroupID = topMostSelectedGroupID(selectedIDs: selectedIDs) {
-            return selectedGroupID
+            return (selectedGroupID, nil)
         }
 
         let orderedShapes = selectedShapesInDocumentOrder()
-        guard let firstShapeID = orderedShapes.first?.id else { return nil }
-        return document.findGroupAncestry(containingShape: firstShapeID).last?.id
+        guard let firstShapeID = orderedShapes.first?.id else { return (nil, nil) }
+        let groupID = document.findGroupAncestry(containingShape: firstShapeID).last?.id
+        return (groupID, nil)
     }
 
     private func topMostSelectedGroupID(selectedIDs: Set<UUID>) -> UUID? {

@@ -203,6 +203,41 @@ struct Document: Codable, Equatable, Sendable {
         return nil
     }
 
+    func parentGroupID(of groupID: UUID) -> UUID? {
+        func search(_ groups: [ShapeGroup]) -> UUID? {
+            for group in groups {
+                if group.children.contains(where: { $0.id == groupID }) {
+                    return group.id
+                }
+                if let found = search(group.children) {
+                    return found
+                }
+            }
+            return nil
+        }
+        return search(groups)
+    }
+
+    mutating func insertSiblingGroup(_ newGroup: ShapeGroup, nextTo siblingID: UUID?) -> Bool {
+        guard let siblingID else {
+            groups.append(newGroup)
+            return true
+        }
+        // Check root level
+        if let index = groups.firstIndex(where: { $0.id == siblingID }) {
+            groups.insert(newGroup, at: index + 1)
+            return true
+        }
+        // Check nested levels
+        for i in groups.indices {
+            if groups[i].insertChildGroupNextTo(newGroup, siblingID: siblingID) {
+                return true
+            }
+        }
+        groups.append(newGroup)
+        return true
+    }
+
     func isShapeHidden(_ shapeID: UUID) -> Bool {
         if hiddenShapeIDs.contains(shapeID) {
             return true

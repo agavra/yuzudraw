@@ -104,6 +104,28 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         return false
     }
 
+    mutating func insertChildGroupNextTo(_ newGroup: ShapeGroup, siblingID: UUID) -> Bool {
+        if let index = children.firstIndex(where: { $0.id == siblingID }) {
+            children.insert(newGroup, at: index + 1)
+            return true
+        }
+        for i in children.indices {
+            if children[i].insertChildGroupNextTo(newGroup, siblingID: siblingID) {
+                return true
+            }
+        }
+        return false
+    }
+
+    func remappingIDs(_ idMap: [UUID: UUID]) -> ShapeGroup {
+        ShapeGroup(
+            id: UUID(),
+            name: name,
+            shapeIDs: shapeIDs.compactMap { idMap[$0] },
+            children: children.map { $0.remappingIDs(idMap) }
+        )
+    }
+
     mutating func appendShapesRecursively(ids: [UUID], groupID: UUID) -> Bool {
         if id == groupID {
             shapeIDs.append(contentsOf: ids)

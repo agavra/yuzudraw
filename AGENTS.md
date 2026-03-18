@@ -11,8 +11,11 @@ xcodegen generate
 # Build (warnings are treated as errors via project.yml settings)
 xcodebuild -scheme YuzuDraw -destination 'platform=macOS' build
 
-# Run tests
-xcodebuild -scheme YuzuDraw -destination 'platform=macOS' test
+# Run unit tests (default — use this unless explicitly asked to run UI tests)
+xcodebuild -scheme YuzuDraw -destination 'platform=macOS' -only-testing:YuzuDrawTests test
+
+# Run UI smoke tests (only when explicitly requested — requires screen access and coopts the mouse)
+xcodebuild -scheme YuzuDraw -destination 'platform=macOS' -only-testing:YuzuDrawUITests test
 
 # Build CLI
 xcodebuild -project YuzuDraw.xcodeproj -scheme YuzuDrawCLI -configuration Debug build
@@ -101,6 +104,43 @@ YuzuDrawApp
 **Critical**: The `.frame()` on the ZStack **must** use `alignment: .topLeading`. Default `.center` alignment shifts content by `gutterSize/2` pixels, causing hover/drag coordinates to be offset from visual positions (the offset grows with distance from origin).
 
 **Cursor management**: All cursor changes are centralized in `handleCanvasHover` on the parent ZStack's `onContinuousHover`. Do NOT use `.onHover` on individual overlay elements positioned with `.offset()` — SwiftUI's `.offset()` moves the visual but not the hit-test area, so `.onHover` fires at the wrong position. Instead, detect proximity to handles in the parent hover handler and set cursors there.
+
+## CLI Automation
+
+YuzuDraw uses a CLI instead of MCP. The CLI wraps the shared automation service and edits `.yuzudraw` files directly.
+
+### Files
+- `YuzuDrawCLI/main.swift` — command parsing and command execution
+- `YuzuDraw/Automation/DiagramAutomationService.swift` — create/update/get/list/render behavior
+- `scripts/yuzudraw-cli.sh` — helper that finds (or builds) the latest `YuzuDrawCLI` binary
+
+### Commands
+- `create-diagram --name <name> [--project <path>] (--dsl-file <path> | --dsl-stdin)`
+- `update-diagram --name <name> [--project <path>] (--dsl-file <path> | --dsl-stdin)`
+- `get-diagram --name <name> [--project <path>] [--format dsl|ascii|both]`
+- `list-diagrams [--workspace-dir <path>]`
+- `render-ascii (--dsl-file <path> | --dsl-stdin)`
+
+### Keeping CLI and skill docs in sync
+When modifying any of the following, also update the corresponding components:
+
+| Change | Also update |
+|--------|-------------|
+| DSL syntax (parser/serializer) | `skills/draw/SKILL.md` and relevant reference files |
+| CLI command names, arguments, or behavior | `skills/draw/SKILL.md` and `skills/draw/references/flow.md` |
+| New shape types or properties | `DSLParser.swift`, `DSLSerializer.swift`, `skills/draw/references/components.md` |
+
+## Claude Code Skills (`skills/`)
+
+### `/draw` (`skills/draw/SKILL.md`)
+Unified drawing skill for all diagram types: architecture diagrams, component diagrams, flowcharts, bar charts, and ASCII art. Contains references for each diagram family in `skills/draw/references/`.
+
+To install skills for Claude Code, copy them:
+```sh
+mkdir -p ~/.claude/skills/draw/references
+cp skills/draw/SKILL.md ~/.claude/skills/draw/SKILL.md
+cp skills/draw/references/*.md ~/.claude/skills/draw/references/
+```
 
 ## Conventions
 
