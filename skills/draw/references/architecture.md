@@ -28,6 +28,7 @@ Every diagram should have at least 2 visually distinct tiers. The reader should 
 
 - Start with one dominant axis.
 - Wrap major subsystems in framed regions such as zones, groups, lanes, or tiers.
+- When authoring appendable subsystems, put each subsystem under one top-level logical `group` even if the visible boundary is a `rect`.
 - When showing many peers, use a repeated horizontal row or vertical stack with identical sizing.
 - Keep more important layers visually stronger than surrounding nodes.
 - Avoid diagonals. Use orthogonal connectors and explicit labels.
@@ -49,6 +50,18 @@ arrow from cdn to gw
 arrow from gw to app1
 arrow from gw to app2
 ```
+
+### Proposed vNext subsystem snippet
+```dsl
+group "US-East" id useast at 2,1
+  rect "US-East" id useast_frame at 0,0 size 44x18 style double textOnBorder valign top shadow light
+  rect "CDN Edge" id cdn at 4,3
+  rect "API Gateway" id gw below cdn gap 2 style heavy
+  rect "App Server 1" id app1 below gw gap 2
+  rect "App Server 2" id app2 right-of app1 gap 4
+```
+
+Use this once scoped group origins exist. It makes whole regions portable as reusable snippets.
 
 ### Side-by-side regions with shared data store
 ```dsl

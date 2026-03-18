@@ -94,11 +94,53 @@ Choose one dominant family:
 - Prefer a clear house style for the selected family over generic box-and-arrow output.
 - Leave a small buffer on the top and left by default. Start around `col 2-4` and `row 1-2` unless the prompt or composition needs a different origin.
 - Use groups to organize related elements whenever a diagram has 2+ logical categories (e.g., services vs data stores, frontend vs backend, internal vs external). Framed regions with `style double` or `style heavy` make diagrams far more readable than flat layouts. When in doubt, group.
+- For diagrams that may grow incrementally, prefer one top-level group per subsystem so local coordinates can be introduced cleanly later.
 - Use shading semantically, not decoratively.
 - Use `pencil` sparingly unless the selected reference calls for it.
 - If the user asks for “a diagram like X”, match X's composition first, then map it into YuzuDraw DSL.
 
+## Scoped Groups (Proposed vNext)
+
+This section is a design target for upcoming DSL work. Do not assume the parser supports it yet unless the codebase has been updated to do so.
+
+### Proposed group syntax
+
+```dsl
+group "Payments" id payments at 72,2
+  rect "API" id api at 0,0
+  rect "DB" id db below api gap 2
+```
+
+Rules:
+
+- `group` stays non-rendering; use `rect` for visible boundaries
+- `group ... at ...` defines a local origin for all nested shapes and child groups
+- bare coordinates inside a positioned group are relative to that group origin
+- nested groups are relative to the parent group origin
+- group IDs are intended to be reusable anchors for snippet composition
+
+### Proposed CLI addition
+
+Preferred future composition command:
+
+```sh
+yuzudraw-cli merge-diagram --name system --at 72,2 --dsl-stdin <<'EOF'
+group "Payments" id payments at 0,0
+  rect "API" id api at 0,0
+  rect "DB" id db below api gap 2
+EOF
+```
+
+Intent:
+
+- `update-diagram` keeps full-replacement semantics
+- `merge-diagram` appends a new subsystem snippet into an existing document
+
+Full rationale: [group-origin-dsl-vnext.md](/Users/agavra/dev/yuzudraw/docs/group-origin-dsl-vnext.md)
+
 ## DSL Reference
+
+The sections below describe the current DSL. The scoped-group syntax above is proposed, not current, unless parser and CLI support have been added.
 
 ### Document Structure
 

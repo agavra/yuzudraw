@@ -11,194 +11,288 @@ enum DSLSemanticAnalyzer {
         var minRow: Int { origin.row }
         var maxColumn: Int { origin.column + size.width - 1 }
         var maxRow: Int { origin.row + size.height - 1 }
-        var centerColumn: Int { minColumn + size.width / 2 }
-        var centerRow: Int { minRow + size.height / 2 }
+    }
+
+    private struct ResolvedGroup {
+        var id: String?
+        var absoluteOrigin: GridPoint
     }
 
     static func lower(_ document: DSLDocumentNode) throws -> Document {
         let statements = document.statements
-        let rects = try resolveRectangles(in: statements)
+        let scopeChains = buildScopeChains(for: statements)
+        let resolvedGroups = try resolveGroups(in: statements, scopeChains: scopeChains)
 
         var shapesByStatement: [Int: AnyShape] = [:]
-        var rectangleLookup: [String: RectangleShape] = [:]
+        var rectsByStatement: [Int: ResolvedRect] = [:]
+        var rectanglesByStatement: [Int: RectangleShape] = [:]
 
         for (index, statement) in statements.enumerated() {
             guard case .rectangle(let node) = statement else { continue }
-            guard let resolved = rects[index] else {
-                throw DSLParserError.invalidSyntax("Failed to resolve rectangle")
-            }
+            let resolved = try resolveRectangle(
+                node: node,
+                statementIndex: index,
+                statements: statements,
+                scopeChains: scopeChains,
+                resolvedGroups: resolvedGroups,
+                rectsByStatement: rectsByStatement
+            )
             let rectangle = makeRectangle(node: node, resolved: resolved)
+            rectsByStatement[index] = resolved
+            rectanglesByStatement[index] = rectangle
             shapesByStatement[index] = .rectangle(rectangle)
-            if let id = node.id {
-                rectangleLookup[id] = rectangle
-            }
-            if rectangleLookup[node.label] == nil {
-                rectangleLookup[node.label] = rectangle
-            }
         }
 
         for (index, statement) in statements.enumerated() {
             switch statement {
-            case .rectangle:
+            case .rectangle, .layer, .group:
                 continue
             case .arrow(let node):
-                shapesByStatement[index] = .arrow(try makeArrow(node: node, rectangles: rectangleLookup))
+                shapesByStatement[index] = .arrow(
+                    try makeArrow(
+                        node: node,
+                        statementIndex: index,
+                        statements: statements,
+                        scopeChains: scopeChains,
+                        rectanglesByStatement: rectanglesByStatement
+                    ))
             case .text(let node):
-                shapesByStatement[index] = .text(try makeText(node: node, rects: rects))
+                shapesByStatement[index] = .text(
+                    try makeText(
+                        node: node,
+                        statementIndex: index,
+                        statements: statements,
+                        scopeChains: scopeChains,
+                        resolvedGroups: resolvedGroups,
+                        rectsByStatement: rectsByStatement
+                    ))
             case .pencil(let node):
-                shapesByStatement[index] = .pencil(try makePencil(node: node, rects: rects))
-            case .layer, .group:
-                continue
+                shapesByStatement[index] = .pencil(
+                    try makePencil(
+                        node: node,
+                        statementIndex: index,
+                        statements: statements,
+                        scopeChains: scopeChains,
+                        resolvedGroups: resolvedGroups,
+                        rectsByStatement: rectsByStatement
+                    ))
             }
         }
 
         let orderedShapes = statements.enumerated().compactMap { shapesByStatement[$0.offset] }
-        let groups = try buildGroups(from: statements, shapesByStatement: shapesByStatement)
+        let groups = buildGroups(
+            from: statements,
+            shapesByStatement: shapesByStatement,
+            resolvedGroups: resolvedGroups
+        )
         return Document(shapes: orderedShapes, groups: groups)
     }
 
-    private static func resolveRectangles(in statements: [DSLStatementNode]) throws
-        -> [Int: ResolvedRect]
-    {
-        var nodes: [Int: DSLRectangleNode] = [:]
-        var sizes: [Int: GridSize] = [:]
-        var dependencies: [Int: Set<Int>] = [:]
-        var nameToIndex: [String: Int] = [:]
+    private static func buildScopeChains(for statements: [DSLStatementNode]) -> [Int: [Int]] {
+        var scopeChains: [Int: [Int]] = [:]
+        var stack: [(index: Int, indent: Int)] = []
 
         for (index, statement) in statements.enumerated() {
-            guard case .rectangle(let node) = statement else { continue }
-            nodes[index] = node
-            sizes[index] = node.size ?? inferredSize(for: node.label)
-            if let id = node.id {
-                nameToIndex[id] = index
+            let indent = statement.indent
+            while let top = stack.last, top.indent >= indent {
+                stack.removeLast()
             }
-            if nameToIndex[node.label] == nil {
-                nameToIndex[node.label] = index
-            }
-        }
 
-        for (index, node) in nodes {
-            if case .reference(let reference)? = node.position,
-               let dependency = nameToIndex[reference.target]
-            {
-                dependencies[index, default: []].insert(dependency)
-            }
-            if let semantic = node.semanticPosition,
-               let dependency = nameToIndex[semantic.target]
-            {
-                dependencies[index, default: []].insert(dependency)
+            scopeChains[index] = stack.map(\.index)
+
+            if case .group = statement {
+                stack.append((index, indent))
+            } else if case .layer = statement {
+                stack.removeAll()
             }
         }
 
-        var resolved: [Int: ResolvedRect] = [:]
-        var remaining = Set(nodes.keys)
+        return scopeChains
+    }
 
-        while !remaining.isEmpty {
-            var progressed = false
+    private static func resolveGroups(
+        in statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]]
+    ) throws -> [Int: ResolvedGroup] {
+        var resolved: [Int: ResolvedGroup] = [:]
 
-            for index in remaining.sorted() {
-                let unresolvedDependencies = dependencies[index, default: []].filter { resolved[$0] == nil }
-                guard unresolvedDependencies.isEmpty,
-                      let node = nodes[index],
-                      let size = sizes[index]
-                else {
-                    continue
-                }
+        for (index, statement) in statements.enumerated() {
+            guard case .group(let node) = statement else { continue }
+            let scopeChain = scopeChains[index] ?? []
+            let parentOrigin = effectiveScopeOrigin(
+                for: scopeChain,
+                resolvedGroups: resolved
+            )
 
-                let origin = try resolveOrigin(
-                    for: node,
-                    size: size,
-                    resolved: resolved,
-                    names: nameToIndex
+            let absoluteOrigin: GridPoint
+            if let position = node.position {
+                absoluteOrigin = try resolveGroupPosition(
+                    position,
+                    statementIndex: index,
+                    statements: statements,
+                    scopeChains: scopeChains,
+                    resolvedGroups: resolved,
+                    parentOrigin: parentOrigin
                 )
-
-                resolved[index] = ResolvedRect(
-                    origin: origin,
-                    size: size,
-                    id: node.id,
-                    label: node.label
-                )
-                remaining.remove(index)
-                progressed = true
+            } else {
+                absoluteOrigin = parentOrigin
             }
 
-            if !progressed {
-                throw DSLParserError.invalidSyntax("Unresolvable rectangle layout dependencies")
-            }
+            resolved[index] = ResolvedGroup(id: node.id, absoluteOrigin: absoluteOrigin)
         }
 
         return resolved
     }
 
-    private static func resolveOrigin(
-        for node: DSLRectangleNode,
-        size: GridSize,
-        resolved: [Int: ResolvedRect],
-        names: [String: Int]
+    private static func resolveGroupPosition(
+        _ position: DSLPositionSpec,
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        resolvedGroups: [Int: ResolvedGroup],
+        parentOrigin: GridPoint
     ) throws -> GridPoint {
-        if let position = node.position {
-            return try resolve(position: position, resolved: resolved, names: names)
+        switch position {
+        case .absolute(let point):
+            return parentOrigin + point
+        case .reference(let reference):
+            guard reference.side == nil else {
+                throw DSLParserError.invalidSyntax("Group positions do not support side attachments")
+            }
+            if reference.target == "root" {
+                return GridPoint.zero
+                    + GridPoint(column: reference.columnOffset, row: reference.rowOffset)
+            }
+            guard let groupIndex = resolveGroupIdentifier(
+                named: reference.target,
+                currentScope: scopeChains[statementIndex] ?? [],
+                before: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains
+            ),
+                let group = resolvedGroups[groupIndex]
+            else {
+                throw DSLParserError.invalidSyntax("Unknown group reference: \(reference.target)")
+            }
+            return group.absoluteOrigin
+                + GridPoint(column: reference.columnOffset, row: reference.rowOffset)
         }
+    }
 
-        if let semantic = node.semanticPosition {
-            guard let index = names[semantic.target], let refRect = resolved[index] else {
+    private static func resolveRectangle(
+        node: DSLRectangleNode,
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        resolvedGroups: [Int: ResolvedGroup],
+        rectsByStatement: [Int: ResolvedRect]
+    ) throws -> ResolvedRect {
+        let size = node.size ?? inferredSize(for: node.label)
+        let scopeChain = scopeChains[statementIndex] ?? []
+        let scopeOrigin = effectiveScopeOrigin(for: scopeChain, resolvedGroups: resolvedGroups)
+
+        let origin: GridPoint
+        if let position = node.position {
+            origin = try resolvePosition(
+                position,
+                statementIndex: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains,
+                resolvedGroups: resolvedGroups,
+                rectsByStatement: rectsByStatement,
+                localScopeOrigin: scopeOrigin
+            )
+        } else if let semantic = node.semanticPosition {
+            guard let targetIndex = resolveRectangleReference(
+                named: semantic.target,
+                currentScope: scopeChain,
+                before: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains
+            ),
+                let refRect = rectsByStatement[targetIndex]
+            else {
                 throw DSLParserError.invalidSyntax("Unknown rectangle reference: \(semantic.target)")
             }
             switch semantic.direction {
             case .rightOf:
-                return GridPoint(
+                origin = GridPoint(
                     column: refRect.origin.column + refRect.size.width + (semantic.gap ?? 4),
                     row: refRect.origin.row
                 )
             case .below:
-                return GridPoint(
+                origin = GridPoint(
                     column: refRect.origin.column,
                     row: refRect.origin.row + refRect.size.height + (semantic.gap ?? 2)
                 )
             case .leftOf:
-                return GridPoint(
+                origin = GridPoint(
                     column: refRect.origin.column - size.width - (semantic.gap ?? 4),
                     row: refRect.origin.row
                 )
             case .above:
-                return GridPoint(
+                origin = GridPoint(
                     column: refRect.origin.column,
                     row: refRect.origin.row - size.height - (semantic.gap ?? 2)
                 )
             }
+        } else {
+            origin = scopeOrigin
         }
 
-        return GridPoint(column: 0, row: 0)
+        return ResolvedRect(origin: origin, size: size, id: node.id, label: node.label)
     }
 
-    private static func resolve(
-        position: DSLPositionSpec,
-        resolved: [Int: ResolvedRect],
-        names: [String: Int]
+    private static func resolvePosition(
+        _ position: DSLPositionSpec,
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        resolvedGroups: [Int: ResolvedGroup],
+        rectsByStatement: [Int: ResolvedRect],
+        localScopeOrigin: GridPoint
     ) throws -> GridPoint {
         switch position {
         case .absolute(let point):
-            return point
+            return localScopeOrigin + point
         case .reference(let reference):
-            guard let index = names[reference.target], let refRect = resolved[index] else {
+            if reference.target == "root" {
+                guard reference.side == nil else {
+                    throw DSLParserError.invalidSyntax("The root reference does not support side attachments")
+                }
+                return GridPoint.zero
+                    + GridPoint(column: reference.columnOffset, row: reference.rowOffset)
+            }
+
+            if let groupIndex = resolveGroupIdentifier(
+                named: reference.target,
+                currentScope: scopeChains[statementIndex] ?? [],
+                before: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains
+            ),
+                let group = resolvedGroups[groupIndex]
+            {
+                guard reference.side == nil else {
+                    throw DSLParserError.invalidSyntax("Group references do not support side attachments")
+                }
+                return group.absoluteOrigin
+                    + GridPoint(column: reference.columnOffset, row: reference.rowOffset)
+            }
+
+            guard let rectIndex = resolveRectangleReference(
+                named: reference.target,
+                currentScope: scopeChains[statementIndex] ?? [],
+                before: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains
+            ),
+                let rect = rectsByStatement[rectIndex]
+            else {
                 throw DSLParserError.invalidSyntax("Unknown rectangle reference: \(reference.target)")
             }
-            let base = attachmentOrigin(for: reference.side, rect: refRect)
-            return GridPoint(
-                column: base.column + reference.columnOffset,
-                row: base.row + reference.rowOffset
-            )
-        }
-    }
-
-    private static func attachmentOrigin(for side: ArrowAttachmentSide?, rect: ResolvedRect) -> GridPoint {
-        switch side {
-        case .right:
-            return GridPoint(column: rect.origin.column + rect.size.width, row: rect.origin.row)
-        case .bottom:
-            return GridPoint(column: rect.origin.column, row: rect.origin.row + rect.size.height)
-        case .left, .top, nil:
-            return rect.origin
+            let base = attachmentOrigin(for: reference.side, rect: rect)
+            return base + GridPoint(column: reference.columnOffset, row: reference.rowOffset)
         }
     }
 
@@ -246,9 +340,29 @@ enum DSLSemanticAnalyzer {
         )
     }
 
-    private static func makeArrow(node: DSLArrowNode, rectangles: [String: RectangleShape]) throws -> ArrowShape {
-        let start = try resolve(endpoint: node.start, other: node.end, rectangles: rectangles)
-        let end = try resolve(endpoint: node.end, other: node.start, rectangles: rectangles)
+    private static func makeArrow(
+        node: DSLArrowNode,
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        rectanglesByStatement: [Int: RectangleShape]
+    ) throws -> ArrowShape {
+        let start = try resolve(
+            endpoint: node.start,
+            other: node.end,
+            statementIndex: statementIndex,
+            statements: statements,
+            scopeChains: scopeChains,
+            rectanglesByStatement: rectanglesByStatement
+        )
+        let end = try resolve(
+            endpoint: node.end,
+            other: node.start,
+            statementIndex: statementIndex,
+            statements: statements,
+            scopeChains: scopeChains,
+            rectanglesByStatement: rectanglesByStatement
+        )
 
         return ArrowShape(
             start: start.point,
@@ -263,20 +377,48 @@ enum DSLSemanticAnalyzer {
         )
     }
 
-    private static func makeText(node: DSLTextNode, rects: [Int: ResolvedRect]) throws -> TextShape {
-        let lookup = rectangleLookup(from: rects)
+    private static func makeText(
+        node: DSLTextNode,
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        resolvedGroups: [Int: ResolvedGroup],
+        rectsByStatement: [Int: ResolvedRect]
+    ) throws -> TextShape {
         guard let position = node.position else {
             throw DSLParserError.invalidSyntax("Text requires a position")
         }
+        let scopeOrigin = effectiveScopeOrigin(
+            for: scopeChains[statementIndex] ?? [],
+            resolvedGroups: resolvedGroups
+        )
         return TextShape(
-            origin: try resolve(position: position, rectLookup: lookup),
+            origin: try resolvePosition(
+                position,
+                statementIndex: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains,
+                resolvedGroups: resolvedGroups,
+                rectsByStatement: rectsByStatement,
+                localScopeOrigin: scopeOrigin
+            ),
             text: node.text,
             textColor: node.textColor
         )
     }
 
-    private static func makePencil(node: DSLPencilNode, rects: [Int: ResolvedRect]) throws -> PencilShape {
-        let lookup = rectangleLookup(from: rects)
+    private static func makePencil(
+        node: DSLPencilNode,
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        resolvedGroups: [Int: ResolvedGroup],
+        rectsByStatement: [Int: ResolvedRect]
+    ) throws -> PencilShape {
+        let scopeOrigin = effectiveScopeOrigin(
+            for: scopeChains[statementIndex] ?? [],
+            resolvedGroups: resolvedGroups
+        )
         var cells: [GridPoint: PencilCell] = [:]
         for cell in node.cells {
             cells[GridPoint(column: cell.column, row: cell.row)] = PencilCell(
@@ -285,43 +427,51 @@ enum DSLSemanticAnalyzer {
             )
         }
         return PencilShape(
-            origin: try resolve(position: node.position, rectLookup: lookup),
+            origin: try resolvePosition(
+                node.position,
+                statementIndex: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains,
+                resolvedGroups: resolvedGroups,
+                rectsByStatement: rectsByStatement,
+                localScopeOrigin: scopeOrigin
+            ),
             cells: cells
         )
     }
 
     private static func resolve(
-        position: DSLPositionSpec,
-        rectLookup: [String: ResolvedRect]
-    ) throws -> GridPoint {
-        switch position {
-        case .absolute(let point):
-            return point
-        case .reference(let reference):
-            guard let rect = rectLookup[reference.target] else {
-                throw DSLParserError.invalidSyntax("Unknown rectangle reference: \(reference.target)")
-            }
-            let base = attachmentOrigin(for: reference.side, rect: rect)
-            return GridPoint(
-                column: base.column + reference.columnOffset,
-                row: base.row + reference.rowOffset
-            )
-        }
-    }
-
-    private static func resolve(
         endpoint: DSLEndpointSpec,
         other: DSLEndpointSpec,
-        rectangles: [String: RectangleShape]
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        rectanglesByStatement: [Int: RectangleShape]
     ) throws -> (point: GridPoint, attachment: ArrowAttachment?) {
         switch endpoint {
         case .absolute(let point):
             return (point, nil)
         case .reference(let target, let explicitSide):
-            guard let rectangle = rectangles[target] else {
+            guard let rectIndex = resolveRectangleReference(
+                named: target,
+                currentScope: scopeChains[statementIndex] ?? [],
+                before: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains
+            ),
+                let rectangle = rectanglesByStatement[rectIndex]
+            else {
                 throw DSLParserError.invalidSyntax("Unknown rectangle reference: \(target)")
             }
-            let side = explicitSide ?? inferSide(for: rectangle, toward: other, rectangles: rectangles)
+            let side = explicitSide
+                ?? inferSide(
+                    for: rectangle,
+                    toward: other,
+                    statementIndex: statementIndex,
+                    statements: statements,
+                    scopeChains: scopeChains,
+                    rectanglesByStatement: rectanglesByStatement
+                )
             let attachment = ArrowAttachment(shapeID: rectangle.id, side: side)
             return (rectangle.attachmentPoint(for: side), attachment)
         }
@@ -330,7 +480,10 @@ enum DSLSemanticAnalyzer {
     private static func inferSide(
         for rect: RectangleShape,
         toward other: DSLEndpointSpec,
-        rectangles: [String: RectangleShape]
+        statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]],
+        rectanglesByStatement: [Int: RectangleShape]
     ) -> ArrowAttachmentSide {
         let rectCenter = GridPoint(
             column: rect.boundingRect.minColumn + rect.boundingRect.size.width / 2,
@@ -341,7 +494,15 @@ enum DSLSemanticAnalyzer {
         case .absolute(let point):
             otherPoint = point
         case .reference(let target, let explicitSide):
-            if let otherRect = rectangles[target] {
+            if let rectIndex = resolveRectangleReference(
+                named: target,
+                currentScope: scopeChains[statementIndex] ?? [],
+                before: statementIndex,
+                statements: statements,
+                scopeChains: scopeChains
+            ),
+                let otherRect = rectanglesByStatement[rectIndex]
+            {
                 let side = explicitSide ?? inferredSide(from: otherRect, to: rect)
                 otherPoint = otherRect.attachmentPoint(for: side)
             } else {
@@ -374,25 +535,16 @@ enum DSLSemanticAnalyzer {
         return deltaRow >= 0 ? .bottom : .top
     }
 
-    private static func rectangleLookup(from rects: [Int: ResolvedRect]) -> [String: ResolvedRect] {
-        var lookup: [String: ResolvedRect] = [:]
-        for rect in rects.values {
-            if let id = rect.id {
-                lookup[id] = rect
-            }
-            if lookup[rect.label] == nil {
-                lookup[rect.label] = rect
-            }
-        }
-        return lookup
-    }
-
     private static func buildGroups(
         from statements: [DSLStatementNode],
-        shapesByStatement: [Int: AnyShape]
-    ) throws -> [ShapeGroup] {
+        shapesByStatement: [Int: AnyShape],
+        resolvedGroups: [Int: ResolvedGroup]
+    ) -> [ShapeGroup] {
         struct StackEntry {
+            var statementIndex: Int
             var name: String
+            var identifier: String?
+            var origin: GridPoint?
             var indent: Int
             var shapeIDs: [UUID]
             var children: [ShapeGroup]
@@ -404,7 +556,13 @@ enum DSLSemanticAnalyzer {
         func flush(to indent: Int) {
             while let top = stack.last, top.indent >= indent {
                 let entry = stack.removeLast()
-                let group = ShapeGroup(name: entry.name, shapeIDs: entry.shapeIDs, children: entry.children)
+                let group = ShapeGroup(
+                    name: entry.name,
+                    identifier: entry.identifier,
+                    origin: entry.origin,
+                    shapeIDs: entry.shapeIDs,
+                    children: entry.children
+                )
                 if stack.isEmpty {
                     groups.append(group)
                 } else {
@@ -419,7 +577,16 @@ enum DSLSemanticAnalyzer {
                 flush(to: Int.min)
             case .group(let node):
                 flush(to: node.indent)
-                stack.append(StackEntry(name: node.name, indent: node.indent, shapeIDs: [], children: []))
+                stack.append(
+                    StackEntry(
+                        statementIndex: index,
+                        name: node.name,
+                        identifier: node.id,
+                        origin: node.position == nil ? nil : resolvedGroups[index]?.absoluteOrigin,
+                        indent: node.indent,
+                        shapeIDs: [],
+                        children: []
+                    ))
             case .rectangle(let node):
                 flush(to: node.indent)
                 if let shape = shapesByStatement[index], !stack.isEmpty {
@@ -445,6 +612,87 @@ enum DSLSemanticAnalyzer {
 
         flush(to: Int.min)
         return groups
+    }
+
+    private static func effectiveScopeOrigin(
+        for scopeChain: [Int],
+        resolvedGroups: [Int: ResolvedGroup]
+    ) -> GridPoint {
+        guard let groupIndex = scopeChain.last, let group = resolvedGroups[groupIndex] else {
+            return .zero
+        }
+        return group.absoluteOrigin
+    }
+
+    private static func resolveGroupIdentifier(
+        named name: String,
+        currentScope: [Int],
+        before statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]]
+    ) -> Int? {
+        for ancestorIndex in currentScope.reversed() {
+            guard ancestorIndex < statementIndex,
+                  case .group(let node) = statements[ancestorIndex],
+                  node.id == name
+            else { continue }
+            return ancestorIndex
+        }
+
+        for depth in stride(from: currentScope.count, through: 0, by: -1) {
+            let scope = Array(currentScope.prefix(depth))
+            for index in stride(from: statementIndex - 1, through: 0, by: -1) {
+                guard case .group(let node) = statements[index],
+                      node.id == name,
+                      scopeChains[index] == scope
+                else { continue }
+                return index
+            }
+        }
+
+        return nil
+    }
+
+    private static func resolveRectangleReference(
+        named name: String,
+        currentScope: [Int],
+        before statementIndex: Int,
+        statements: [DSLStatementNode],
+        scopeChains: [Int: [Int]]
+    ) -> Int? {
+        for depth in stride(from: currentScope.count, through: 0, by: -1) {
+            let scope = Array(currentScope.prefix(depth))
+            for index in stride(from: statementIndex - 1, through: 0, by: -1) {
+                guard case .rectangle(let node) = statements[index], scopeChains[index] == scope else {
+                    continue
+                }
+                if node.id == name || node.label == name {
+                    return index
+                }
+            }
+        }
+
+        // Preserve legacy cross-group references by falling back to any prior rectangle
+        // when there is no lexical-scope match.
+        for index in stride(from: statementIndex - 1, through: 0, by: -1) {
+            guard case .rectangle(let node) = statements[index] else { continue }
+            if node.id == name || node.label == name {
+                return index
+            }
+        }
+
+        return nil
+    }
+
+    private static func attachmentOrigin(for side: ArrowAttachmentSide?, rect: ResolvedRect) -> GridPoint {
+        switch side {
+        case .right:
+            return GridPoint(column: rect.origin.column + rect.size.width, row: rect.origin.row)
+        case .bottom:
+            return GridPoint(column: rect.origin.column, row: rect.origin.row + rect.size.height)
+        case .left, .top, nil:
+            return rect.origin
+        }
     }
 
     private static func inferredSize(for label: String) -> GridSize {

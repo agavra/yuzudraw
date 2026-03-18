@@ -203,6 +203,15 @@ struct Document: Codable, Equatable, Sendable {
         return nil
     }
 
+    func findGroupByIdentifier(_ identifier: String) -> ShapeGroup? {
+        for group in groups {
+            if let found = group.findGroupByIdentifier(identifier) {
+                return found
+            }
+        }
+        return nil
+    }
+
     func parentGroupID(of groupID: UUID) -> UUID? {
         func search(_ groups: [ShapeGroup]) -> UUID? {
             for group in groups {
@@ -333,6 +342,23 @@ struct Document: Codable, Equatable, Sendable {
             }
         }
         return false
+    }
+
+    mutating func appendChildGroups(_ newGroups: [ShapeGroup], toGroupID groupID: UUID) -> Bool {
+        guard !newGroups.isEmpty else { return false }
+        for index in groups.indices {
+            if groups[index].appendChildGroupsRecursively(newGroups, groupID: groupID) {
+                return true
+            }
+        }
+        return false
+    }
+
+    mutating func offset(by delta: GridPoint) {
+        shapes = shapes.map { $0.offset(by: delta) }
+        for index in groups.indices {
+            groups[index].offsetRecursively(by: delta)
+        }
     }
 
     /// Returns the min..<max+1 index range of all shapes belonging to a group (including nested children).

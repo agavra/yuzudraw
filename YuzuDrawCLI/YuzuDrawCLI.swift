@@ -10,6 +10,7 @@ struct YuzuDrawCLI: ParsableCommand {
         subcommands: [
             CreateDiagram.self,
             UpdateDiagram.self,
+            MergeDiagram.self,
             GetDiagram.self,
             ListDiagrams.self,
             RenderASCII.self,
@@ -119,6 +120,72 @@ struct UpdateDiagram: ParsableCommand {
         print("```")
         print(result.ascii)
         print("```")
+    }
+}
+
+struct MergeDiagram: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "merge-diagram",
+        abstract: "Merge a DSL snippet into an existing diagram"
+    )
+
+    @Option(name: .long, help: "Diagram name")
+    var name: String
+
+    @Option(name: .long, help: "Project path")
+    var project: String?
+
+    @Option(name: .customLong("into-group"), help: "Existing group identifier to merge into")
+    var intoGroup: String?
+
+    @Option(name: .long, help: "Offset applied to the incoming snippet as col,row")
+    var at: String?
+
+    @Option(name: .customLong("dsl-file"), help: "Path to DSL file")
+    var dslFile: String?
+
+    @Flag(name: .customLong("dsl-stdin"), help: "Read DSL from stdin")
+    var dslStdin: Bool = false
+
+    func validate() throws {
+        if dslFile != nil && dslStdin {
+            throw ValidationError("Cannot use both --dsl-file and --dsl-stdin.")
+        }
+        if dslFile == nil && !dslStdin {
+            throw ValidationError("Provide either --dsl-file <path> or --dsl-stdin.")
+        }
+        if let at {
+            _ = try parseGridPoint(at)
+        }
+    }
+
+    func run() throws {
+        let service = DiagramAutomationService()
+        let dsl = try DSLInput.load(file: dslFile, stdin: dslStdin)
+        let targetURL = project.map(URL.init(fileURLWithPath:))
+        let result = try service.mergeDiagram(
+            name: name,
+            dsl: dsl,
+            projectURL: targetURL,
+            intoGroupIdentifier: intoGroup,
+            offset: try at.map(parseGridPoint(_:))
+        )
+        print("Diagram '\(name)' merged at \(result.url.path)")
+        print("")
+        print("```")
+        print(result.ascii)
+        print("```")
+    }
+
+    private func parseGridPoint(_ rawValue: String) throws -> GridPoint {
+        let parts = rawValue.split(separator: ",", omittingEmptySubsequences: false)
+        guard parts.count == 2,
+              let column = Int(parts[0]),
+              let row = Int(parts[1])
+        else {
+            throw ValidationError("Expected --at in the form <col,row>.")
+        }
+        return GridPoint(column: column, row: row)
     }
 }
 

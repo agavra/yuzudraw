@@ -111,9 +111,17 @@ YuzuDraw uses a CLI instead of MCP. The CLI wraps the shared automation service 
 - `YuzuDraw/Automation/DiagramAutomationService.swift` — create/update/get/list/render behavior
 - `scripts/yuzudraw-cli.sh` — helper that finds (or builds) the latest `YuzuDrawCLI` binary
 
+### DSL Grammar Source of Truth
+- `YuzuDraw/Serialization/Grammar/YuzuDrawDSL.g4` is the source of truth for DSL syntax.
+- ANTLR-generated Swift files live in `YuzuDraw/Serialization/Generated/YuzuDraw/Serialization/Grammar/`.
+- Do not add manual side parsing or preprocessing in `DSLParser.swift` for syntax that belongs in the grammar.
+- When changing DSL syntax, update the `.g4` grammar first, regenerate the ANTLR output, and then update AST building / semantic analysis / serialization as needed.
+- The generated ANTLR Swift files require the repo's Swift 6 concurrency compatibility annotations (`@preconcurrency import Antlr4` and `nonisolated(unsafe)` on the shared static runtime state). Preserve those after regeneration.
+
 ### Commands
 - `create-diagram --name <name> [--project <path>] (--dsl-file <path> | --dsl-stdin)`
 - `update-diagram --name <name> [--project <path>] (--dsl-file <path> | --dsl-stdin)`
+- `merge-diagram --name <name> [--project <path>] [--into-group <group-id>] [--at <col,row>] (--dsl-file <path> | --dsl-stdin)`
 - `get-diagram --name <name> [--project <path>] [--format dsl|ascii|both]`
 - `list-diagrams [--workspace-dir <path>]`
 - `render-ascii (--dsl-file <path> | --dsl-stdin)`
@@ -123,9 +131,9 @@ When modifying any of the following, also update the corresponding components:
 
 | Change | Also update |
 |--------|-------------|
-| DSL syntax (parser/serializer) | `skills/draw/SKILL.md` and relevant reference files |
+| DSL syntax (grammar/parser/serializer) | `YuzuDraw/Serialization/Grammar/YuzuDrawDSL.g4`, regenerated files in `YuzuDraw/Serialization/Generated/...`, `skills/draw/SKILL.md`, and relevant reference files |
 | CLI command names, arguments, or behavior | `skills/draw/SKILL.md` and `skills/draw/references/flow.md` |
-| New shape types or properties | `DSLParser.swift`, `DSLSerializer.swift`, `skills/draw/references/components.md` |
+| New shape types or properties | `YuzuDraw/Serialization/Grammar/YuzuDrawDSL.g4`, regenerated ANTLR files, `DSLASTBuilder.swift`, `DSLSemanticAnalyzer.swift`, `DSLSerializer.swift`, `skills/draw/references/components.md` |
 
 ## Claude Code Skills (`skills/`)
 

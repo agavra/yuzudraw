@@ -14,6 +14,7 @@ Use this reference for workflows, pipelines, lifecycles, and ordered request pat
 - Branches should rejoin only when the merged path is conceptually meaningful.
 - Keep retry loops compact and local.
 - Avoid symmetry if it obscures order.
+- When a flow is only one lane inside a larger diagram, keep it under one logical `group` so it can later become a reusable scoped snippet.
 
 ### Arrow label gap sizing
 

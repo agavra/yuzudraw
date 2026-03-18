@@ -17,9 +17,15 @@ enum DSLSerializer {
                 else { continue }
                 emittedGroupIDs.insert(rootGroup.id)
                 serializeGroup(
-                    rootGroup, document: document, allShapes: allShapes, indent: 2, lines: &lines)
+                    rootGroup,
+                    document: document,
+                    allShapes: allShapes,
+                    indent: 2,
+                    parentOrigin: .zero,
+                    lines: &lines
+                )
             } else {
-                lines.append("  \(serializeShape(shape, allShapes: allShapes))")
+                lines.append("  \(serializeShape(shape, allShapes: allShapes, scopeOrigin: .zero))")
             }
         }
 
@@ -28,40 +34,62 @@ enum DSLSerializer {
 
     private static func serializeGroup(
         _ group: ShapeGroup, document: Document, allShapes: [AnyShape], indent: Int,
+        parentOrigin: GridPoint,
         lines: inout [String]
     ) {
         let pad = String(repeating: " ", count: indent)
-        lines.append("\(pad)group \"\(group.name)\"")
+        let effectiveOrigin = group.origin ?? parentOrigin
+        var groupLine = "\(pad)group \"\(group.name)\""
+        if let identifier = group.identifier {
+            groupLine += " id \(identifier)"
+        }
+        if let origin = group.origin {
+            let relativeOrigin = origin - parentOrigin
+            groupLine += " at \(relativeOrigin.column),\(relativeOrigin.row)"
+        }
+        lines.append(groupLine)
 
         // Nested child groups
         for child in group.children {
             serializeGroup(
-                child, document: document, allShapes: allShapes, indent: indent + 2, lines: &lines)
+                child,
+                document: document,
+                allShapes: allShapes,
+                indent: indent + 2,
+                parentOrigin: effectiveOrigin,
+                lines: &lines
+            )
         }
 
         // Direct shape members
         let shapePad = String(repeating: " ", count: indent + 2)
         for shapeID in group.shapeIDs {
             if let shape = document.findShape(id: shapeID) {
-                lines.append("\(shapePad)\(serializeShape(shape, allShapes: allShapes))")
+                lines.append(
+                    "\(shapePad)\(serializeShape(shape, allShapes: allShapes, scopeOrigin: effectiveOrigin))"
+                )
             }
         }
     }
 
-    private static func serializeShape(_ shape: AnyShape, allShapes: [AnyShape]) -> String {
+    private static func serializeShape(
+        _ shape: AnyShape,
+        allShapes: [AnyShape],
+        scopeOrigin: GridPoint
+    ) -> String {
         switch shape {
         case .rectangle(let rectangle):
-            return serializeRectangle(rectangle)
+            return serializeRectangle(rectangle, scopeOrigin: scopeOrigin)
         case .arrow(let arrow):
-            return serializeArrow(arrow, allShapes: allShapes)
+            return serializeArrow(arrow, allShapes: allShapes, scopeOrigin: scopeOrigin)
         case .text(let text):
-            return serializeText(text)
+            return serializeText(text, scopeOrigin: scopeOrigin)
         case .pencil(let pencil):
-            return serializePencil(pencil)
+            return serializePencil(pencil, scopeOrigin: scopeOrigin)
         }
     }
 
-    private static func serializeRectangle(_ rectangle: RectangleShape) -> String {
+    private static func serializeRectangle(_ rectangle: RectangleShape, scopeOrigin: GridPoint) -> String {
         let escapedLabel = rectangle.label.replacingOccurrences(of: "\n", with: "\\n")
         var result = "rect \"\(escapedLabel)\""
 
@@ -70,8 +98,9 @@ enum DSLSerializer {
             result += " id \(name)"
         }
 
+        let relativeOrigin = rectangle.origin - scopeOrigin
         result +=
-            " at \(rectangle.origin.column),\(rectangle.origin.row) size \(rectangle.size.width)x\(rectangle.size.height)"
+            " at \(relativeOrigin.column),\(relativeOrigin.row) size \(rectangle.size.width)x\(rectangle.size.height)"
 
         // Style: omit when default (single)
         if rectangle.strokeStyle != .single {
@@ -149,11 +178,23 @@ enum DSLSerializer {
         return result
     }
 
-    private static func serializeArrow(_ arrow: ArrowShape, allShapes: [AnyShape]) -> String {
+    private static func serializeArrow(
+        _ arrow: ArrowShape,
+        allShapes: [AnyShape],
+        scopeOrigin: GridPoint
+    ) -> String {
         let startStr = serializeEndpoint(
-            point: arrow.start, attachment: arrow.startAttachment, allShapes: allShapes)
+            point: arrow.start,
+            attachment: arrow.startAttachment,
+            allShapes: allShapes,
+            scopeOrigin: scopeOrigin
+        )
         let endStr = serializeEndpoint(
-            point: arrow.end, attachment: arrow.endAttachment, allShapes: allShapes)
+            point: arrow.end,
+            attachment: arrow.endAttachment,
+            allShapes: allShapes,
+            scopeOrigin: scopeOrigin
+        )
 
         var result = "arrow from \(startStr) to \(endStr)"
 
@@ -179,7 +220,10 @@ enum DSLSerializer {
     }
 
     private static func serializeEndpoint(
-        point: GridPoint, attachment: ArrowAttachment?, allShapes: [AnyShape]
+        point: GridPoint,
+        attachment: ArrowAttachment?,
+        allShapes: [AnyShape],
+        scopeOrigin: GridPoint
     ) -> String {
         if let attachment,
             let rectangle = findRectangleByID(attachment.shapeID, in: allShapes)
@@ -187,7 +231,8 @@ enum DSLSerializer {
             let ref = rectangle.name ?? rectangle.label.replacingOccurrences(of: "\n", with: "\\n")
             return "\"\(ref)\".\(attachment.side.rawValue)"
         }
-        return "\(point.column),\(point.row)"
+        let relativePoint = point - scopeOrigin
+        return "\(relativePoint.column),\(relativePoint.row)"
     }
 
     private static func findRectangleByID(_ id: UUID, in shapes: [AnyShape]) -> RectangleShape? {
@@ -199,18 +244,20 @@ enum DSLSerializer {
         return nil
     }
 
-    private static func serializeText(_ text: TextShape) -> String {
+    private static func serializeText(_ text: TextShape, scopeOrigin: GridPoint) -> String {
         let escaped = text.text.replacingOccurrences(of: "\n", with: "\\n")
-        var result = "text \"\(escaped)\" at \(text.origin.column),\(text.origin.row)"
+        let relativeOrigin = text.origin - scopeOrigin
+        var result = "text \"\(escaped)\" at \(relativeOrigin.column),\(relativeOrigin.row)"
         if let textColor = text.textColor {
             result += " textColor \(textColor.hexString)"
         }
         return result
     }
 
-    private static func serializePencil(_ pencil: PencilShape) -> String {
+    private static func serializePencil(_ pencil: PencilShape, scopeOrigin: GridPoint) -> String {
+        let relativeOrigin = pencil.origin - scopeOrigin
         var result =
-            "pencil at \(pencil.origin.column),\(pencil.origin.row)"
+            "pencil at \(relativeOrigin.column),\(relativeOrigin.row)"
         let sortedCells = pencil.cells.sorted {
             ($0.key.row, $0.key.column) < ($1.key.row, $1.key.column)
         }

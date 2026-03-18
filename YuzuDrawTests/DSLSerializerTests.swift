@@ -287,6 +287,77 @@ struct DSLSerializerTests {
         #expect(dsl.contains("rect \"B\""))
     }
 
+    @Test func should_serialize_group_identifier_and_relative_origin() {
+        let rect = RectangleShape(
+            name: "api",
+            origin: GridPoint(column: 10, row: 4),
+            size: GridSize(width: 10, height: 3),
+            label: "API"
+        )
+        let doc = Document(
+            shapes: [.rectangle(rect)],
+            groups: [
+                ShapeGroup(
+                    name: "Backend",
+                    identifier: "backend",
+                    origin: GridPoint(column: 10, row: 4),
+                    shapeIDs: [rect.id]
+                )
+            ]
+        )
+
+        let dsl = DSLSerializer.serialize(doc)
+
+        #expect(dsl.contains("group \"Backend\" id backend at 10,4"))
+        #expect(dsl.contains("rect \"API\" id api at 0,0 size 10x3"))
+    }
+
+    @Test func should_serialize_nested_group_origins_relative_to_parent() {
+        let rect = RectangleShape(
+            name: "api",
+            origin: GridPoint(column: 6, row: 4),
+            size: GridSize(width: 10, height: 3),
+            label: "API"
+        )
+        let child = ShapeGroup(
+            name: "Payments",
+            identifier: "payments",
+            origin: GridPoint(column: 6, row: 4),
+            shapeIDs: [rect.id]
+        )
+        let parent = ShapeGroup(
+            name: "Platform",
+            identifier: "platform",
+            origin: GridPoint(column: 2, row: 1),
+            children: [child]
+        )
+        let doc = Document(shapes: [.rectangle(rect)], groups: [parent])
+
+        let dsl = DSLSerializer.serialize(doc)
+
+        #expect(dsl.contains("group \"Platform\" id platform at 2,1"))
+        #expect(dsl.contains("group \"Payments\" id payments at 4,3"))
+        #expect(dsl.contains("rect \"API\" id api at 0,0 size 10x3"))
+    }
+
+    @Test func should_roundtrip_scoped_groups() throws {
+        let dsl = """
+          group "Platform" id platform at 2,1
+            group "Payments" id payments at 4,3
+              rect "API" id api at 0,0 size 10x3
+        """
+
+        let doc = try DSLParser.parse(dsl)
+        let serialized = DSLSerializer.serialize(doc)
+        let reparsed = try DSLParser.parse(serialized)
+
+        #expect(reparsed.groups.count == 1)
+        #expect(reparsed.groups[0].identifier == "platform")
+        #expect(reparsed.groups[0].origin == GridPoint(column: 2, row: 1))
+        #expect(reparsed.groups[0].children[0].identifier == "payments")
+        #expect(reparsed.groups[0].children[0].origin == GridPoint(column: 6, row: 4))
+    }
+
     @Test func should_serialize_rectangle_with_float() {
         // given
         var doc = Document()

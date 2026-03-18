@@ -94,6 +94,76 @@ struct DSLParserTests {
         #expect(doc.groups[0].shapeIDs.count == 2)
     }
 
+    @Test func should_parse_group_identifier_and_origin() throws {
+        let dsl = """
+            group "Backend" id backend at 10,4
+              rect "API" id api at 0,0 size 10x3
+            """
+
+        let doc = try DSLParser.parse(dsl)
+
+        #expect(doc.groups.count == 1)
+        #expect(doc.groups[0].identifier == "backend")
+        #expect(doc.groups[0].origin == GridPoint(column: 10, row: 4))
+
+        guard case .rectangle(let rectangle) = doc.shapes[0] else {
+            Issue.record("Expected rectangle shape")
+            return
+        }
+        #expect(rectangle.origin == GridPoint(column: 10, row: 4))
+    }
+
+    @Test func should_resolve_nested_group_local_coordinates() throws {
+        let dsl = """
+            group "Platform" id platform at 2,1
+              group "Payments" id payments at 4,3
+                rect "API" id api at 0,0 size 10x3
+                text "worker" at 2,4
+            """
+
+        let doc = try DSLParser.parse(dsl)
+
+        #expect(doc.groups.count == 1)
+        #expect(doc.groups[0].origin == GridPoint(column: 2, row: 1))
+        #expect(doc.groups[0].children.count == 1)
+        #expect(doc.groups[0].children[0].origin == GridPoint(column: 6, row: 4))
+
+        guard case .rectangle(let rectangle) = doc.shapes[0],
+              case .text(let text) = doc.shapes[1]
+        else {
+            Issue.record("Expected rectangle and text shapes")
+            return
+        }
+        #expect(rectangle.origin == GridPoint(column: 6, row: 4))
+        #expect(text.origin == GridPoint(column: 8, row: 8))
+    }
+
+    @Test func should_resolve_group_and_root_references() throws {
+        let dsl = """
+            group "Payments" id payments at 10,2
+              rect "API" id api at 0,0 size 10x3
+            group "Search" id search at payments+20,0
+              rect "Indexer" id idx at 0,0 size 12x3
+              text "global" at root+1,1
+            """
+
+        let doc = try DSLParser.parse(dsl)
+
+        #expect(doc.groups.count == 2)
+        #expect(doc.groups[1].origin == GridPoint(column: 30, row: 2))
+
+        guard case .rectangle(let api) = doc.shapes[0],
+              case .rectangle(let indexer) = doc.shapes[1],
+              case .text(let text) = doc.shapes[2]
+        else {
+            Issue.record("Expected rectangle and text shapes")
+            return
+        }
+        #expect(api.origin == GridPoint(column: 10, row: 2))
+        #expect(indexer.origin == GridPoint(column: 30, row: 2))
+        #expect(text.origin == GridPoint(column: 1, row: 1))
+    }
+
     @Test func should_parse_text_and_pencil_shapes() throws {
         let dsl = """
             text "Client" at 40,3 textColor #FF0000

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import YuzuDraw
@@ -286,5 +287,56 @@ struct DocumentTests {
         // then
         #expect(moved)
         #expect(doc.shapes.map(\.id) == [targetA.id, source.id, targetB.id])
+    }
+
+    @Test func should_merge_diagram_with_offset_into_existing_group() throws {
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let service = DiagramAutomationService()
+        let targetURL = tempDirectory.appendingPathComponent("system").appendingPathExtension("yuzudraw")
+
+        _ = try service.createDiagram(
+            name: "system",
+            dsl: """
+                group "Platform" id platform at 2,1
+                  rect "Shell" id shell at 0,0 size 20x5
+                """,
+            outputURL: targetURL
+        )
+
+        _ = try service.mergeDiagram(
+            name: "system",
+            dsl: """
+                group "Payments" id payments at 0,0
+                  rect "API" id api at 0,0 size 10x3
+                rect "Ungrouped" id loose at 2,5 size 10x3
+                """,
+            projectURL: targetURL,
+            intoGroupIdentifier: "platform",
+            offset: GridPoint(column: 30, row: 4)
+        )
+
+        let merged = try ProjectFileManager.load(from: targetURL)
+        #expect(merged.groups.count == 1)
+        #expect(merged.groups[0].children.count == 1)
+        #expect(merged.groups[0].children[0].identifier == "payments")
+        #expect(merged.groups[0].children[0].origin == GridPoint(column: 30, row: 4))
+
+        let childShapeIDs = Set(merged.groups[0].children[0].allShapeIDs)
+        let directPlatformShapeIDs = Set(merged.groups[0].shapeIDs)
+        let childShapes = merged.shapes.filter { childShapeIDs.contains($0.id) }
+        let directShapes = merged.shapes.filter { directPlatformShapeIDs.contains($0.id) }
+
+        #expect(childShapes.count == 1)
+        #expect(directShapes.count == 2)
+
+        guard case .rectangle(let nestedRect) = childShapes[0] else {
+            Issue.record("Expected nested rectangle")
+            return
+        }
+        #expect(nestedRect.origin == GridPoint(column: 30, row: 4))
     }
 }

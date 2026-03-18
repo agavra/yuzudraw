@@ -5,18 +5,18 @@ enum DSLASTBuilder {
     static func build(from context: YuzuDrawDSLParser.DocumentContext, source: String) throws
         -> DSLDocumentNode
     {
-        let indents = source.components(separatedBy: "\n").compactMap { line -> Int? in
+        let nonEmptyLines = source.components(separatedBy: "\n").compactMap { line -> String? in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty else { return nil }
-            return line.prefix(while: { $0 == " " }).count
+            return trimmed.isEmpty ? nil : line
         }
 
         var indentIndex = 0
         var statements: [DSLStatementNode] = []
         for statementContext in context.statement() {
-            let indent = indentIndex < indents.count ? indents[indentIndex] : 0
+            let rawLine = indentIndex < nonEmptyLines.count ? nonEmptyLines[indentIndex] : ""
+            let indent = rawLine.prefix(while: { $0 == " " }).count
             indentIndex += 1
-            if let node = try buildStatement(from: statementContext, indent: indent) {
+            if let node = try buildStatement(from: statementContext, indent: indent, rawLine: rawLine) {
                 statements.append(node)
             }
         }
@@ -25,13 +25,14 @@ enum DSLASTBuilder {
 
     private static func buildStatement(
         from context: YuzuDrawDSLParser.StatementContext,
-        indent: Int
+        indent: Int,
+        rawLine _: String
     ) throws -> DSLStatementNode? {
         if let layer = context.layerStatement() {
             return .layer(DSLLayerNode(name: try string(from: layer.stringValue()), indent: indent))
         }
         if let group = context.groupStatement() {
-            return .group(DSLGroupNode(name: try string(from: group.stringValue()), indent: indent))
+            return .group(try buildGroup(from: group, indent: indent))
         }
         if let rectangle = context.rectangleStatement() {
             return .rectangle(try buildRectangle(from: rectangle, indent: indent))
@@ -46,6 +47,18 @@ enum DSLASTBuilder {
             return .pencil(try buildPencil(from: pencil, indent: indent))
         }
         return nil
+    }
+
+    private static func buildGroup(
+        from context: YuzuDrawDSLParser.GroupStatementContext,
+        indent: Int
+    ) throws -> DSLGroupNode {
+        DSLGroupNode(
+            name: try string(from: context.stringValue()),
+            id: context.idClause()?.identifier()?.getText(),
+            position: try context.atClause().flatMap { try position(from: $0.positionExpr()) },
+            indent: indent
+        )
     }
 
     private static func buildRectangle(

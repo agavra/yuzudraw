@@ -127,6 +127,24 @@ enum AnyShape: Codable, Equatable, Identifiable, Sendable {
         }
     }
 
+    func offset(by delta: GridPoint) -> AnyShape {
+        switch self {
+        case .rectangle(var shape):
+            shape.origin = shape.origin + delta
+            return .rectangle(shape)
+        case .arrow(var shape):
+            shape.start = shape.start + delta
+            shape.end = shape.end + delta
+            return .arrow(shape)
+        case .text(var shape):
+            shape.origin = shape.origin + delta
+            return .text(shape)
+        case .pencil(var shape):
+            shape.origin = shape.origin + delta
+            return .pencil(shape)
+        }
+    }
+
     // MARK: - Resize handles
 
     var resizeHandlePlacements: [ResizeHandlePlacement] {

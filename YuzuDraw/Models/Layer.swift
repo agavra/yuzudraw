@@ -6,12 +6,23 @@ private let layerPanelLog = OSLog(subsystem: "com.yuzudraw", category: "LayerPan
 struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     var name: String
+    var identifier: String?
+    var origin: GridPoint?
     var shapeIDs: [UUID]
     var children: [ShapeGroup]
 
-    init(id: UUID = UUID(), name: String, shapeIDs: [UUID] = [], children: [ShapeGroup] = []) {
+    init(
+        id: UUID = UUID(),
+        name: String,
+        identifier: String? = nil,
+        origin: GridPoint? = nil,
+        shapeIDs: [UUID] = [],
+        children: [ShapeGroup] = []
+    ) {
         self.id = id
         self.name = name
+        self.identifier = identifier
+        self.origin = origin
         self.shapeIDs = shapeIDs
         self.children = children
     }
@@ -21,12 +32,14 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
+        identifier = try container.decodeIfPresent(String.self, forKey: .identifier)
+        origin = try container.decodeIfPresent(GridPoint.self, forKey: .origin)
         shapeIDs = try container.decode([UUID].self, forKey: .shapeIDs)
         children = try container.decodeIfPresent([ShapeGroup].self, forKey: .children) ?? []
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, shapeIDs, children
+        case id, name, identifier, origin, shapeIDs, children
     }
 
     var allShapeIDs: Set<UUID> {
@@ -73,6 +86,16 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         return nil
     }
 
+    func findGroupByIdentifier(_ identifier: String) -> ShapeGroup? {
+        if self.identifier == identifier { return self }
+        for child in children {
+            if let found = child.findGroupByIdentifier(identifier) {
+                return found
+            }
+        }
+        return nil
+    }
+
     mutating func removeShapeRecursively(id shapeID: UUID) {
         shapeIDs.removeAll { $0 == shapeID }
         for index in children.indices {
@@ -104,6 +127,21 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         return false
     }
 
+    mutating func appendChildGroupsRecursively(_ newGroups: [ShapeGroup], groupID: UUID) -> Bool {
+        if id == groupID {
+            children.append(contentsOf: newGroups)
+            return true
+        }
+
+        for index in children.indices {
+            if children[index].appendChildGroupsRecursively(newGroups, groupID: groupID) {
+                return true
+            }
+        }
+
+        return false
+    }
+
     mutating func insertChildGroupNextTo(_ newGroup: ShapeGroup, siblingID: UUID) -> Bool {
         if let index = children.firstIndex(where: { $0.id == siblingID }) {
             children.insert(newGroup, at: index + 1)
@@ -121,6 +159,8 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         ShapeGroup(
             id: UUID(),
             name: name,
+            identifier: identifier,
+            origin: origin,
             shapeIDs: shapeIDs.compactMap { idMap[$0] },
             children: children.map { $0.remappingIDs(idMap) }
         )
@@ -139,6 +179,15 @@ struct ShapeGroup: Codable, Equatable, Identifiable, Sendable {
         }
 
         return false
+    }
+
+    mutating func offsetRecursively(by delta: GridPoint) {
+        if let origin {
+            self.origin = origin + delta
+        }
+        for index in children.indices {
+            children[index].offsetRecursively(by: delta)
+        }
     }
 }
 

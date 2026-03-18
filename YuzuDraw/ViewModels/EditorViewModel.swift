@@ -1896,6 +1896,8 @@ final class EditorViewModel {
         return ShapeGroup(
             id: group.id,
             name: group.name,
+            identifier: group.identifier,
+            origin: group.origin,
             shapeIDs: selectedShapeIDs,
             children: selectedChildren
         )

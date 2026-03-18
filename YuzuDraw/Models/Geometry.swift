@@ -5,6 +5,14 @@ struct GridPoint: Codable, Equatable, Hashable, Sendable {
     var row: Int
 
     static let zero = GridPoint(column: 0, row: 0)
+
+    static func + (lhs: GridPoint, rhs: GridPoint) -> GridPoint {
+        GridPoint(column: lhs.column + rhs.column, row: lhs.row + rhs.row)
+    }
+
+    static func - (lhs: GridPoint, rhs: GridPoint) -> GridPoint {
+        GridPoint(column: lhs.column - rhs.column, row: lhs.row - rhs.row)
+    }
 }
 
 struct GridSize: Codable, Equatable, Hashable, Sendable {

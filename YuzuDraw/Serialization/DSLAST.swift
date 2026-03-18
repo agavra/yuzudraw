@@ -31,6 +31,8 @@ struct DSLLayerNode: Sendable {
 
 struct DSLGroupNode: Sendable {
     var name: String
+    var id: String?
+    var position: DSLPositionSpec?
     var indent: Int
 }
 

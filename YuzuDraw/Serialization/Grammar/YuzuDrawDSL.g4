@@ -19,7 +19,7 @@ layerStatement
     ;
 
 groupStatement
-    : GROUP stringValue
+    : GROUP stringValue idClause? atClause?
     ;
 
 rectangleStatement

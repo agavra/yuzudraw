@@ -6,6 +6,7 @@ enum DiagramAutomationError: LocalizedError {
     case diagramAlreadyExists(URL)
     case dslParseError(String)
     case invalidPath(String)
+    case groupNotFound(String)
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum DiagramAutomationError: LocalizedError {
             "DSL parse error: \(detail)"
         case .invalidPath(let path):
             "Invalid path: \(path)"
+        case .groupNotFound(let identifier):
+            "Group not found: \(identifier)"
         }
     }
 }
@@ -39,6 +42,40 @@ struct DiagramAutomationService {
         let targetURL = try resolveExistingDiagramURL(name: name, projectURL: projectURL)
         try ProjectFileManager.save(document: document, to: targetURL)
         return (targetURL, renderDocument(document))
+    }
+
+    func mergeDiagram(
+        name: String,
+        dsl: String,
+        projectURL: URL?,
+        intoGroupIdentifier: String?,
+        offset: GridPoint?
+    ) throws -> (url: URL, ascii: String) {
+        let targetURL = try resolveExistingDiagramURL(name: name, projectURL: projectURL)
+        var existing = try ProjectFileManager.load(from: targetURL)
+        var incoming = try parseDSL(dsl)
+
+        if let offset {
+            incoming.offset(by: offset)
+        }
+
+        existing.shapes.append(contentsOf: incoming.shapes)
+
+        if let intoGroupIdentifier {
+            guard let targetGroup = existing.findGroupByIdentifier(intoGroupIdentifier) else {
+                throw DiagramAutomationError.groupNotFound(intoGroupIdentifier)
+            }
+            _ = existing.appendChildGroups(incoming.groups, toGroupID: targetGroup.id)
+            if !incoming.ungroupedShapes.isEmpty {
+                let shapeIDs = incoming.ungroupedShapes.map(\.id)
+                _ = existing.appendShapesToGroup(ids: shapeIDs, groupID: targetGroup.id)
+            }
+        } else {
+            existing.groups.append(contentsOf: incoming.groups)
+        }
+
+        try ProjectFileManager.save(document: existing, to: targetURL)
+        return (targetURL, renderDocument(existing))
     }
 
     func getDiagram(name: String, projectURL: URL?) throws -> (url: URL, dsl: String, ascii: String) {

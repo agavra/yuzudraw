@@ -29,6 +29,7 @@ A component diagram should make it immediately obvious which elements are **cont
 - Arrange components so the dependency direction is obvious (top-to-bottom or left-to-right).
 - Keep peers aligned in rows or columns with even spacing.
 - Group related components in sub-boundaries when there are 2+ logical tiers (e.g., services vs data stores). This is important — when a diagram has both services and data stores, wrap the data stores in a "Data Layer" sub-boundary.
+- For subsystem snippets that may be appended later, keep one top-level logical `group` around the whole subsystem so local coordinates can be introduced without restructuring the diagram.
 - Distinguish outside elements from internal components by placement and border weight.
 - For dense internals, move labels outside the box or into captions rather than writing through the component.
 - When showing many homogeneous internals, use repeated tiles instead of fully labeled boxes.
@@ -66,6 +67,18 @@ arrow from fe to api
 arrow from api.left to config.right
 arrow from api.bottom to worker.top
 ```
+
+### Proposed vNext appendable subsystem
+```dsl
+group "App" id app at 2,1
+  rect "App" id app_frame at 0,0 size 64x16 style double textOnBorder valign top shadow light
+  rect "Frontend" id fe at 3,3
+  rect "API" id api right-of fe gap 10
+  rect "Worker" id worker below api gap 3
+  rect "Config Store" id config below fe gap 3 fill solid char "▒"
+```
+
+Use this once scoped group origins ship. The whole subsystem can then be merged into larger diagrams with one offset.
 
 ### Dense tiled internals
 ```dsl
