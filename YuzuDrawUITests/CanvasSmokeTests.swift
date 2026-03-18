@@ -1,14 +1,14 @@
 import XCTest
 
 @MainActor
-final class CanvasEndToEndUITests: XCTestCase {
+final class CanvasSmokeTests: XCTestCase {
     private enum UIID {
         static let newProjectButton = "welcome.new-project"
         static let rectangleToolButton = "toolbar.tool.rectangle"
         static let canvasASCII = "canvas.ascii"
     }
 
-    func test_canDrawRectangleThroughCanvas() {
+    func test_smoke_canDrawRectangleThroughCanvas() {
         let app = XCUIApplication()
         app.launchEnvironment["YUZUDRAW_UI_TESTING"] = "1"
         app.launch()

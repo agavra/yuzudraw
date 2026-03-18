@@ -32,6 +32,7 @@ final class EditorViewModel {
 
     private static let shapeClipboardType = NSPasteboard.PasteboardType("com.yuzudraw.shapes+json")
     private static let pasteOffset = GridPoint(column: 2, row: 1)
+    private let clipboardClient: ClipboardClient
 
     var document: Document
     var canvas: Canvas
@@ -195,8 +196,12 @@ final class EditorViewModel {
         }
     }
 
-    init(document: Document = Document()) {
+    init(
+        document: Document = Document(),
+        clipboardClient: ClipboardClient = SystemClipboardClient()
+    ) {
         self.document = document
+        self.clipboardClient = clipboardClient
         self.canvas = Canvas(size: document.canvasSize)
         expandedItemIDs = []
         rerender()
@@ -1702,18 +1707,17 @@ final class EditorViewModel {
 
     func canPasteShapesFromClipboard() -> Bool {
         guard !isEditingText,
-            let payloadData = clipboardPayloadData(from: NSPasteboard.general)
+            let payloadData = clipboardPayloadData(from: clipboardClient)
         else { return false }
         return decodeShapeClipboardPayload(from: payloadData) != nil
     }
 
     func copySelectedShapesToClipboard() {
         guard let payloadData = selectedShapesClipboardPayloadData() else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setData(payloadData, forType: Self.shapeClipboardType)
+        clipboardClient.clearContents()
+        clipboardClient.setData(payloadData, forType: Self.shapeClipboardType)
         if let payloadString = String(data: payloadData, encoding: .utf8) {
-            pasteboard.setString(payloadString, forType: .string)
+            clipboardClient.setString(payloadString, forType: .string)
         }
         lastPastedPayloadData = nil
         consecutivePasteCount = 0
@@ -1721,7 +1725,7 @@ final class EditorViewModel {
 
     @discardableResult
     func pasteShapesFromClipboard() -> Bool {
-        guard let payloadData = clipboardPayloadData(from: NSPasteboard.general) else { return false }
+        guard let payloadData = clipboardPayloadData(from: clipboardClient) else { return false }
         return pasteShapes(fromClipboardPayloadData: payloadData)
     }
 
@@ -1808,16 +1812,14 @@ final class EditorViewModel {
 
     func copySelectionAsPlainTextToClipboard() {
         guard let text = selectionOrCanvasPlainText() else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        clipboardClient.clearContents()
+        clipboardClient.setString(text, forType: .string)
     }
 
     func copySelectionAsDSLToClipboard() {
         guard let dsl = selectionDSL() else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(dsl, forType: .string)
+        clipboardClient.clearContents()
+        clipboardClient.setString(dsl, forType: .string)
     }
 
     func copySelectionAsPNGToClipboard(scale: Int = 1, backgroundColor: ShapeColor? = nil) {
@@ -1826,9 +1828,8 @@ final class EditorViewModel {
             let data = pngData(from: canvas, scale: scale, backgroundColor: backgroundColor)
         else { return }
 
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setData(data, forType: .png)
+        clipboardClient.clearContents()
+        clipboardClient.setData(data, forType: .png)
     }
 
     func selectionOrCanvasPlainText() -> String? {
@@ -1902,11 +1903,11 @@ final class EditorViewModel {
         return exportCanvas
     }
 
-    private func clipboardPayloadData(from pasteboard: NSPasteboard) -> Data? {
-        if let data = pasteboard.data(forType: Self.shapeClipboardType) {
+    private func clipboardPayloadData(from clipboard: ClipboardClient) -> Data? {
+        if let data = clipboard.data(forType: Self.shapeClipboardType) {
             return data
         }
-        if let string = pasteboard.string(forType: .string) {
+        if let string = clipboard.string(forType: .string) {
             return string.data(using: .utf8)
         }
         return nil

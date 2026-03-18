@@ -1,7 +1,35 @@
+import AppKit
 import Foundation
 import Testing
 
 @testable import YuzuDraw
+
+@MainActor
+private final class TestClipboardClient: ClipboardClient {
+    var dataValues: [NSPasteboard.PasteboardType: Data] = [:]
+    var stringValues: [NSPasteboard.PasteboardType: String] = [:]
+
+    func clearContents() {
+        dataValues.removeAll()
+        stringValues.removeAll()
+    }
+
+    func setData(_ data: Data, forType type: NSPasteboard.PasteboardType) {
+        dataValues[type] = data
+    }
+
+    func data(forType type: NSPasteboard.PasteboardType) -> Data? {
+        dataValues[type]
+    }
+
+    func setString(_ string: String, forType type: NSPasteboard.PasteboardType) {
+        stringValues[type] = string
+    }
+
+    func string(forType type: NSPasteboard.PasteboardType) -> String? {
+        stringValues[type]
+    }
+}
 
 @MainActor
 struct EditorViewModelExportTests {
@@ -120,6 +148,185 @@ struct EditorViewModelExportTests {
         #expect(pastedTexts.count == 2)
         #expect(pastedTexts.contains { $0.origin == GridPoint(column: 7, row: 6) })
         #expect(pastedTexts.contains { $0.origin == GridPoint(column: 9, row: 7) })
+    }
+
+    @Test func should_copy_complex_grouped_selection_with_fake_clipboard_and_paste_with_remapped_ids_and_offsets() {
+        // given
+        let clipboard = TestClipboardClient()
+        let service = RectangleShape(
+            origin: GridPoint(column: 10, row: 5),
+            size: GridSize(width: 14, height: 5),
+            strokeStyle: .double,
+            label: "Service",
+            hasShadow: true,
+            shadowStyle: .light,
+            shadowOffsetX: 1,
+            shadowOffsetY: 1
+        )
+        let database = RectangleShape(
+            origin: GridPoint(column: 34, row: 6),
+            size: GridSize(width: 12, height: 5),
+            strokeStyle: .rounded,
+            label: "DB"
+        )
+        let note = TextShape(
+            origin: GridPoint(column: 13, row: 14),
+            text: "sync\nnightly"
+        )
+        let arrow = ArrowShape(
+            start: service.attachmentPoint(for: .right),
+            end: database.attachmentPoint(for: .left),
+            label: "events",
+            strokeStyle: .heavy,
+            startAttachment: ArrowAttachment(shapeID: service.id, side: .right),
+            endAttachment: ArrowAttachment(shapeID: database.id, side: .left)
+        )
+        let outside = RectangleShape(
+            origin: GridPoint(column: 0, row: 0),
+            size: GridSize(width: 6, height: 3),
+            label: "Outside"
+        )
+        let copiedGroup = ShapeGroup(
+            name: "Subsystem",
+            shapeIDs: [service.id, database.id, arrow.id, note.id]
+        )
+        let rootGroup = ShapeGroup(
+            name: "Root",
+            shapeIDs: [outside.id],
+            children: [copiedGroup]
+        )
+        let document = Document(
+            shapes: [
+                .rectangle(outside),
+                .rectangle(service),
+                .rectangle(database),
+                .arrow(arrow),
+                .text(note),
+            ],
+            groups: [rootGroup]
+        )
+        let viewModel = EditorViewModel(document: document, clipboardClient: clipboard)
+        viewModel.selectedShapeIDs = [service.id, database.id, arrow.id, note.id]
+
+        let originalSelectionText = viewModel.selectionOrCanvasPlainText()
+
+        // when
+        viewModel.copySelectedShapesToClipboard()
+
+        let clipboardString = clipboard.string(forType: .string)
+        let clipboardData = clipboard.data(forType: NSPasteboard.PasteboardType("com.yuzudraw.shapes+json"))
+        let canPasteAfterCopy = viewModel.canPasteShapesFromClipboard()
+
+        let shapeIDsBeforeFirstPaste = Set(viewModel.document.shapes.map(\.id))
+        let didPasteFirst = viewModel.pasteShapesFromClipboard()
+        let firstPasteIDs = Set(viewModel.selectedShapeIDs)
+        let shapeIDsAfterFirstPaste = Set(viewModel.document.shapes.map(\.id))
+
+        let didPasteSecond = viewModel.pasteShapesFromClipboard()
+        let secondPasteIDs = Set(viewModel.selectedShapeIDs)
+
+        // then
+        guard
+            let clipboardString,
+            let clipboardStringData = clipboardString.data(using: .utf8),
+            let clipboardJSONObject = try? JSONSerialization.jsonObject(with: clipboardStringData) as? [String: Any],
+            let clipboardShapes = clipboardJSONObject["shapes"] as? [[String: Any]]
+        else {
+            Issue.record("Expected clipboard JSON string")
+            return
+        }
+
+        #expect(clipboardData != nil)
+        #expect(canPasteAfterCopy)
+        #expect(didPasteFirst)
+        #expect(didPasteSecond)
+        #expect(clipboardJSONObject["sourceGroupID"] != nil)
+        #expect(clipboardShapes.count == 4)
+        #expect(clipboardShapes.compactMap { $0["type"] as? String }.filter { $0 == "rectangle" }.count == 2)
+        #expect(clipboardShapes.compactMap { $0["type"] as? String }.filter { $0 == "arrow" }.count == 1)
+        #expect(clipboardShapes.compactMap { $0["type"] as? String }.filter { $0 == "text" }.count == 1)
+        #expect(viewModel.document.shapes.count == 13)
+        #expect(firstPasteIDs.count == 4)
+        #expect(secondPasteIDs.count == 4)
+        #expect(firstPasteIDs.isDisjoint(with: [service.id, database.id, arrow.id, note.id]))
+        #expect(secondPasteIDs.isDisjoint(with: [service.id, database.id, arrow.id, note.id]))
+        #expect(firstPasteIDs.isDisjoint(with: secondPasteIDs))
+        #expect(firstPasteIDs == shapeIDsAfterFirstPaste.subtracting(shapeIDsBeforeFirstPaste))
+        #expect(secondPasteIDs == Set(viewModel.document.shapes.map(\.id)).subtracting(shapeIDsAfterFirstPaste))
+
+        let firstPastedShapes = viewModel.document.shapes.filter { firstPasteIDs.contains($0.id) }
+        let secondPastedShapes = viewModel.document.shapes.filter { secondPasteIDs.contains($0.id) }
+
+        guard
+            let firstService = firstPastedShapes.compactMap({ shape -> RectangleShape? in
+                guard case .rectangle(let rectangle) = shape, rectangle.label == "Service" else { return nil }
+                return rectangle
+            }).first,
+            let firstDatabase = firstPastedShapes.compactMap({ shape -> RectangleShape? in
+                guard case .rectangle(let rectangle) = shape, rectangle.label == "DB" else { return nil }
+                return rectangle
+            }).first,
+            let firstArrow = firstPastedShapes.compactMap({ shape -> ArrowShape? in
+                guard case .arrow(let arrow) = shape else { return nil }
+                return arrow
+            }).first,
+            let firstNote = firstPastedShapes.compactMap({ shape -> TextShape? in
+                guard case .text(let text) = shape else { return nil }
+                return text
+            }).first,
+            let secondService = secondPastedShapes.compactMap({ shape -> RectangleShape? in
+                guard case .rectangle(let rectangle) = shape, rectangle.label == "Service" else { return nil }
+                return rectangle
+            }).first,
+            let secondDatabase = secondPastedShapes.compactMap({ shape -> RectangleShape? in
+                guard case .rectangle(let rectangle) = shape, rectangle.label == "DB" else { return nil }
+                return rectangle
+            }).first,
+            let secondArrow = secondPastedShapes.compactMap({ shape -> ArrowShape? in
+                guard case .arrow(let arrow) = shape else { return nil }
+                return arrow
+            }).first,
+            let secondNote = secondPastedShapes.compactMap({ shape -> TextShape? in
+                guard case .text(let text) = shape else { return nil }
+                return text
+            }).first
+        else {
+            Issue.record("Expected pasted rectangles, arrow, and text")
+            return
+        }
+
+        #expect(firstService.origin == GridPoint(column: 12, row: 6))
+        #expect(firstDatabase.origin == GridPoint(column: 36, row: 7))
+        #expect(firstNote.origin == GridPoint(column: 15, row: 15))
+        #expect(firstArrow.start == GridPoint(column: arrow.start.column + 2, row: arrow.start.row + 1))
+        #expect(firstArrow.end == GridPoint(column: arrow.end.column + 2, row: arrow.end.row + 1))
+        #expect(firstArrow.startAttachment?.shapeID == firstService.id)
+        #expect(firstArrow.endAttachment?.shapeID == firstDatabase.id)
+
+        #expect(secondService.origin == GridPoint(column: 14, row: 7))
+        #expect(secondDatabase.origin == GridPoint(column: 38, row: 8))
+        #expect(secondNote.origin == GridPoint(column: 17, row: 16))
+        #expect(secondArrow.start == GridPoint(column: arrow.start.column + 4, row: arrow.start.row + 2))
+        #expect(secondArrow.end == GridPoint(column: arrow.end.column + 4, row: arrow.end.row + 2))
+        #expect(secondArrow.startAttachment?.shapeID == secondService.id)
+        #expect(secondArrow.endAttachment?.shapeID == secondDatabase.id)
+
+        viewModel.selectedShapeIDs = firstPasteIDs
+        #expect(viewModel.selectionOrCanvasPlainText() == originalSelectionText)
+
+        viewModel.selectedShapeIDs = secondPasteIDs
+        #expect(viewModel.selectionOrCanvasPlainText() == originalSelectionText)
+
+        guard
+            let updatedRoot = viewModel.document.groups.first(where: { $0.id == rootGroup.id }),
+            let updatedCopiedGroup = updatedRoot.children.first(where: { $0.id == copiedGroup.id })
+        else {
+            Issue.record("Expected original group hierarchy to be preserved")
+            return
+        }
+
+        #expect(Set(updatedCopiedGroup.shapeIDs).isSuperset(of: firstPasteIDs))
+        #expect(Set(updatedCopiedGroup.shapeIDs).isSuperset(of: secondPasteIDs))
     }
 
     @Test func should_preserve_left_routed_attached_arrow_when_copy_pasting_selection() throws {
