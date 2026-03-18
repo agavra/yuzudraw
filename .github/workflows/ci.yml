@@ -7,12 +7,6 @@ on:
   pull_request:
     branches-ignore:
       - site
-  workflow_dispatch:
-    inputs:
-      run_ui_tests:
-        description: 'Run UI smoke tests (requires macOS approval)'
-        type: boolean
-        default: false
 
 jobs:
   build-and-test:
@@ -56,7 +50,6 @@ jobs:
             test
 
       - name: Run UI Tests
-        if: inputs.run_ui_tests == true
         run: |
           xcodebuild \
             -project YuzuDraw.xcodeproj \
