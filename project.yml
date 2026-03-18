@@ -21,6 +21,20 @@ packages:
     url: https://github.com/antlr/antlr4
     from: "4.13.2"
 
+schemes:
+  YuzuDraw:
+    build:
+      targets:
+        YuzuDraw: all
+        YuzuDrawTests: [test]
+        YuzuDrawUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - YuzuDrawTests
+
 targets:
   YuzuDraw:
     type: application
