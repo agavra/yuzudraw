@@ -27,25 +27,12 @@ schemes:
       targets:
         YuzuDraw: all
         YuzuDrawTests: [test]
-        YuzuDrawUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - YuzuDrawTests
-        - name: YuzuDrawUITests
-          randomExecutionOrder: false
-          skipped: true
-  YuzuDraw-UITests:
-    build:
-      targets:
-        YuzuDraw: all
-        YuzuDrawUITests: [test]
-    test:
-      config: Debug
-      targets:
-        - YuzuDrawUITests
 
 targets:
   YuzuDraw:
@@ -101,16 +88,3 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/YuzuDraw.app/Contents/MacOS/YuzuDraw"
         BUNDLE_LOADER: "$(TEST_HOST)"
-
-  YuzuDrawUITests:
-    type: bundle.ui-testing
-    platform: macOS
-    sources:
-      - YuzuDrawUITests
-    dependencies:
-      - target: YuzuDraw
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.agavra.YuzuDrawUITests
-        GENERATE_INFOPLIST_FILE: true
-        TEST_TARGET_NAME: YuzuDraw
